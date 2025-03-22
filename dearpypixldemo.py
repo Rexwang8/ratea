@@ -14,7 +14,11 @@ import yaml
 import threading
 import pyperclip
 
+
+#region Helpers
+
 richPrintConsole = RichConsole()
+
 def MakeFilePath(path):
     # Make sure the folder exists
     if not os.path.exists(path):
@@ -96,9 +100,10 @@ def Settings_SaveCurrentSettings():
     WriteYaml(session["settingsPath"], settings)
 
 
+#endregion
 
 
-
+#region DataObject Classes
 
 # Defines one tea that has been purchased and may have reviews
 class StashedTea:
@@ -156,6 +161,46 @@ class Review:
         # calculate the final score
         self.finalScore = self.rating
 
+
+class TeaCategory:
+    name = ""
+    categoryType = ""
+    editable = False
+    color = ""
+    defaultValue = None
+    widthPixels = 100
+    categoryActsAs = None
+    def __init__(self, name, categoryType, editable, widthPixels=100):
+        self.name = name
+        self.categoryType = categoryType
+        self.editable = editable
+        if categoryType == "string":
+            self.defaultValue = ""
+        elif categoryType == "int":
+            self.defaultValue = 0
+        elif categoryType == "float":
+            self.defaultValue = 0.0
+        self.widthPixels = widthPixels
+        self.categoryActsAs = self.categoryType
+
+class ReviewCategory:
+    name = ""
+    categoryType = ""
+    editable = True
+    widthPixels = 100
+    defaultValue = ""
+    categoryActsAs = None
+    def __init__(self, name, categoryType, editable, widthPixels=100):
+        self.name = name
+        self.categoryType = categoryType
+        self.editable = editable
+        self.widthPixels = widthPixels
+        self.categoryActsAs = self.categoryType
+
+
+#endregion
+
+#region Window Classes
 class WindowBase:
     tag = 0
     dpgWindow = None
@@ -186,8 +231,7 @@ class WindowBase:
         self.create()
 
     def onResizedWindow(self, sender, data):
-        print("Resized Window")
-        print(sender, data)
+        RichPrintInfo("[RESIZE] Window resized")
     
     def create(self):
         self.onCreate()
@@ -199,7 +243,7 @@ class WindowBase:
         #dpg.add_item_resize_handler(callback=self.onResizedWindow, user_data=self.tag, parent=self.tag)
         self.windowDefintion(self.dpgWindow)
 
-        print(self.dpgWindow)
+        RichPrintInfo(f"Created window: {self.title} with tag: {self.tag} and exclusive: {self.exclusive}")
         return self.dpgWindow
     def getTag(self):
         return self.tag
@@ -209,8 +253,8 @@ class WindowBase:
             dpg.delete_item(self.tag)
         
     def refresh(self):
-        print(self.tag)
-        print(self.dpgWindow.tag)
+        # refresh the window
+        RichPrintInfo(f"[REFRESH] Refreshing window tag: {self.tag} title: {self.title}")
         self.onRefresh()
         dpg.delete_item(self.tag)
         self.create()
@@ -243,6 +287,13 @@ class WindowBase:
     def importYML(self, data):
         # import the window variables from array in string format
         pass
+
+    def resizeToWH(self, width, height):
+        self.width = width
+        self.height = height
+        if self.dpgWindow is not None and self.dpgWindow.exists():
+            dpg.set_item_width(self.tag, width)
+            dpg.set_item_height(self.tag, height)
 
 def Menu_Timer(sender, app_data, user_data):
     w = 225 * settings["UI_SCALE"]
@@ -442,10 +493,6 @@ class Window_Timer(WindowBase):
         #self.refresh()
 
 
-            
-
-
-
 def Menu_Settings():
     settingsWindow = Window_Settings("Settings", 500, 500, exclusive=True)
 
@@ -513,7 +560,6 @@ class Window_Stash_Reviews(WindowBase):
         allAttributes = {}
         teaID = user_data.id
         for item in self.addReviewList:
-            print(item)
             # If input text
             if type(item) == dp.InputText:
                 allAttributes[item.label] = item.get_value()
@@ -529,43 +575,78 @@ class Window_Stash_Reviews(WindowBase):
         self.refresh()
 
     def GenerateEditReviewWindow(self, sender, app_data, user_data):
-        print("Edit Review")
+        # Create a new window for editing the review
         editReviewWindow = dp.Window(label="Edit Review", width=500, height=500, modal=True, show=True)
-        editReviewWindowItems = list()
+        windowManager.addSubWindow(editReviewWindow)
+        editReviewWindowItems = dict()
         review = user_data
+        print(f"type of review: {type(review)}")
+        if review.attributes == None or review.attributes == "":
+            review.attributes = {}
+        if review.name == None or review.name == "":
+            # Get from name of parent
+            for i, tea in enumerate(TeaStash):
+                if tea.id == review.parentID:
+                    review.name = tea.name
+                    break
         with editReviewWindow:
             dp.Text("Edit Review")
-            dp.Text("Attributes")
-            defaultAttributes = review.attributes
-            AttributesItem = dp.InputText(label="Attributes", default_value=defaultAttributes)
-            dp.Text("Rating")
-            defaultRating = review.rating
-            RatingItem = dp.InputText(label="Rating", default_value=defaultRating)
-            dp.Text("Notes")
-            defaultNotes = review.notes
-            notesItem = dp.InputText(label="Notes", default_value=defaultNotes)
-
-            editReviewWindowItems.append(AttributesItem)
-            editReviewWindowItems.append(RatingItem)
-            editReviewWindowItems.append(notesItem)
-
+            for cat in TeaCategories:
+                # If the category is editable, add it to the window
+                if cat.editable:
+                    dp.Text(cat.name)
+                    defaultValue = None
+                    try:
+                        defaultValue = review.attributes[cat.name]
+                    except:
+                        defaultValue = f"{cat.defaultValue}"
+                    print(f"Default value: {defaultValue, type(defaultValue)}")
+                    
+                    # If the category is a string, int, float, or bool, add the appropriate input type
+                    if cat.categoryType == "string":
+                        editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=defaultValue)
+                    elif cat.categoryType == "int":
+                        editReviewWindowItems[cat.name] = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                    elif cat.categoryType == "float":
+                        editReviewWindowItems[cat.name] = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                    elif cat.categoryType == "bool":
+                        editReviewWindowItems[cat.name] = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
+                    else:
+                        editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    
             dp.Button(label="Save", callback=self.EditReview, user_data=(review, editReviewWindowItems, editReviewWindow))
-            dp.Button(label="Cancel", callback=self.DummyCallback)
+            dp.Button(label="Cancel", callback=self.deleteReviewsWindow)
     def EditReview(self, sender, app_data, user_data):
-        # Similar to adding a review, but will change the review
+        # Get the tea from the stash
         review = user_data[0]
+        teaId = review.parentID
+        editReviewWindowItems = user_data[1]
+
+        # All input texts and other input widgets are in the addTeaGroup
+        # Revise the tea and save it to the stash, overwriting the old one
         allAttributes = {}
-        for item in user_data[1]:
+        for item in editReviewWindowItems.values():
             # If input text
-            if type(item) == dp.InputText:
-                allAttributes[item.label] = item.get_value()
-        
-        review.attributes = allAttributes["Attributes"]
-        review.rating = allAttributes["Rating"]
-        review.notes = allAttributes["Notes"]
+            allAttributes[item.label] = item.get_value()
+
+        newReview = Review(teaId, review.name, review.year, allAttributes, allAttributes["Rating"], allAttributes["Notes"])
+
+        # Transfer the reviews
+        for i, tea in enumerate(TeaStash):
+            if tea.id == review.parentID:
+                # Find the review and replace it
+                for j, rev in enumerate(tea.reviews):
+                    if rev == review:
+                        TeaStash[i].reviews[j] = newReview
+                        break
+
+        # Save to file
+        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+
+        # hide the popup
+        dpg.configure_item(self.reviewsWindow.tag, show=False)
+        self.deleteReviewsWindow()
         self.refresh()
-        # close the popup
-        dpg.delete_item(user_data[2])
 
     def __init__(self, title, width, height, exclusive=False, parentWindow=None, tea=None):
         self.parentWindow = parentWindow
@@ -574,7 +655,6 @@ class Window_Stash_Reviews(WindowBase):
 
     def windowDefintion(self, window):
         tea = self.tea
-        addReviewList = list()
         # create a new window for the reviews
         with window:
             hbarinfoGroup = dp.Group(horizontal=True)
@@ -605,38 +685,45 @@ class Window_Stash_Reviews(WindowBase):
                     dp.Button(label="Add", callback=self.AddReview, user_data=tea)
             dp.Separator()
             # Add a table with reviews
-            reviewsTable = dp.Table(header=["Name", "Year", "Attributes", "Rating", "Notes", "Edit", "Delete"], resizable=True, reorderable=True, row_background=True)
-            dpg.configure_item(reviewsTable, policy=dpg.mvTable_SizingFixedFit)
+            reviewsTable = dp.Table(resizable=True, reorderable=True, row_background=True)
             with reviewsTable:
                 # Add columns
-                dp.TableColumn(label="Name" , width_stretch=True)
-                dp.TableColumn(label="Year", width=75)
-                dp.TableColumn(label="Attributes", width_stretch=True)
-                dp.TableColumn(label="Rating", width=50)
-                dp.TableColumn(label="Notes", width_stretch=True)
+                for i, cat in enumerate(TeaReviewCategories):
+                    dp.TableColumn(label=cat.name, width=int(cat.widthPixels))
                 dp.TableColumn(label="Edit", width=50)
-                dp.TableColumn(label="Delete", width=50)
                 # Add rows
                 for i, review in enumerate(tea.reviews):
+                    print(f"{review.name} {review.year} {review.attributes}")
                     tableRow = dp.TableRow()
                     with tableRow:
-                        dp.Text(label=review.name, default_value=review.name)
-                        dp.Text(label=review.year, default_value=review.year)
+                        cat: TeaCategory
+                        for i, cat in enumerate(TeaReviewCategories):
+                            # Convert attribbutes to json
+                            displayValue = "N/A"
+                            if cat.name == "Name":
+                                displayValue = review.name
+                            else:
+                                if type(review.attributes) == str:
+                                    attrJson = json.loads(review.attributes)
+                                    if cat.name in attrJson:
+                                        displayValue = attrJson[cat.name]
+                                else:
+                                    if cat.name in review.attributes:
+                                        displayValue = review.attributes[cat.name]
+                            dp.Text(label=displayValue, default_value=displayValue)
                         
-                        # Attribute
-                        with dp.Group(horizontal=True):
-                            dp.Text(label=review.attributes, default_value=review.attributes)
-                            with dp.Tooltip(dpg.last_item()):
-                                dp.Text(label=review.attributes, default_value=review.attributes)
-                        dp.Text(label=review.rating, default_value=review.rating)
-                        # Notes column
-                        with dp.Group(horizontal=True):
-                            dp.Text(label=review.notes, default_value=review.notes)
-                            with dp.Tooltip(dpg.last_item()):
-                                dp.Text(label=review.notes, default_value=review.notes)
 
+                        # button that opens a modal with reviews
                         dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=review)
-                        dp.Button(label="Delete", callback=self.DummyCallback)
+
+    def deleteReviewsWindow(self):
+        # If window is open, close it first
+        if self.reviewsWindow != None:
+            self.reviewsWindow.delete()
+            self.reviewsWindow = None
+            self.addReviewList = list()
+        else:
+            print("No window to delete")
 
 def Menu_Stash():
     w = 600 * settings["UI_SCALE"]
@@ -663,19 +750,21 @@ class Window_Stash(WindowBase):
             hgroupStats1 = dp.Group(horizontal=True)
             with hgroupStats1:
                 # dummy stats
-                dp.Text("Num Teas: 2")
-                dp.Text("Num Reviews: 5")
-                dp.Text("Average Rating: X")
-            dp.Text(f"Last Tea Added: Tea 2 at {parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}")
-            dp.Text(f"Last Review Added: Tea 2 at {parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}")
+                dp.Text("Num Teas: 2 (TODO)")
+                dp.Text("Num Reviews: 5(TODO)")
+                dp.Text("Average Rating: X(TODO)")
+            dp.Text(f"Last Tea Added: Tea 2 at {parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}(TODO)")
+            dp.Text(f"Last Review Added: Tea 2 at {parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}(TODO)")
             dp.Separator()
             hgroupButtons = dp.Group(horizontal=True)
             with hgroupButtons:
                 dp.Button(label="Add Tea", callback=self.ShowAddTea)
                 dp.Button(label="Delete Tea", callback=self.DeleteTea)
-                dp.Button(label="Import(TODO)", callback=self.DummyCallback)
-                dp.Button(label="Export(TODO)", callback=self.DummyCallback)
-                dp.Button(label="Refresh(TODO)", callback=self.DummyCallback)
+                dp.Button(label="Import One (TODO)", callback=self.DummyCallback)
+                dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
+                dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
+                dp.Button(label="Export All (TODO)", callback=self.DummyCallback)
+                dp.Button(label="Refresh (TODO)", callback=self.DummyCallback)
             dp.Separator()
 
             # Table with collapsable rows for reviews
@@ -732,6 +821,7 @@ class Window_Stash(WindowBase):
 
         # Create a new window
         self.teasWindow = dp.Window(label="Teas", width=500, height=500, show=True)
+        windowManager.addSubWindow(self.teasWindow)
         with self.teasWindow:
             dp.Text("Teas")
             dp.Text("Name")
@@ -760,16 +850,6 @@ class Window_Stash(WindowBase):
                         catItem.set_value(attrJson[cat.name])
                 self.addTeaList.append(catItem)
 
-            #dp.Text("Year")
-            #yearItem = dp.InputText(label="Year", default_value="2021")
-            #if teasData != None and teasData.year != None:
-            #    yearItem.set_value(teasData.year)
-            #self.addTeaList.append(yearItem)
-            #dp.Text("Attributes")
-            #attrItem = dp.InputText(label="Attributes", default_value="{'Type': 'Raw Puerh', 'Region': 'Yunnan'}")
-            #if teasData != None and teasData.attributes != None:
-            #    attrItem.set_value(teasData.attributes)
-            #self.addTeaList.append(attrItem)
             # Add buttons
             if user_data[1] == "add":
                 dp.Button(label="Add", callback=self.AddTea, user_data=teasData)
@@ -930,37 +1010,8 @@ class Window_Stats(WindowBase):
             dp.Text("Stats")
             dp.Text("Stats go here")
 
-class TeaCategory:
-    name = ""
-    categoryType = ""
-    editable = False
-    color = ""
-    defaultValue = None
-    widthPixels = 100
-    def __init__(self, name, categoryType, editable, widthPixels=100):
-        self.name = name
-        self.categoryType = categoryType
-        self.editable = editable
-        if categoryType == "string":
-            self.defaultValue = ""
-        elif categoryType == "int":
-            self.defaultValue = 0
-        elif categoryType == "float":
-            self.defaultValue = 0.0
-        self.widthPixels = widthPixels
 
-class ReviewCategory:
-    name = ""
-    categoryType = ""
-    editable = True
-    widthPixels = 100
-    def __init__(self, name, categoryType, editable, widthPixels=100):
-        self.name = name
-        self.categoryType = categoryType
-        self.editable = editable
-        self.widthPixels = widthPixels
         
-
 def Menu_EditCategories():
     w = 720 * settings["UI_SCALE"]
     h = 480 * settings["UI_SCALE"]
@@ -979,7 +1030,7 @@ class Window_EditCategories(WindowBase):
 
                 with dp.Group(horizontal=False):
                     dp.Text("Tea Categories")
-                    dp.Button(label="Add Stash Category", callback=self.addCategory)
+                    dp.Button(label="Add Stash Category", callback=self.showAddCategory)
                     with dpg.child_window(label="Tea Categories", width=scaledWidth, height=600):
                         self.teaCategoryGroup = dp.Group(horizontal=False)
                         dp.Separator()
@@ -989,7 +1040,7 @@ class Window_EditCategories(WindowBase):
                 # Review
                 with dp.Group(horizontal=False):
                     dp.Text("Review Categories")
-                    dp.Button(label="Add Review Category", callback=self.DummyCallback)
+                    dp.Button(label="Add Review Category", callback=self.shouldAddReviewCategory)
                     with dpg.child_window(label="Review Categories", width=scaledWidth, height=600):
                         dp.Separator()
                         self.teaReviewGroup = dp.Group(horizontal=False)
@@ -1001,10 +1052,12 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 60 * settings["UI_SCALE"]
+                    scaledHeight = 75 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Editable: {category.editable}")
+                        dp.Text(f"Default Value: {category.defaultValue}")
+                        dp.Text(f"Category acts as: {category.categoryActsAs}")
                         with dp.Group(horizontal=True):
                             if category.editable:
                                 dp.Button(label="Edit", callback=self.showEditCategory, user_data=i)
@@ -1031,10 +1084,12 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaReviewCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 60 * settings["UI_SCALE"]
+                    scaledHeight = 75 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Editable: {category.editable}")
+                        dp.Text(f"Default Value: {category.defaultValue}")
+                        dp.Text(f"Category acts as: {category.categoryActsAs}")
                         with dp.Group(horizontal=True):
                             if category.editable:
                                 dp.Button(label="Edit", callback=self.showEditReviewCategory, user_data=i)
@@ -1080,7 +1135,116 @@ class Window_EditCategories(WindowBase):
         self.refresh()
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
 
-    
+    def showAddCategory(self, sender, app_data, user_data):
+        # Create a popup window to add a new the category
+        addCategoryWindow = dp.Window(label="Add Category", width=500, height=500, modal=True, show=True)
+        windowManager.addSubWindow(addCategoryWindow)
+        addCategoryWindowItems = dict()
+
+        with addCategoryWindow:
+            dp.Text("Add Category")
+            category: TeaCategory
+            # Declare category name, width, type
+            dp.Text("Category Name")
+            nameItem = dp.InputText(label="Name", default_value="")
+            addCategoryWindowItems["Name"] = nameItem
+
+            dp.Text("Width")
+            widthItem = dp.InputInt(label="Width", default_value=100, step=1, min_value=50, max_value=500)
+            addCategoryWindowItems["Width"] = widthItem
+
+            dp.Text("Default Value")
+            defaultValueItem = dp.InputText(label="Default Value", default_value="")
+            addCategoryWindowItems["DefaultValue"] = defaultValueItem
+            
+            validTypes = session["validTypesCategory"]
+            dp.Separator()
+            dp.Text("Type of Category")
+            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type")
+            addCategoryWindowItems["Type"] = catItem
+                
+            
+            dp.Separator()
+                    
+
+            dp.Button(label="Add", callback=self.AddCategory, user_data=(addCategoryWindowItems, addCategoryWindow))
+            dp.Button(label="Cancel", callback=addCategoryWindow.delete)
+            # Help question mark
+            dp.Button(label="?")
+            # Hover tooltip
+            with dpg.tooltip(dpg.last_item()):
+                dp.Text("Add a new category to the stash")
+
+    def shouldAddReviewCategory(self, sender, app_data, user_data):
+        # Create a popup window to add a new the review category
+        addReviewCategoryWindow = dp.Window(label="Add Review Category", width=500, height=500, modal=True, show=True)
+        windowManager.addSubWindow(addReviewCategoryWindow)
+        addReviewCategoryWindowItems = dict()
+
+        with addReviewCategoryWindow:
+            dp.Text("Add Review Category")
+            category: ReviewCategory
+            # Declare category name, width, type
+            dp.Text("Category Name")
+            nameItem = dp.InputText(label="Name", default_value="")
+            addReviewCategoryWindowItems["Name"] = nameItem
+
+            dp.Text("Width")
+            widthItem = dp.InputInt(label="Width", default_value=100, step=1, min_value=50, max_value=500)
+            addReviewCategoryWindowItems["Width"] = widthItem
+            
+            dp.Text("Default Value")
+            defaultValueItem = dp.InputText(label="Default Value", default_value="")
+            addReviewCategoryWindowItems["DefaultValue"] = defaultValueItem
+
+            
+            validTypes = session["validTypesReviewCategory"]
+            dp.Separator()
+            dp.Text("Type of Category")
+            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type")
+            addReviewCategoryWindowItems["Type"] = catItem
+                
+            
+            dp.Separator()
+                    
+
+            dp.Button(label="Add", callback=self.AddReviewCategory, user_data=(addReviewCategoryWindowItems, addReviewCategoryWindow))
+            dp.Button(label="Cancel", callback=addReviewCategoryWindow.delete)
+            # Help question mark
+            dp.Button(label="?")
+            # Hover tooltip
+            with dpg.tooltip(dpg.last_item()):
+                dp.Text("Add a new review category to the stash")
+
+    def AddReviewCategory(self, sender, app_data, user_data):
+        allObjects = user_data[0]
+        allAttributes = dict()
+        for item in allObjects:
+            allAttributes[item] = allObjects[item].get_value()
+
+        # Check if the category already exists
+        if allAttributes["Name"] in [cat.name for cat in TeaReviewCategories]:
+            RichPrintWarning(f"Category {allAttributes['Name']} already exists")
+            return
+        # Check if the category type is valid
+        if allAttributes["Type"] not in session["validTypesReviewCategory"]:
+            RichPrintWarning(f"Category type {allAttributes['Type']} is not valid, defaulting to string")
+            allAttributes["Type"] = "string"
+
+        # Create a new category
+        newCategory = ReviewCategory(allAttributes["Name"], allAttributes["Type"], True, int(float(allAttributes["Width"])))
+        defaultValue = allAttributes["DefaultValue"]
+        if defaultValue != None and defaultValue != "":
+            newCategory.defaultValue = defaultValue
+
+        
+        TeaReviewCategories.append(newCategory)
+
+        saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
+        
+        # close the popup
+        self.refresh()
+        dpg.delete_item(user_data[1])
 
     def showEditCategory(self, sender, app_data, user_data):
         # Create a popup window to edit the category
@@ -1091,7 +1255,13 @@ class Window_EditCategories(WindowBase):
         with editCategoryWindow:
             dp.Text(f"{category.name}")
             dp.Text(f"Editable: {category.editable}")
+
             dp.Text(f"Width: {category.widthPixels}")
+            editCategoryWindowItems["Width"] = dp.InputInt(label="Width", default_value=category.widthPixels, step=1, min_value=50, max_value=500)
+            
+            dp.Text(f"Default Value: {category.defaultValue}")
+            editCategoryWindowItems["DefaultValue"] = dp.InputText(label="Default Value", default_value=category.defaultValue)
+            
             validTypes = session["validTypesCategory"]
             dp.Separator()
             dp.Text(f"Type of Category")
@@ -1100,6 +1270,16 @@ class Window_EditCategories(WindowBase):
                 catItem.set_value("ERR: Assume String")
 
             editCategoryWindowItems["Type"] = catItem
+
+            # Dropdown for category acts as
+            dp.Text("Category acts as")
+            items = session["validActsAsCategory"]
+            actsAsItem = dp.Listbox(items=items, default_value=category.categoryActsAs)
+            if category.categoryActsAs not in items:
+                actsAsItem.set_value("ERR: Assume Unused")
+            
+            editCategoryWindowItems["ActsAs"] = actsAsItem
+
             dp.Separator()
 
             with dp.Group(horizontal=True):
@@ -1117,9 +1297,13 @@ class Window_EditCategories(WindowBase):
         allAttributes = user_data[1]
         category.categoryType = allAttributes["Type"].get_value()
         if category.categoryType not in session["validTypesCategory"]:
-            category.categoryType = "string"
-        #category.editable = allAttributes["Editable"]
-        #category.widthPixels = int(float(allAttributes["Width"]))
+            category.categoryType = "UNUSED"
+        category.widthPixels = allAttributes["Width"].get_value()
+        category.defaultValue = allAttributes["DefaultValue"].get_value()
+
+        category.categoryActsAs = allAttributes["ActsAs"].get_value()
+        if category.categoryActsAs not in session["validActsAsCategory"]:
+            category.categoryActsAs = "UNUSED"
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
         # close the popup
@@ -1127,16 +1311,22 @@ class Window_EditCategories(WindowBase):
         dpg.delete_item(user_data[2])
 
     def showEditReviewCategory(self, sender, app_data, user_data):
-        print("Edit Review Category")
         # Create a popup window to edit the review category
         editReviewCategoryWindow = dp.Window(label="Edit Review Category", width=500, height=500, modal=True, show=True)
+        windowManager.addSubWindow(editReviewCategoryWindow)
         editReviewCategoryWindowItems = dict()
         category = TeaReviewCategories[user_data]
 
         with editReviewCategoryWindow:
             dp.Text(f"{category.name}")
             dp.Text(f"Editable: {category.editable}")
+            
             dp.Text(f"Width: {category.widthPixels}")
+            editReviewCategoryWindowItems["Width"] = dp.InputInt(label="Width", default_value=category.widthPixels, step=1, min_value=50, max_value=500)
+
+            dp.Text(f"Default Value: {category.defaultValue}")
+            editReviewCategoryWindowItems["DefaultValue"] = dp.InputText(label="Default Value", default_value=category.defaultValue)
+
             validTypes = session["validTypesReviewCategory"]
             dp.Separator()
             dp.Text(f"Type of Category")
@@ -1145,6 +1335,14 @@ class Window_EditCategories(WindowBase):
                 catItem.set_value("ERR: Assume String")
 
             editReviewCategoryWindowItems["Type"] = catItem
+
+            dp.Text("Category acts as")
+            # Dropdown for category acts as
+            items = session["validActsAsReviewCategory"]
+            actsAsItem = dp.Listbox(items=items, default_value=category.categoryActsAs)
+            editReviewCategoryWindowItems["ActsAs"] = actsAsItem
+            if category.categoryActsAs not in items:
+                actsAsItem.set_value("ERR: Assume Unused")
             dp.Separator()
 
             with dp.Group(horizontal=True):
@@ -1162,8 +1360,12 @@ class Window_EditCategories(WindowBase):
         category.categoryType = allAttributes["Type"].get_value()
         if category.categoryType not in session["validTypesReviewCategory"]:
             category.categoryType = "string"
-        #category.editable = allAttributes["Editable"]
-        #category.widthPixels = int(float(allAttributes["Width"]))
+        category.widthPixels = allAttributes["Width"].get_value()
+        category.defaultValue = allAttributes["DefaultValue"].get_value()
+
+        category.categoryActsAs = allAttributes["ActsAs"].get_value()
+        if category.categoryActsAs not in session["validActsAsReviewCategory"]:
+            category.categoryActsAs = "UNUSED"
 
 
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
@@ -1191,30 +1393,33 @@ class Window_EditCategories(WindowBase):
         # Refresh the window
         self.refresh()
 
-    def addCategory(self, sender, app_data, user_data):
-        addCategoryWindow = dp.Window(label="Add Category", width=500, height=500, modal=True, show=True)
-        addCategoryWindowItems = list()
-        with addCategoryWindow:
-            dp.Text("Add Category")
-            for i, category in enumerate(TeaCategories):
-                dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
-                dp.Text(f"Editable: {category.editable}")
-                dp.Text(f"Width: {category.widthPixels}")
-                catItem = dp.InputText(label=category.name, default_value=category.categoryType)
-                addCategoryWindowItems.append(catItem)
-
-            dp.Button(label="Add", callback=self.AddCategory, user_data=(addCategoryWindowItems, addCategoryWindow))
-            dp.Button(label="Cancel", callback=addCategoryWindow.delete)
-
     def AddCategory(self, sender, app_data, user_data):
-        allAttributes = {}
-        for item in user_data[0]:
-            # If input text
-            if type(item) == dp.InputText:
-                allAttributes[item.label] = item.get_value()
-        newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"], True)
+        allObjects = user_data[0]
+        allAttributes = dict()
+        for item in allObjects:
+            allAttributes[item] = allObjects[item].get_value()
+
+        # Check if the category already exists
+        if allAttributes["Name"] in [cat.name for cat in TeaCategories]:
+            RichPrintWarning(f"Category {allAttributes['Name']} already exists")
+            return
+        # Check if the category type is valid
+        if allAttributes["Type"] not in session["validTypesCategory"]:
+            RichPrintWarning(f"Category type {allAttributes['Type']} is not valid, defaulting to string")
+            allAttributes["Type"] = "string"
+
+        defaultValue = allAttributes["DefaultValue"]
+        if defaultValue == None or defaultValue == "":
+            defaultValue = ""
+
+        # Create a new category
+        newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"], True, int(allAttributes["Width"]))
+        newCategory.defaultValue = defaultValue
+
+        # Add the new category to the list
         TeaCategories.append(newCategory)
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
+       
         # close the popup
         self.refresh()
         dpg.delete_item(user_data[1])
@@ -1230,8 +1435,99 @@ class Window_ReviewsTable(WindowBase):
             dp.Text("Reviews Table")
             dp.Text("Reviews Table go here")
 
+def Menu_Summary():
+    w = 480 * settings["UI_SCALE"]
+    h = 600 * settings["UI_SCALE"]
+    summary = Window_Summary("Summary", w, h, exclusive=True)
+class Window_Summary(WindowBase):
+    def windowDefintion(self, window):
+        with window:
+            dp.Text("Summary (TODO)")
+            dp.Separator()
+            # Mockup stats for now
+
+            # Topline stats
+            with dp.Group(horizontal=False):
+                dp.Text(f"Num Teas: 2")
+                dp.Text(f"Num Reviews: 5")
+                dp.Text(f"Average Rating: X")
+                dp.Text(f"Average drank per day: X")
+                dp.Text(f"Amount in stash: X")
+            # Stash stats
+            dp.Text("Stash Stats")
+            dp.Separator()
+            with dp.Group(horizontal=False):
+                dp.Text(f"Last Tea Added: Tea 2 at {parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}")
+                dp.Text(f"Grams in Stash: X")
+                dp.Text(f"Total Spent: X")
+                dp.Text(f"Average Price: X")
+                dp.Text(f"Average Price per Gram: X")
+                dp.Text(f"Average spent per month: X")
+            
+
+            # Reviews stats
+            dp.Text("Reviews Stats")
+            dp.Separator()
+            with dp.Group(horizontal=False):
+                dp.Text(f"Last Review Added: Tea 2 at {parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}")
+                dp.Text(f"Average Rating: X")
+                dp.Text(f"Favorite Type: X")
+                dp.Text(f"Favorite Year: X")
+
+            # Table of tea types to grams, price, etc
+            dp.Text("Tea Types")
+            dp.Separator()
+            # Table with tea types
+            teasTable = dp.Table(header=["Type", "Grams", "Price", "Price per Gram"], resizable=True, reorderable=True, row_background=True)
+            dpg.configure_item(teasTable, policy=dpg.mvTable_SizingFixedFit)
+            with teasTable:
+                # Add columns
+                dp.TableColumn(label="Type" , width_stretch=True)
+                dp.TableColumn(label="Grams", width=75)
+                dp.TableColumn(label="Price", width=75)
+                dp.TableColumn(label="Price per Gram", width=75)
+                # Add rows
+                for i, tea in enumerate(TeaStash):
+                    tableRow = dp.TableRow()
+                    with tableRow:
+                        dp.Text(label="Type", default_value="TODO")
+                        dp.Text(label="Grams", default_value="TODO")
+                        dp.Text(label="Price", default_value="TODO")
+                        dp.Text(label="Price per Gram", default_value="TODO")
+
+
+def Menu_Welcome(sender, app_data, user_data):
+    w = 640 * settings["UI_SCALE"]
+    h = 140 * settings["UI_SCALE"]
+    welcome = Window_Welcome("Welcome", w, h, exclusive=True)
+class Window_Welcome(WindowBase):
+    def windowDefintion(self, window):
+        # Get screen dimensions using Dear PyPixl
+        screenWidth, screenHeight = screeninfo.get_monitors()[0].width, screeninfo.get_monitors()[0].height
+        cw = screenWidth / 4
+        ch = screenHeight / 4
+
+        # Place in central location of screen
+        self.x = int(cw - (self.width / 2))
+        self.y = int(ch - (self.height / 2))
+        dpg.set_item_pos(window.tag, [self.x, self.y])
+
+        with window:
+            dp.Text(f"Welcome {settings['USERNAME']}!")
+            dp.Text(f"This is a simple tea stash manager (V{settings["APP_VERSION"]}) to keep track of your teas and reviews.")
+            dp.Text("This is a In-Progress demo, so expect bugs and missing features. - Rex")
+            dp.Text("Head over to the settings then to the categories window to get started, "
+            "\nOnce you have added some teas, you can add reviews to them and view your stats!")
+            dp.Separator()
+            dp.Button(label="OK", callback=window.delete)
+
+
+
 class Manager_Windows:
     windows = {}
+    subWindows = [] 
+    # Sub windows are windows that shouldnt be sorted, ie popups and just are
+    # Tracked for deletion
     def __init__(self):
         self.windows = {}
     def addWindow(self, window):
@@ -1240,6 +1536,15 @@ class Manager_Windows:
         # Trigger the delete function
         del self.windows[window.utitle]
         window.delete()
+    def addSubWindow(self, window):
+        self.subWindows.append(window)
+    def clearSubWindows(self):
+        for window in self.subWindows:
+            if window != None and type(window) == dp.Window and window.exists():
+                window.delete()
+            else:
+                continue
+        self.subWindows = []
         
             
         
@@ -1295,7 +1600,7 @@ class Manager_Windows:
         for key, value in self.windows.items():
             print(f"Window: {key}, {value}")
 
-    def exportPersistantWindows(self):
+    def exportPersistantWindows(self, filePath):
         # Export all windows to a file
         allData = []
         for key, value in self.windows.items():
@@ -1304,14 +1609,12 @@ class Manager_Windows:
                 yml = value.exportYML()
                 allData.append({title: yml})
 
-        filePath = f"{settings['DIRECTORY']}/persistant_windows.yml"
         WriteYaml(filePath, allData)
         print(allData)
         return allData
     
-    def importPersistantWindows(self):
+    def importPersistantWindows(self, filePath):
         # Import all windows from a file
-        filePath = f"{settings['DIRECTORY']}/persistant_windows.yml"
         allData = ReadYaml(filePath)
         for windowData in allData:
             title = list(windowData.keys())[0]
@@ -1322,6 +1625,18 @@ class Manager_Windows:
             elif title == "Notepad":
                 Menu_Notepad(None, None, data)
         windowManager.sortWindows()
+
+#endregion
+
+
+#region Save and Load
+
+def generateBackup():
+    # Use the alternate backup path and generate a folder containing all backed up files, add datetime to path
+    backupPath = f"{settings['BACKUP_PATH']}/{parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}"
+    os.makedirs(backupPath, exist_ok=True)
+    SaveAll(backupPath)
+    print(f"Backup generated at {backupPath}")
 
 def saveTeasReviews(stash, path):
     # Save as one file in yml format
@@ -1373,7 +1688,9 @@ def saveTeaCategories(categories, path):
             "name": category.name,
             "categoryType": category.categoryType,
             "editable": category.editable,
-            "widthPixels": category.widthPixels
+            "widthPixels": category.widthPixels,
+            "defaultValue": category.defaultValue,
+            "categoryActsAs": category.categoryActsAs
         }
         allData.append(categoryData)
 
@@ -1390,6 +1707,18 @@ def loadTeaCategories(path):
     TeaCategories = []
     for categoryData in allData:
         category = TeaCategory(categoryData["name"], categoryData["categoryType"], categoryData["editable"], categoryData["widthPixels"])
+        category.defaultValue = ""
+        if "defaultValue" in categoryData:
+            category.defaultValue = categoryData["defaultValue"]
+        # Check if the category type is valid
+        if category.categoryType not in session["validTypesCategory"]:
+            category.categoryType = "string"
+
+        # Add actsAs
+        if "categoryActsAs" in categoryData:
+            category.categoryActsAs = categoryData["categoryActsAs"]
+        else:
+            category.categoryActsAs = category.categoryType
         TeaCategories.append(category)
     return TeaCategories
 
@@ -1404,8 +1733,39 @@ def loadTeaReviewCategories(path):
     TeaReviewCategories = []
     for categoryData in allData:
         category = ReviewCategory(categoryData["name"], categoryData["categoryType"], categoryData["editable"], categoryData["widthPixels"])
+        category.defaultValue = ""
+        if "defaultValue" in categoryData:
+            category.defaultValue = categoryData["defaultValue"]
+        # Check if the category type is valid
+        if category.categoryType not in session["validTypesReviewCategory"]:
+            category.categoryType = "string"
         TeaReviewCategories.append(category)
+
+        # Add actsAs
+        if "categoryActsAs" in categoryData:
+            category.categoryActsAs = categoryData["categoryActsAs"]
+        else:
+            category.categoryActsAs = category.categoryType
     return TeaReviewCategories
+
+def verifyCategoriesReviewCategories():
+    # For each category, double check all values are valid
+    for category in TeaCategories:
+        if category.categoryType not in session["validTypesCategory"]:
+            category.categoryType = "string"
+        if category.categoryActsAs not in session["validActsAsCategory"]:
+            category.categoryActsAs = "UNUSED"
+    for category in TeaReviewCategories:
+        if category.categoryType not in session["validTypesReviewCategory"]:
+            category.categoryType = "string"
+        if category.categoryActsAs not in session["validActsAsReviewCategory"]:
+            category.categoryActsAs = "UNUSED"
+
+    print(f"Number of Tea Categories: {len(TeaCategories)}")
+    print(f"Number of Review Categories: {len(TeaReviewCategories)}")
+
+    # Save the categories again
+    SaveAll()
 
 def saveTeaReviewCategories(categories, path):
     # Save as one file in yml format
@@ -1415,18 +1775,30 @@ def saveTeaReviewCategories(categories, path):
             "name": category.name,
             "categoryType": category.categoryType,
             "editable": category.editable,
-            "widthPixels": category.widthPixels
+            "widthPixels": category.widthPixels,
+            "defaultValue": category.defaultValue,
+            "categoryActsAs": category.categoryActsAs
         }
         allData.append(categoryData)
 
     WriteYaml(path, allData)
 
-def SaveAll():
+def SaveAll(altPath=None):
     # Save all data
+    if altPath is not None:
+        newBaseDirectory = altPath
+        saveTeasReviews(TeaStash, f"{newBaseDirectory}/tea_reviews.yml")
+        saveTeaCategories(TeaCategories, f"{newBaseDirectory}/tea_categories.yml")
+        saveTeaReviewCategories(TeaReviewCategories, f"{newBaseDirectory}/tea_review_categories.yml")
+        WriteYaml(f"{newBaseDirectory}/user_settings.yml", settings)
+        windowManager.exportPersistantWindows(f"{newBaseDirectory}/persistant_windows.yml")
+        print(f"All data saved to {newBaseDirectory}")
+        return
     saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
-    saveTeaCategories(TeaCategories, session["categoriesPath"])
-    saveTeaReviewCategories(TeaReviewCategories, session["reviewCategoriesPath"])
+    saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
+    saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
     WriteYaml(session["settingsPath"], settings)
+    windowManager.exportPersistantWindows(settings["PERSISTANT_WINDOWS_PATH"])
 
 def LoadAll():
     # Load all data
@@ -1438,15 +1810,20 @@ def LoadAll():
     TeaCategories = loadTeaCategories(session["categoriesPath"])
     global TeaReviewCategories
     TeaReviewCategories = loadTeaReviewCategories(session["reviewCategoriesPath"])
+
+    windowManager.importPersistantWindows(settings["PERSISTANT_WINDOWS_PATH"])
+    print(f"Loaded settings from {session['settingsPath']}")
     
     print(f"Loaded {len(TeaStash)} teas and {len(TeaCategories)} categories")
 
 
+#endregion
 
 def UI_CreateViewPort_MenuBar():
     with dp.ViewportMenuBar():
         with dp.Menu(label="Session"):
             dp.MenuItem(label="Log", callback=Menu_Stash)
+            dp.MenuItem(label="Summary", callback=Menu_Summary)
             dp.Button(label="Settings", callback=Menu_Settings)
         with dp.Menu(label="Stash"):
             dp.MenuItem(label="Reviews", callback=Menu_ReviewsTable)
@@ -1470,6 +1847,8 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Windows", callback=windowManager.printWindows)
             dp.Button(label="Settings", callback=printSettings)
             dp.Button(label="Threads", callback=printThreads)
+            dp.Button(label="Check Categories", callback=verifyCategoriesReviewCategories)
+            dp.Button(label="Generate Backup", callback=generateBackup)
             dp.Button(label="Sort Windows", callback=windowManager.sortWindows)
             dp.Button(label="Export Windows", callback=windowManager.exportPersistantWindows)
             dp.Button(label="Import Windows", callback=windowManager.importPersistantWindows)
@@ -1518,26 +1897,52 @@ def main():
         "TIMER_WINDOW_LABEL": True,
         "TIMER_PERSIST_LAST_WINDOW": True, # TODO
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
+        "BACKUP_PATH": f"ratea-data/backup",
+        "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
+        "APP_VERSION": "0.5.2", # do not change
     }
     numSettings = len(default_settings)
     global settings
     settings = default_settings
     global session
     session = {}
+    # Get a list of all valid types for Categories
+    session["validTypesCategory"] = ["string", "int", "float"]
+    session["validTypesReviewCategory"] = ["string", "int", "float"]
+    session["validActsAsCategory"] = ["UNUSED", "STRING - Notes"]
+    session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Notes"]
     global TeaStash
     global TeaCategories
     TeaCategories = []
-    TeaCategories.append(TeaCategory("Name", "string", False))
-    TeaCategories.append(TeaCategory("Type", "string", True))
-    TeaCategories.append(TeaCategory("Year", "int", True))
-    TeaCategories.append(TeaCategory("Remaining", "float", False))
+    category = TeaCategory("Name", "string", False)
+    category.defaultValue = "Tea Name"
+    TeaCategories.append(category)
+    category = TeaCategory("Type", "string", False)
+    category.defaultValue = "Type"
+    TeaCategories.append(category)
+    category = TeaCategory("Year", "int", False)
+    category.defaultValue = 2000
+    TeaCategories.append(category)
+    category = TeaCategory("Remaining", "float", False)
+    category.defaultValue = 0.0
+    TeaCategories.append(category)
+
 
     global TeaReviewCategories
     TeaReviewCategories = []
-    TeaReviewCategories.append(ReviewCategory("Name", "string", False))
-    TeaReviewCategories.append(ReviewCategory("Date", "string", False))
-    TeaReviewCategories.append(ReviewCategory("Rating", "int", True))
-    TeaReviewCategories.append(ReviewCategory("Notes", "string", True))
+    TeaReviewCategory = ReviewCategory("Name", "string", False)
+    TeaReviewCategory.defaultValue = "Tea Name"
+    TeaReviewCategories.append(TeaReviewCategory)
+    TeaReviewCategory = ReviewCategory("Date", "string", False)
+    TeaReviewCategory.defaultValue = "Date"
+    TeaReviewCategories.append(TeaReviewCategory)
+    TeaReviewCategory = ReviewCategory("Rating", "int", True)
+    TeaReviewCategory.defaultValue = 0
+    TeaReviewCategories.append(TeaReviewCategory)
+    TeaReviewCategory = ReviewCategory("Notes", "string", True)
+    TeaReviewCategory.defaultValue = "Notes"
+    TeaReviewCategories.append(TeaReviewCategory)
+
 
 
     settingsPath = f"{baseDir}/{default_settings['SETTINGS_FILENAME']}"
@@ -1578,9 +1983,7 @@ def main():
         # Create the settings file and write the default settings
         saveTeaReviewCategories(TeaReviewCategories, teaReviewCategoriesPath)
 
-    # Get a list of all valid types for Categories
-    session["validTypesCategory"] = ["string", "int", "float"]
-    session["validTypesReviewCategory"] = ["string", "int", "float"]
+    
 
 
 
@@ -1609,9 +2012,14 @@ def main():
     
     UI_CreateViewPort_MenuBar()
 
+
+
     Settings_SaveCurrentSettings()
     # Set the DearPyGui theme
     dpg.set_global_font_scale(settings["UI_SCALE"])
+
+    # Start first welcome window
+    Menu_Welcome(None, None, None)
 
     dp.Viewport.title = "RaTea"
     dp.Viewport.width = WindowSize[0]
