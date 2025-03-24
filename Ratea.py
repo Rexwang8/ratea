@@ -1052,20 +1052,13 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 75 * settings["UI_SCALE"]
+                    scaledHeight = 100 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Editable: {category.editable}")
                         dp.Text(f"Default Value: {category.defaultValue}")
                         dp.Text(f"Category acts as: {category.categoryActsAs}")
-                        with dp.Group(horizontal=True):
-                            if category.editable:
-                                dp.Button(label="Edit", callback=self.showEditCategory, user_data=i)
-                                dp.Button(label="Delete", callback=self.deleteCategory, user_data=i)
-                            else:
-                                dp.Text("[-X-]")
-                                dp.Text("[-X-]")
-                            dp.Text(label=f"Width: {category.widthPixels}")
+                        dp.Text(label=f"Width: {category.widthPixels}")
 
                     scaledWidth = 75 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
@@ -1077,6 +1070,14 @@ class Window_EditCategories(WindowBase):
                             dp.Button(label="Down", callback=self.moveItemDownCategory, user_data=i)
                         else:
                             dp.Text("[---]")
+
+                        with dp.Group(horizontal=False):
+                            if category.editable:
+                                dp.Button(label="Edit", callback=self.showEditCategory, user_data=i)
+                                dp.Button(label="Delete", callback=self.deleteCategory, user_data=i)
+                            else:
+                                dp.Text("[-X-]")
+                                dp.Text("[-X-]")
             dp.Separator()
 
     def generateReviewCategoriesList(self):
@@ -1084,20 +1085,13 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaReviewCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 75 * settings["UI_SCALE"]
+                    scaledHeight = 100 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Editable: {category.editable}")
                         dp.Text(f"Default Value: {category.defaultValue}")
                         dp.Text(f"Category acts as: {category.categoryActsAs}")
-                        with dp.Group(horizontal=True):
-                            if category.editable:
-                                dp.Button(label="Edit", callback=self.showEditReviewCategory, user_data=i)
-                                dp.Button(label="Delete", callback=self.deleteReviewCategory, user_data=i)
-                            else:
-                                dp.Text("[-X-]")
-                                dp.Text("[-X-]")
-                            dp.Text(label=f"Width: {category.widthPixels}")
+                        dp.Text(label=f"Width: {category.widthPixels}")
 
                     scaledWidth = 75 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
@@ -1109,6 +1103,14 @@ class Window_EditCategories(WindowBase):
                             dp.Button(label="Down", callback=self.moveItemDownReviewCategory, user_data=i)
                         else:
                             dp.Text("[---]")
+
+                        with dp.Group(horizontal=False):
+                            if category.editable:
+                                dp.Button(label="Edit", callback=self.showEditReviewCategory, user_data=i)
+                                dp.Button(label="Delete", callback=self.deleteReviewCategory, user_data=i)
+                            else:
+                                dp.Text("[-X-]")
+                                dp.Text("[-X-]")
             dp.Separator()
 
 
