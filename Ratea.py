@@ -169,13 +169,14 @@ class StashedTea:
 class Review:
     attempt = 0
     parentID = 0
+    id = 0
     name = ""
     year = 1900
     attributes = {}
     calculated = {}
     finalScore = 0
-    def __init__(self, parentID, name, year, attributes, rating, notes):
-        self.parentID = parentID
+    def __init__(self, id, name, year, attributes, rating, notes):
+        self.id = id
         self.name = name
         self.year = year
         self.attributes = attributes
@@ -213,7 +214,7 @@ class TeaCategory:
             # Set the default value to the current date and time
             self.defaultValue = dt.datetime.now(tz=dt.timezone.utc)
         self.widthPixels = widthPixels
-        self.categoryActsAs = self.categoryType
+        self.categoryActsAs = "UNUSED"
 
 class ReviewCategory:
     name = ""
@@ -744,14 +745,20 @@ class Window_Stash_Reviews(WindowBase):
             reviewsTable = dp.Table(resizable=True, reorderable=True, row_background=True)
             with reviewsTable:
                 # Add columns
+                # Add ID
+                dp.TableColumn(label="ID", width=50)
                 for i, cat in enumerate(TeaReviewCategories):
                     dp.TableColumn(label=cat.name, width=int(cat.widthPixels))
                 dp.TableColumn(label="Edit", width=50)
                 # Add rows
                 for i, review in enumerate(tea.reviews):
-                    print(f"{review.name} {review.year} {review.attributes}")
                     tableRow = dp.TableRow()
                     with tableRow:
+
+                        # Add ID index based on position in list
+                        dp.Text(label=f"{i+1}", default_value=f"{i+1}")
+                        # Add the review attributes
+
                         cat: TeaCategory
                         for i, cat in enumerate(TeaReviewCategories):
                             # Convert attribbutes to json
@@ -849,6 +856,9 @@ class Window_Stash(WindowBase):
             teasTable = dp.Table()
             with teasTable:
                 # Add columns from teaCategories
+                # Add ID
+                dp.TableColumn(label="ID", width=50)
+                # Add the categories
                 for i, cat in enumerate(TeaCategories):
                     dp.TableColumn(label=cat.name, width=int(cat.widthPixels))
                 dp.TableColumn(label="Reviews", width=250)
@@ -858,6 +868,10 @@ class Window_Stash(WindowBase):
                 for i, tea in enumerate(TeaStash):
                     tableRow = dp.TableRow()
                     with tableRow:
+                        # Add ID index based on position in list
+                        dp.Text(label=f"{i+1}", default_value=f"{i+1}")
+                        # Add the tea attributes
+
                         cat: TeaCategory
                         for i, cat in enumerate(TeaCategories):
                             # Convert attributes to json
@@ -1757,6 +1771,7 @@ def saveTeasReviews(stash, path):
     allData = []
     for tea in stash:
         teaData = {
+            "_index": tea.id,
             "name": tea.name,
             "year": tea.year,
             "attributes": tea.attributes,
@@ -1764,6 +1779,8 @@ def saveTeasReviews(stash, path):
         }
         for review in tea.reviews:
             reviewData = {
+                "_reviewindex": review.id,
+                "parentIDX": tea.id,
                 "name": review.name,
                 "year": review.year,
                 "attributes": review.attributes,
@@ -1785,11 +1802,20 @@ def loadTeasReviews(path):
     allData = ReadYaml(path)
     TeaStash = []
     i = 0
+    j = 0
     for teaData in allData:
-        tea = StashedTea(i, teaData["name"], teaData["year"], teaData["attributes"])
+        idx = i
+        if "_index" in teaData:
+            idx = teaData["_index"]
+        tea = StashedTea(idx, teaData["name"], teaData["year"], teaData["attributes"])
         for reviewData in teaData["reviews"]:
-            review = Review(i, reviewData["name"], reviewData["year"], reviewData["attributes"], reviewData["rating"], reviewData["notes"])
+            idx2 = j
+            if "_reviewindex" in reviewData:
+                idx2 = reviewData["_reviewindex"]
+            review = Review(idx2, reviewData["name"], reviewData["year"], reviewData["attributes"], reviewData["rating"], reviewData["notes"])
+            review.parentID = tea.id
             tea.addReview(review)
+            j += 1
         TeaStash.append(tea)
         i += 1
     return TeaStash
