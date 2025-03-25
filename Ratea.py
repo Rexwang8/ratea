@@ -61,6 +61,17 @@ def timezoneToOffset(timezone, daylightSaving=False):
         offset += 1
     return offset
 
+
+def parseDTToStringWithFallback(stringOrDT, fallbackString):
+    output = None
+    try:
+        output = parseDTToString(stringOrDT)
+    except:
+        # If it fails, return the fallback string
+        output = fallbackString
+    return output
+
+
 def parseDTToString(stringOrDT):
     format = settings["DATE_FORMAT"]
     timezone = settings["TIMEZONE"]
@@ -75,7 +86,25 @@ def parseDTToString(stringOrDT):
     timezoneObj = dt.timezone(dt.timedelta(hours=timezoneToOffset(timezone)))
     datetimeobj = datetimeobj.astimezone(timezoneObj)
     return datetimeobj.strftime(format)
+
+#  dpg.add_date_picker(level=dpg.mvDatePickerLevel_Year, default_value={'month_day': 8, 'year':93, 'month':5})
+
+def DTToDateDict(dt):
+    # Convert datetime to date dict
+    return {
+        'month_day': dt.day,
+        'year': dt.year,
+        'month': dt.month,
+    }
     
+def DateToDT(dateDict):
+    # Convert date dict to datetime
+    year = dateDict['year']
+    if year < 100 and year > 30:
+        year += 1900
+    elif year < 30:
+        year += 2000
+    return dt.datetime(year, dateDict['month']+1, dateDict['month_day'])
 
 def RichPrint(text, color):
     richPrintConsole.print(text, style=color)
@@ -178,6 +207,11 @@ class TeaCategory:
             self.defaultValue = 0
         elif categoryType == "float":
             self.defaultValue = 0.0
+        elif categoryType == "bool":
+            self.defaultValue = False
+        elif categoryType == "date" or categoryType == "datetime":
+            # Set the default value to the current date and time
+            self.defaultValue = dt.datetime.now(tz=dt.timezone.utc)
         self.widthPixels = widthPixels
         self.categoryActsAs = self.categoryType
 
@@ -548,6 +582,7 @@ class Window_Stash_Reviews(WindowBase):
     tea = None
     addReviewList = list()
     reviewsWindow = None
+    editReviewsWindow = None
     def ShowAddReview(self, sender, app_data, user_data):
         self.reviewsWindow.set_value(user_data)
         self.reviewsWindow.show = True
@@ -574,8 +609,8 @@ class Window_Stash_Reviews(WindowBase):
         # Create a new window for editing the review
         w = 600 * settings["UI_SCALE"]
         h = 700 * settings["UI_SCALE"]
-        editReviewWindow = dp.Window(label="Edit Review", width=w, height=h, modal=True, show=True)
-        windowManager.addSubWindow(editReviewWindow)
+        self.editReviewWindow = dp.Window(label="Edit Review", width=w, height=h, modal=True, show=True)
+        windowManager.addSubWindow(self.editReviewWindow)
         editReviewWindowItems = dict()
         review = user_data
         print(f"type of review: {type(review)}")
@@ -587,9 +622,9 @@ class Window_Stash_Reviews(WindowBase):
                 if tea.id == review.parentID:
                     review.name = tea.name
                     break
-        with editReviewWindow:
+        with self.editReviewWindow:
             dp.Text("Edit Review")
-            for cat in TeaCategories:
+            for cat in TeaReviewCategories:
                 # Add it to the window
                 dp.Text(cat.name)
                 defaultValue = None
@@ -607,11 +642,24 @@ class Window_Stash_Reviews(WindowBase):
                 elif cat.categoryType == "float":
                     editReviewWindowItems[cat.name] = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
                 elif cat.categoryType == "bool":
+                    if defaultValue == "True" or defaultValue == True:
+                        defaultValue = True
+                    else:
+                        defaultValue = False
                     editReviewWindowItems[cat.name] = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
+                elif cat.categoryType == "date" or cat.categoryType == "datetime":
+                    # Date picker widget
+                    try:
+                        defaultValue = dt.datetime.strptime(defaultValue, settings["DATE_FORMAT"]).date()
+                        defaultValue = DTToDateDict(defaultValue)
+                    except:
+                        defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
+                    # If supported, display as date
+                    editReviewWindowItems[cat.name] =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                 else:
                     editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
                     
-            dp.Button(label="Save", callback=self.EditReview, user_data=(review, editReviewWindowItems, editReviewWindow))
+            dp.Button(label="Save", callback=self.EditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow))
             dp.Button(label="Cancel", callback=self.deleteReviewsWindow)
     def EditReview(self, sender, app_data, user_data):
         # Get the tea from the stash
@@ -622,9 +670,12 @@ class Window_Stash_Reviews(WindowBase):
         # All input texts and other input widgets are in the addTeaGroup
         # Revise the tea and save it to the stash, overwriting the old one
         allAttributes = {}
-        for item in editReviewWindowItems.values():
-            # If input text
-            allAttributes[item.label] = item.get_value()
+        for k in editReviewWindowItems:
+            v = editReviewWindowItems[k]
+            if type(v) == dp.DatePicker:
+                allAttributes[k] = DateToDT(v.get_value())
+            else:
+                allAttributes[k] = v.get_value()
 
         newReview = Review(teaId, review.name, review.year, allAttributes, allAttributes["Rating"], allAttributes["Notes"])
 
@@ -643,7 +694,13 @@ class Window_Stash_Reviews(WindowBase):
         # hide the popup
         dpg.configure_item(self.reviewsWindow.tag, show=False)
         self.deleteReviewsWindow()
+        # Refresh the window
         self.refresh()
+        self.parentWindow.refresh()
+        # Close the edit review window
+        if self.editReviewWindow is not None:
+            self.editReviewWindow.delete()
+            self.editReviewWindow = None
 
     def __init__(self, title, width, height, exclusive=False, parentWindow=None, tea=None):
         self.parentWindow = parentWindow
@@ -703,13 +760,35 @@ class Window_Stash_Reviews(WindowBase):
                                 displayValue = review.name
                             else:
                                 if type(review.attributes) == str:
-                                    attrJson = json.loads(review.attributes)
-                                    if cat.name in attrJson:
-                                        displayValue = attrJson[cat.name]
+                                    try:
+                                        attrJson = json.loads(review.attributes)
+                                        if cat.name in attrJson:
+                                            displayValue = attrJson[cat.name]
+                                    except:
+                                        # If it fails, just set to N/A
+                                        displayValue = "Err"
                                 else:
                                     if cat.name in review.attributes:
                                         displayValue = review.attributes[cat.name]
-                            dp.Text(label=displayValue, default_value=displayValue)
+
+
+                            if cat.categoryActsAs == "string" or cat.categoryActsAs == "float" or cat.categoryActsAs == "int":
+                                dp.Text(label=displayValue, default_value=displayValue)
+                            elif cat.categoryActsAs == "bool":
+                                if displayValue == "True" or displayValue == True:
+                                    displayValue = True
+                                else:
+                                    displayValue = False
+                                dp.Checkbox(label=cat.name, default_value=True, enabled=False)
+                            elif cat.categoryActsAs == "date" or cat.categoryActsAs == "datetime":
+                                # Date picker widget
+                                displayValue = parseDTToStringWithFallback(displayValue, "None")
+                                # If supported, display as date
+                                dp.Text(label=displayValue, default_value=displayValue)
+                            else:
+                                # If not supported, just display as string
+                                displayValue = str(displayValue)
+                                dp.Text(label=displayValue, default_value=displayValue)
                         
 
                         # button that opens a modal with reviews
@@ -730,7 +809,7 @@ def Menu_Stash():
     stash = Window_Stash("Stash", w, h, exclusive=True)
 
 class Window_Stash(WindowBase):
-    addTeaList = list()
+    addTeaList = dict()
     teasWindow = None
 
     def onDelete(self):
@@ -741,8 +820,8 @@ class Window_Stash(WindowBase):
         super().onDelete()
 
     def windowDefintion(self, window):
-        self.addTeaList = list()
-        self.addReviewList = list()
+        self.addTeaList = dict()
+        self.addReviewList = dict()
         with window:
             dp.Text("Stash")
             dp.Text("Teas")
@@ -781,7 +860,7 @@ class Window_Stash(WindowBase):
                     with tableRow:
                         cat: TeaCategory
                         for i, cat in enumerate(TeaCategories):
-                            # Convert attribbutes to json
+                            # Convert attributes to json
                             displayValue = "N/A"
                             if cat.name == "Name":
                                 displayValue = tea.name
@@ -793,7 +872,23 @@ class Window_Stash(WindowBase):
                                 else:
                                     if cat.name in tea.attributes:
                                         displayValue = tea.attributes[cat.name]
-                            dp.Text(label=displayValue, default_value=displayValue)
+                            if cat.categoryActsAs == "string" or cat.categoryActsAs == "float" or cat.categoryActsAs == "int":
+                                dp.Text(label=displayValue, default_value=displayValue)
+                            elif cat.categoryActsAs == "bool":
+                                if displayValue == "True" or displayValue == True:
+                                    displayValue = True
+                                else:
+                                    displayValue = False
+                                dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
+                            elif cat.categoryActsAs == "date" or cat.categoryActsAs == "datetime":
+                                # Date picker widget
+                                displayValue = parseDTToStringWithFallback(displayValue, "None")
+                                # If supported, display as date
+                                dp.Text(label=displayValue, default_value=displayValue)
+                            else:
+                                # If not supported, just display as string
+                                displayValue = str(displayValue)
+                                dp.Text(label=displayValue, default_value=displayValue)
 
                         # button that opens a modal with reviews
                         numReviews = len(tea.reviews)
@@ -807,7 +902,7 @@ class Window_Stash(WindowBase):
     def generateReviewListWindow(self, sender, app_data, user_data):
         Menu_Stash_Reviews(sender, app_data, (self, user_data))
 
-    def generateTeasWiundow(self, sender, app_data, user_data):
+    def generateTeasWindow(self, sender, app_data, user_data):
         # If window is open, close it first
         if self.teasWindow != None and type(self.teasWindow) == dp.Window:
             self.deleteTeasWindow()
@@ -825,31 +920,45 @@ class Window_Stash(WindowBase):
         windowManager.addSubWindow(self.teasWindow)
         with self.teasWindow:
             dp.Text("Teas")
-            dp.Text("Name")
-            nameItem = dp.InputText(label="Name", default_value="")
-            if teasData != None and teasData.name != None:
-                nameItem.set_value(teasData.name)
-            self.addTeaList.append(nameItem)
 
             for cat in TeaCategories:
-                if cat.name == "Name":
-                    continue
+                # Add it to the window
                 dp.Text(cat.name)
-                catItem = dp.InputText(label=cat.name, default_value=cat.defaultValue)
-                if teasData != None and teasData.attributes != None:
-                    print(teasData.attributes)
-                    attrJson = None
+                defaultValue = None
+                try:
+                    defaultValue = teasData.attributes[cat.name]
+                except:
+                    defaultValue = f"{cat.defaultValue}"
+                print(f"Default value: {defaultValue, type(defaultValue)}")
+
+                # If the category is a string, int, float, or bool, add the appropriate input type
+                catItem = None
+                if cat.categoryType == "string":
+                    catItem = dp.InputText(label=cat.name, default_value=defaultValue)
+                elif cat.categoryType == "int":
+                    catItem = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                elif cat.categoryType == "float":
+                    catItem = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                elif cat.categoryType == "bool":
+                    if defaultValue == "True" or defaultValue == True:
+                        defaultValue = True
+                    else:
+                        defaultValue = False
+                    catItem = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
+                elif cat.categoryType == "date" or cat.categoryType == "datetime":
+                    # Date picker widget
                     try:
-                        try:
-                            attrJson = json.loads(teasData.attributes)
-                        except:
-                            attrJson = teasData.attributes.replace("'", "\"")
-                            attrJson = json.loads(attrJson)
+                        defaultValue = dt.datetime.strptime(defaultValue, settings["DATE_FORMAT"]).date()
+                        defaultValue = DTToDateDict(defaultValue)
                     except:
-                        attrJson = teasData.attributes
-                    if cat.name in attrJson:
-                        catItem.set_value(attrJson[cat.name])
-                self.addTeaList.append(catItem)
+                        defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
+                    # If supported, display as date
+                    catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
+                else:
+                    catItem = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+
+                # Add it to the list
+                self.addTeaList[cat.name] = catItem
 
             # Add buttons
             if user_data[1] == "add":
@@ -871,9 +980,9 @@ class Window_Stash(WindowBase):
 
 
     def ShowAddTea(self, sender, app_data, user_data):
-        self.generateTeasWiundow(sender, app_data, user_data=(None,"add"))
+        self.generateTeasWindow(sender, app_data, user_data=(None,"add"))
     def ShowEditTea(self, sender, app_data, user_data):
-        self.generateTeasWiundow(sender, app_data, user_data=(user_data,"edit"))
+        self.generateTeasWindow(sender, app_data, user_data=(user_data,"edit"))
                    
                     
 
@@ -906,10 +1015,13 @@ class Window_Stash(WindowBase):
         # All input texts and other input widgets are in the addTeaGroup
         # Revise the tea and save it to the stash, overwriting the old one
         allAttributes = {}
-        for item in self.addTeaList:
-            # If input text
-            if type(item) == dp.InputText:
-                allAttributes[item.label] = item.get_value()
+        for k in self.addTeaList:
+            v = self.addTeaList[k]
+            if type(v) == dp.DatePicker:
+                allAttributes[k] = DateToDT(v.get_value())
+            else:
+                allAttributes[k] = v.get_value()
+
 
         newTea = StashedTea(tea.id, allAttributes["Name"], allAttributes["Year"], allAttributes)
         # Transfer the reviews
@@ -1155,7 +1267,8 @@ class Window_EditCategories(WindowBase):
             validTypes = session["validTypesCategory"]
             dp.Separator()
             dp.Text("Type of Category")
-            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type")
+            height = 200 * settings["UI_SCALE"]
+            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", height=height)
             addCategoryWindowItems["Type"] = catItem
                 
             
@@ -1199,7 +1312,8 @@ class Window_EditCategories(WindowBase):
             validTypes = session["validTypesReviewCategory"]
             dp.Separator()
             dp.Text("Type of Category")
-            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type")
+            height = 200 * settings["UI_SCALE"]
+            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", height=height)
             addReviewCategoryWindowItems["Type"] = catItem
                 
             
@@ -1230,7 +1344,7 @@ class Window_EditCategories(WindowBase):
             allAttributes["Type"] = "string"
 
         # Create a new category
-        newCategory = ReviewCategory(allAttributes["Name"], allAttributes["Type"], True, int(float(allAttributes["Width"])))
+        newCategory = ReviewCategory(allAttributes["Name"], allAttributes["Type"], int(float(allAttributes["Width"])))
         defaultValue = allAttributes["DefaultValue"]
         if defaultValue != None and defaultValue != "":
             newCategory.defaultValue = defaultValue
@@ -1413,7 +1527,7 @@ class Window_EditCategories(WindowBase):
             defaultValue = ""
 
         # Create a new category
-        newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"], True, int(allAttributes["Width"]))
+        newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"], int(allAttributes["Width"]))
         newCategory.defaultValue = defaultValue
 
         # Add the new category to the list
@@ -1905,8 +2019,8 @@ def main():
     global session
     session = {}
     # Get a list of all valid types for Categories
-    session["validTypesCategory"] = ["string", "int", "float"]
-    session["validTypesReviewCategory"] = ["string", "int", "float"]
+    session["validTypesCategory"] = ["string", "int", "float", "bool", "datetime"]
+    session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
     session["validActsAsCategory"] = ["UNUSED", "STRING - Name", "STRING - Date", "STRING - Notes", "FLOAT - Remaining", "INT - Year", "STRING - Type", "STRING - Vendor"]
     session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Name" , "STRING - Date", "STRING - Notes", "FLOAT - Rating", "INT - Year", "FLOAT - Amount"]
     global TeaStash
