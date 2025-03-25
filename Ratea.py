@@ -1979,7 +1979,7 @@ def backupThreadFunc():
 def pollAndAutosaveIfNeeded():
     timeLastSave = pollTimeSinceStartMinutes()
     autosaveInterval = settings["AUTO_SAVE_INTERVAL"]
-    if timeLastSave >= autosaveInterval and settings["AUTO_SAVE"] and timeLastSave > 5:
+    if timeLastSave >= autosaveInterval and settings["AUTO_SAVE"] and timeLastSave >= 5:
         print(f"Autosaving after {timeLastSave} minutes")
         # Save To Backup
         autoBackupPath = settings["AUTO_BACKUP_PATH"]
@@ -1987,13 +1987,14 @@ def pollAndAutosaveIfNeeded():
             if not os.path.exists(autoBackupPath):
                 os.makedirs(autoBackupPath, exist_ok=True)
             SaveAll(autoBackupPath)
+            global globalTimeLastSave
+            globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
+            timeLastSave = pollTimeSinceStartMinutes()
         else:
             RichPrintError("Auto backup path not set, skipping auto backup")
         
 
     RichPrintInfo(f"Autosave interval is {autosaveInterval} minutes, last save was {timeLastSave} minutes ago")
-    # Reset the timer
-    timeLastSave = dt.datetime.now(tz=dt.timezone.utc)
 
 def LoadAll():
     # Load all data
@@ -2061,19 +2062,18 @@ def pollTimeSinceStartMinutes():
     # Get the current time
     currentTime = dt.datetime.now(tz=dt.timezone.utc)
     # Calculate the difference
-    timeDiff = currentTime - timeLastSave
+    timeDiff = currentTime - globalTimeLastSave
     # Convert to minutes
     timeDiffMinutes = timeDiff.total_seconds() / 60.0
     
     # Round to 0.1
     timeDiffMinutes = round(timeDiffMinutes, 1)
-    print(f"Time since start: {timeDiffMinutes} minutes")
     return timeDiffMinutes
 
 def main():
     RichPrintInfo("Starting Tea Tracker")
-    global timeLastSave
-    timeLastSave = dt.datetime.now(tz=dt.timezone.utc)
+    global globalTimeLastSave
+    globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
     # get monitor resolution
     monitor = screeninfo.get_monitors()[0]
     print(monitor)
