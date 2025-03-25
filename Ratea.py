@@ -165,15 +165,13 @@ class Review:
 class TeaCategory:
     name = ""
     categoryType = ""
-    editable = False
     color = ""
     defaultValue = None
     widthPixels = 100
     categoryActsAs = None
-    def __init__(self, name, categoryType, editable, widthPixels=100):
+    def __init__(self, name, categoryType, widthPixels=100):
         self.name = name
         self.categoryType = categoryType
-        self.editable = editable
         if categoryType == "string":
             self.defaultValue = ""
         elif categoryType == "int":
@@ -186,14 +184,12 @@ class TeaCategory:
 class ReviewCategory:
     name = ""
     categoryType = ""
-    editable = True
     widthPixels = 100
     defaultValue = ""
     categoryActsAs = None
-    def __init__(self, name, categoryType, editable, widthPixels=100):
+    def __init__(self, name, categoryType, widthPixels=100):
         self.name = name
         self.categoryType = categoryType
-        self.editable = editable
         self.widthPixels = widthPixels
         self.categoryActsAs = self.categoryType
 
@@ -576,7 +572,9 @@ class Window_Stash_Reviews(WindowBase):
 
     def GenerateEditReviewWindow(self, sender, app_data, user_data):
         # Create a new window for editing the review
-        editReviewWindow = dp.Window(label="Edit Review", width=500, height=500, modal=True, show=True)
+        w = 600 * settings["UI_SCALE"]
+        h = 700 * settings["UI_SCALE"]
+        editReviewWindow = dp.Window(label="Edit Review", width=w, height=h, modal=True, show=True)
         windowManager.addSubWindow(editReviewWindow)
         editReviewWindowItems = dict()
         review = user_data
@@ -592,27 +590,26 @@ class Window_Stash_Reviews(WindowBase):
         with editReviewWindow:
             dp.Text("Edit Review")
             for cat in TeaCategories:
-                # If the category is editable, add it to the window
-                if cat.editable:
-                    dp.Text(cat.name)
-                    defaultValue = None
-                    try:
-                        defaultValue = review.attributes[cat.name]
-                    except:
-                        defaultValue = f"{cat.defaultValue}"
-                    print(f"Default value: {defaultValue, type(defaultValue)}")
-                    
-                    # If the category is a string, int, float, or bool, add the appropriate input type
-                    if cat.categoryType == "string":
-                        editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=defaultValue)
-                    elif cat.categoryType == "int":
-                        editReviewWindowItems[cat.name] = dp.InputInt(label=cat.name, default_value=int(defaultValue))
-                    elif cat.categoryType == "float":
-                        editReviewWindowItems[cat.name] = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
-                    elif cat.categoryType == "bool":
-                        editReviewWindowItems[cat.name] = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
-                    else:
-                        editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                # Add it to the window
+                dp.Text(cat.name)
+                defaultValue = None
+                try:
+                    defaultValue = review.attributes[cat.name]
+                except:
+                    defaultValue = f"{cat.defaultValue}"
+                print(f"Default value: {defaultValue, type(defaultValue)}")
+                
+                # If the category is a string, int, float, or bool, add the appropriate input type
+                if cat.categoryType == "string":
+                    editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=defaultValue)
+                elif cat.categoryType == "int":
+                    editReviewWindowItems[cat.name] = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                elif cat.categoryType == "float":
+                    editReviewWindowItems[cat.name] = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                elif cat.categoryType == "bool":
+                    editReviewWindowItems[cat.name] = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
+                else:
+                    editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
                     
             dp.Button(label="Save", callback=self.EditReview, user_data=(review, editReviewWindowItems, editReviewWindow))
             dp.Button(label="Cancel", callback=self.deleteReviewsWindow)
@@ -667,7 +664,9 @@ class Window_Stash_Reviews(WindowBase):
             with hbarActionGroup:
                 dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=tea)
                 # Add review popup
-                self.reviewsWindow = dp.Window(label="Reviews", width=900, height=500, show=False, modal=True)
+                w = 900 * settings["UI_SCALE"]
+                h = 500 * settings["UI_SCALE"]
+                self.reviewsWindow = dp.Window(label="Reviews", width=w, height=h, show=False, modal=True)
                 with self.reviewsWindow:
                     addReviewGroup = dp.Group(horizontal=False)
                     with addReviewGroup:
@@ -820,7 +819,9 @@ class Window_Stash(WindowBase):
             teasData = user_data[0]
 
         # Create a new window
-        self.teasWindow = dp.Window(label="Teas", width=500, height=500, show=True)
+        w = 500 * settings["UI_SCALE"]
+        h = 500 * settings["UI_SCALE"]
+        self.teasWindow = dp.Window(label="Teas", width=w, height=h, show=True)
         windowManager.addSubWindow(self.teasWindow)
         with self.teasWindow:
             dp.Text("Teas")
@@ -1052,10 +1053,9 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 100 * settings["UI_SCALE"]
+                    scaledHeight = 150 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
-                        dp.Text(f"Editable: {category.editable}")
                         dp.Text(f"Default Value: {category.defaultValue}")
                         dp.Text(f"Category acts as: {category.categoryActsAs}")
                         dp.Text(label=f"Width: {category.widthPixels}")
@@ -1072,12 +1072,8 @@ class Window_EditCategories(WindowBase):
                             dp.Text("[---]")
 
                         with dp.Group(horizontal=False):
-                            if category.editable:
-                                dp.Button(label="Edit", callback=self.showEditCategory, user_data=i)
-                                dp.Button(label="Delete", callback=self.deleteCategory, user_data=i)
-                            else:
-                                dp.Text("[-X-]")
-                                dp.Text("[-X-]")
+                            dp.Button(label="Edit", callback=self.showEditCategory, user_data=i)
+                            dp.Button(label="Delete", callback=self.deleteCategory, user_data=i)
             dp.Separator()
 
     def generateReviewCategoriesList(self):
@@ -1085,10 +1081,9 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaReviewCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 100 * settings["UI_SCALE"]
+                    scaledHeight = 150 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
-                        dp.Text(f"Editable: {category.editable}")
                         dp.Text(f"Default Value: {category.defaultValue}")
                         dp.Text(f"Category acts as: {category.categoryActsAs}")
                         dp.Text(label=f"Width: {category.widthPixels}")
@@ -1105,12 +1100,8 @@ class Window_EditCategories(WindowBase):
                             dp.Text("[---]")
 
                         with dp.Group(horizontal=False):
-                            if category.editable:
-                                dp.Button(label="Edit", callback=self.showEditReviewCategory, user_data=i)
-                                dp.Button(label="Delete", callback=self.deleteReviewCategory, user_data=i)
-                            else:
-                                dp.Text("[-X-]")
-                                dp.Text("[-X-]")
+                            dp.Button(label="Edit", callback=self.showEditReviewCategory, user_data=i)
+                            dp.Button(label="Delete", callback=self.deleteReviewCategory, user_data=i)
             dp.Separator()
 
 
@@ -1139,7 +1130,9 @@ class Window_EditCategories(WindowBase):
 
     def showAddCategory(self, sender, app_data, user_data):
         # Create a popup window to add a new the category
-        addCategoryWindow = dp.Window(label="Add Category", width=500, height=500, modal=True, show=True)
+        w = 500 * settings["UI_SCALE"]
+        h = 500 * settings["UI_SCALE"]
+        addCategoryWindow = dp.Window(label="Add Category", width=w, height=h, modal=True, show=True)
         windowManager.addSubWindow(addCategoryWindow)
         addCategoryWindowItems = dict()
 
@@ -1179,7 +1172,10 @@ class Window_EditCategories(WindowBase):
 
     def shouldAddReviewCategory(self, sender, app_data, user_data):
         # Create a popup window to add a new the review category
-        addReviewCategoryWindow = dp.Window(label="Add Review Category", width=500, height=500, modal=True, show=True)
+        w = 500 * settings["UI_SCALE"]
+        h = 500 * settings["UI_SCALE"]
+        # Create a new window
+        addReviewCategoryWindow = dp.Window(label="Add Review Category", width=w, height=h, modal=True, show=True)
         windowManager.addSubWindow(addReviewCategoryWindow)
         addReviewCategoryWindowItems = dict()
 
@@ -1250,14 +1246,15 @@ class Window_EditCategories(WindowBase):
 
     def showEditCategory(self, sender, app_data, user_data):
         # Create a popup window to edit the category
-        editCategoryWindow = dp.Window(label="Edit Category", width=500, height=500, modal=True, show=True)
+        w = 500 * settings["UI_SCALE"]
+        h = 500 * settings["UI_SCALE"]
+        # Create a new window
+        editCategoryWindow = dp.Window(label="Edit Category", width=w, height=h, modal=True, show=True)
         editCategoryWindowItems = dict()
         category = TeaCategories[user_data]
 
         with editCategoryWindow:
             dp.Text(f"{category.name}")
-            dp.Text(f"Editable: {category.editable}")
-
             dp.Text(f"Width: {category.widthPixels}")
             editCategoryWindowItems["Width"] = dp.InputInt(label="Width", default_value=category.widthPixels, step=1, min_value=50, max_value=500)
             
@@ -1314,15 +1311,16 @@ class Window_EditCategories(WindowBase):
 
     def showEditReviewCategory(self, sender, app_data, user_data):
         # Create a popup window to edit the review category
-        editReviewCategoryWindow = dp.Window(label="Edit Review Category", width=500, height=500, modal=True, show=True)
+        w = 500 * settings["UI_SCALE"]
+        h = 500 * settings["UI_SCALE"]
+        # Create a new window
+        editReviewCategoryWindow = dp.Window(label="Edit Review Category", width=w, height=h, modal=True, show=True)
         windowManager.addSubWindow(editReviewCategoryWindow)
         editReviewCategoryWindowItems = dict()
         category = TeaReviewCategories[user_data]
 
         with editReviewCategoryWindow:
             dp.Text(f"{category.name}")
-            dp.Text(f"Editable: {category.editable}")
-            
             dp.Text(f"Width: {category.widthPixels}")
             editReviewCategoryWindowItems["Width"] = dp.InputInt(label="Width", default_value=category.widthPixels, step=1, min_value=50, max_value=500)
 
@@ -1689,7 +1687,6 @@ def saveTeaCategories(categories, path):
         categoryData = {
             "name": category.name,
             "categoryType": category.categoryType,
-            "editable": category.editable,
             "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
             "categoryActsAs": category.categoryActsAs
@@ -1708,7 +1705,7 @@ def loadTeaCategories(path):
     allData = ReadYaml(path)
     TeaCategories = []
     for categoryData in allData:
-        category = TeaCategory(categoryData["name"], categoryData["categoryType"], categoryData["editable"], categoryData["widthPixels"])
+        category = TeaCategory(categoryData["name"], categoryData["categoryType"], categoryData["widthPixels"])
         category.defaultValue = ""
         if "defaultValue" in categoryData:
             category.defaultValue = categoryData["defaultValue"]
@@ -1734,7 +1731,7 @@ def loadTeaReviewCategories(path):
     allData = ReadYaml(path)
     TeaReviewCategories = []
     for categoryData in allData:
-        category = ReviewCategory(categoryData["name"], categoryData["categoryType"], categoryData["editable"], categoryData["widthPixels"])
+        category = ReviewCategory(categoryData["name"], categoryData["categoryType"], categoryData["widthPixels"])
         category.defaultValue = ""
         if "defaultValue" in categoryData:
             category.defaultValue = categoryData["defaultValue"]
@@ -1776,7 +1773,6 @@ def saveTeaReviewCategories(categories, path):
         categoryData = {
             "name": category.name,
             "categoryType": category.categoryType,
-            "editable": category.editable,
             "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
             "categoryActsAs": category.categoryActsAs
@@ -1911,8 +1907,8 @@ def main():
     # Get a list of all valid types for Categories
     session["validTypesCategory"] = ["string", "int", "float"]
     session["validTypesReviewCategory"] = ["string", "int", "float"]
-    session["validActsAsCategory"] = ["UNUSED", "STRING - Notes"]
-    session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Notes"]
+    session["validActsAsCategory"] = ["UNUSED", "STRING - Name", "STRING - Date", "STRING - Notes", "FLOAT - Remaining", "INT - Year", "STRING - Type", "STRING - Vendor"]
+    session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Name" , "STRING - Date", "STRING - Notes", "FLOAT - Rating", "INT - Year", "FLOAT - Amount"]
     global TeaStash
     global TeaCategories
     TeaCategories = []
