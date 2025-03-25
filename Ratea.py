@@ -525,7 +525,9 @@ class Window_Timer(WindowBase):
 
 
 def Menu_Settings():
-    settingsWindow = Window_Settings("Settings", 500, 500, exclusive=True)
+    w = 500 * settings["UI_SCALE"]
+    h = 500 * settings["UI_SCALE"]
+    settingsWindow = Window_Settings("Settings", w, h, exclusive=True)
 
 class Window_Settings(WindowBase):
     def windowDefintion(self, window):
@@ -551,6 +553,12 @@ class Window_Settings(WindowBase):
             # Chevckbox for window label for timer
             dp.Checkbox(label="Timer Window Label", default_value=True, callback=self.UpdateSettings, user_data="TIMER_WINDOW_LABEL")
             dp.Separator()
+
+            # Autosave
+            dp.Text("Autosave")
+            dp.Checkbox(label="Autosave", default_value=settings["AUTO_SAVE"], callback=self.UpdateSettings, user_data="AUTOSAVE")
+            dp.Text("Autosave Interval (Minutes)")
+            dp.InputInt(label="Autosave Interval", default_value=settings["AUTO_SAVE_INTERVAL"], callback=self.UpdateSettings, user_data="AUTO_SAVE_INTERVAL")
     # Callback function for the input text to update the settings
     def UpdateSettings(self, sender, data, user_data):
         settings[user_data] = data
@@ -558,6 +566,11 @@ class Window_Settings(WindowBase):
         # ui scale
         if user_data == "UI_SCALE":
             dpg.set_global_font_scale(settings["UI_SCALE"])
+
+        # Start/Stop Autosave
+        if user_data == "AUTOSAVE":
+            shouldStart = settings["AUTO_SAVE"]
+            startBackupThread(shouldStart) # Starts or stops the autosave thread
 
     def UpdateDateTimeFormat(self, sender, data):
         rawDropdown = str(data)
@@ -1938,6 +1951,50 @@ def SaveAll(altPath=None):
     WriteYaml(session["settingsPath"], settings)
     windowManager.exportPersistantWindows(settings["PERSISTANT_WINDOWS_PATH"])
 
+
+# Start Backup Thread
+def startBackupThread(shouldStart=False):
+    # If ShouldStart and not started, start, else end
+    global backupThread
+    
+    if shouldStart and backupThread == False:
+        backupThread = threading.Thread(target=backupThreadFunc, daemon=True)
+        backupThread.start()
+        print("Backup thread started")
+    elif not shouldStart and backupThread != False:
+        backupThread.join()
+        backupThread = False
+        print("Backup thread stopped")
+    else:
+        print("Backup thread already started or stopped, doing nothing")
+
+
+
+def backupThreadFunc():
+    # Start a loop to poll the time since start and save if needed
+    while True:
+        pollAndAutosaveIfNeeded()
+        time.sleep(60)  # Poll every 5s
+
+def pollAndAutosaveIfNeeded():
+    timeLastSave = pollTimeSinceStartMinutes()
+    autosaveInterval = settings["AUTO_SAVE_INTERVAL"]
+    if timeLastSave >= autosaveInterval and settings["AUTO_SAVE"] and timeLastSave > 5:
+        print(f"Autosaving after {timeLastSave} minutes")
+        # Save To Backup
+        autoBackupPath = settings["AUTO_BACKUP_PATH"]
+        if autoBackupPath != None and autoBackupPath != "":
+            if not os.path.exists(autoBackupPath):
+                os.makedirs(autoBackupPath, exist_ok=True)
+            SaveAll(autoBackupPath)
+        else:
+            RichPrintError("Auto backup path not set, skipping auto backup")
+        
+
+    RichPrintInfo(f"Autosave interval is {autosaveInterval} minutes, last save was {timeLastSave} minutes ago")
+    # Reset the timer
+    timeLastSave = dt.datetime.now(tz=dt.timezone.utc)
+
 def LoadAll():
     # Load all data
     global settings
@@ -1991,14 +2048,32 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Export Windows", callback=windowManager.exportPersistantWindows)
             dp.Button(label="Import Windows", callback=windowManager.importPersistantWindows)
             dp.Button(label="Demo", callback=demo.show_demo)
+            dp.Button(label="Poll Time", callback=pollTimeSinceStartMinutes)
+            dp.Button(label="Stop Backup Thread", callback=startBackupThread)
 
 def printSettings():
     for key, value in settings.items():
         print(f"Setting {key} is {value}")
 def printThreads():
     print(threading.enumerate())
+
+def pollTimeSinceStartMinutes():
+    # Get the current time
+    currentTime = dt.datetime.now(tz=dt.timezone.utc)
+    # Calculate the difference
+    timeDiff = currentTime - timeLastSave
+    # Convert to minutes
+    timeDiffMinutes = timeDiff.total_seconds() / 60.0
+    
+    # Round to 0.1
+    timeDiffMinutes = round(timeDiffMinutes, 1)
+    print(f"Time since start: {timeDiffMinutes} minutes")
+    return timeDiffMinutes
+
 def main():
     RichPrintInfo("Starting Tea Tracker")
+    global timeLastSave
+    timeLastSave = dt.datetime.now(tz=dt.timezone.utc)
     # get monitor resolution
     monitor = screeninfo.get_monitors()[0]
     print(monitor)
@@ -2022,6 +2097,9 @@ def main():
     windowManager = Manager_Windows()
     windowManager.sortWindows()
 
+    global backupThread
+    backupThread = False
+
     global default_settings
     default_settings = {
         "UI_SCALE": Monitor_Scale,
@@ -2037,7 +2115,10 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.5.2", # do not change
+        "APP_VERSION": "0.5.3", # Updates to most recently loaded
+        "AUTO_SAVE": True,
+        "AUTO_SAVE_INTERVAL": 15, # Minutes
+        "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
     }
     numSettings = len(default_settings)
     global settings
@@ -2097,6 +2178,12 @@ def main():
         RichPrintError(f"Could not find {default_settings["SETTINGS_FILENAME"]} at full path {settingsPath}")
         # Create the settings file and write the default settings
         WriteYaml(settingsPath, default_settings)
+    for key, value in settings.items():
+        print(f"Setting {key} is {value}")
+
+    # Update version
+    settings["APP_VERSION"] = default_settings["APP_VERSION"]
+
 
     
     categoriesPath = f"{baseDir}/{settings["TEA_CATEGORIES_PATH"]}"
@@ -2159,6 +2246,9 @@ def main():
     # Start first welcome window
     Menu_Welcome(None, None, None)
 
+    
+    startBackupThread(settings["AUTO_SAVE"])
+    # Start the backup thread
     dp.Viewport.title = "RaTea"
     dp.Viewport.width = WindowSize[0]
     dp.Viewport.height = WindowSize[1]
