@@ -102,8 +102,6 @@ def parseDTToStringWithHoursMinutes(stringOrDT):
     datetimeobj = datetimeobj.astimezone(timezoneObj)
     return datetimeobj.strftime(format)
 
-#  dpg.add_date_picker(level=dpg.mvDatePickerLevel_Year, default_value={'month_day': 8, 'year':93, 'month':5})
-
 def DTToDateDict(dt):
     # Convert datetime to date dict
     return {
@@ -142,6 +140,16 @@ def print_me(sender, data, user_data):
 def Settings_SaveCurrentSettings():
     RichPrintSuccess("Saving settings")
     WriteYaml(session["settingsPath"], settings)
+
+# Fast print the ID and names of all teas and reviews in a tree
+def printTeasAndReviews():
+    RichPrintSeparator()
+    RichPrintInfo("Teas and Reviews:")
+    for i, tea in enumerate(TeaStash):
+        RichPrintInfo(f"|Tea Name {i}: {tea.name} ({tea.year})")
+        for j, review in enumerate(tea.reviews):
+            RichPrintInfo(f"\tReview {j}: {review.name} ({review.year})")
+    RichPrintSeparator()
 
 
 #endregion
@@ -784,7 +792,9 @@ class Window_Stash_Reviews(WindowBase):
                     with tableRow:
 
                         # Add ID index based on position in list
-                        dp.Text(label=f"{i+1}", default_value=f"{i+1}")
+                        # (parentID) - (reviewID)
+                        idValue = f"{review.parentID}-{review.id}"
+                        dp.Text(label=idValue, default_value=idValue)
                         # Add the review attributes
 
                         cat: TeaCategory
@@ -1846,6 +1856,7 @@ def loadTeasReviews(path):
             j += 1
         TeaStash.append(tea)
         i += 1
+        j = 0
     return TeaStash
 
 def saveTeaCategories(categories, path):
@@ -2066,6 +2077,7 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Demo", callback=demo.show_demo)
             dp.Button(label="Poll Time", callback=pollTimeSinceStartMinutes)
             dp.Button(label="Stop Backup Thread", callback=startBackupThread)
+            dp.Button(label="printTeasAndReviews", callback=printTeasAndReviews)
 
 def printSettings():
     for key, value in settings.items():
