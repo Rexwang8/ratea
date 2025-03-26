@@ -87,6 +87,21 @@ def parseDTToString(stringOrDT):
     datetimeobj = datetimeobj.astimezone(timezoneObj)
     return datetimeobj.strftime(format)
 
+def parseDTToStringWithHoursMinutes(stringOrDT):
+    format = settings["DATE_FORMAT"] + " %H:%M"
+    timezone = settings["TIMEZONE"]
+    # Parse into datetime
+    datetimeobj = None
+    if isinstance(stringOrDT, str):
+        datetimeobj = dt.datetime.strptime(stringOrDT, format)
+    elif isinstance(stringOrDT, dt.datetime):
+        datetimeobj = stringOrDT
+
+    # Convert to timezone
+    timezoneObj = dt.timezone(dt.timedelta(hours=timezoneToOffset(timezone)))
+    datetimeobj = datetimeobj.astimezone(timezoneObj)
+    return datetimeobj.strftime(format)
+
 #  dpg.add_date_picker(level=dpg.mvDatePickerLevel_Year, default_value={'month_day': 8, 'year':93, 'month':5})
 
 def DTToDateDict(dt):
@@ -1774,7 +1789,7 @@ class Manager_Windows:
 
 def generateBackup():
     # Use the alternate backup path and generate a folder containing all backed up files, add datetime to path
-    backupPath = f"{settings['BACKUP_PATH']}/{parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}"
+    backupPath = f"{settings['BACKUP_PATH']}/{parseDTToStringWithHoursMinutes(dt.datetime.now(tz=dt.timezone.utc))}"
     os.makedirs(backupPath, exist_ok=True)
     SaveAll(backupPath)
     print(f"Backup generated at {backupPath}")
@@ -1982,7 +1997,7 @@ def pollAndAutosaveIfNeeded():
     if timeLastSave >= autosaveInterval and settings["AUTO_SAVE"] and timeLastSave >= 5:
         print(f"Autosaving after {timeLastSave} minutes")
         # Save To Backup
-        autoBackupPath = settings["AUTO_BACKUP_PATH"]
+        autoBackupPath = settings["AUTO_BACKUP_PATH"] + f"/{parseDTToStringWithHoursMinutes(dt.datetime.now(tz=dt.timezone.utc))}"
         if autoBackupPath != None and autoBackupPath != "":
             if not os.path.exists(autoBackupPath):
                 os.makedirs(autoBackupPath, exist_ok=True)
