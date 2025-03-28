@@ -588,6 +588,14 @@ class Window_Settings(WindowBase):
             dp.Checkbox(label="Autosave", default_value=settings["AUTO_SAVE"], callback=self.UpdateSettings, user_data="AUTOSAVE")
             dp.Text("Autosave Interval (Minutes)")
             dp.InputInt(label="Autosave Interval", default_value=settings["AUTO_SAVE_INTERVAL"], callback=self.UpdateSettings, user_data="AUTO_SAVE_INTERVAL")
+
+            # Fonts
+            dp.Text("Font (Need to refresh program to apply)")
+            # Dropdown
+            validFonts = session["validFonts"]
+            defaultFont = settings["DEFAULT_FONT"]
+            dp.Combo(label="Font", items=validFonts, default_value=defaultFont, callback=self.UpdateSettings, user_data="DEFAULT_FONT")
+
     # Callback function for the input text to update the settings
     def UpdateSettings(self, sender, data, user_data):
         settings[user_data] = data
@@ -600,6 +608,12 @@ class Window_Settings(WindowBase):
         if user_data == "AUTOSAVE":
             shouldStart = settings["AUTO_SAVE"]
             startBackupThread(shouldStart) # Starts or stops the autosave thread
+
+        # Update font
+        if user_data == "DEFAULT_FONT":
+            # Set the font for all windows
+            dpg.set_global_font_scale(settings["UI_SCALE"])
+            dpg.bind_font(data)
 
     def UpdateDateTimeFormat(self, sender, data):
         rawDropdown = str(data)
@@ -2014,7 +2028,7 @@ def pollAndAutosaveIfNeeded():
     if timeLastSave >= autosaveInterval and settings["AUTO_SAVE"] and timeLastSave >= 5:
         print(f"Autosaving after {timeLastSave} minutes")
         # Save To Backup
-        autoBackupPath = settings["AUTO_BACKUP_PATH"] + f"/{parseDTToStringWithHoursMinutes(dt.datetime.now(tz=dt.timezone.utc))}"
+        autoBackupPath = settings["AUTO_SAVE_PATH"] + f"/{parseDTToStringWithHoursMinutes(dt.datetime.now(tz=dt.timezone.utc))}"
         if autoBackupPath != None and autoBackupPath != "":
             if not os.path.exists(autoBackupPath):
                 os.makedirs(autoBackupPath, exist_ok=True)
@@ -2152,6 +2166,7 @@ def main():
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
+        "DEFAULT_FONT": "OpenSansRegular",
     }
     numSettings = len(default_settings)
     global settings
@@ -2163,6 +2178,7 @@ def main():
     session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
     session["validActsAsCategory"] = ["UNUSED", "STRING - Name", "STRING - Date", "STRING - Notes", "FLOAT - Remaining", "INT - Year", "STRING - Type", "STRING - Vendor"]
     session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Name" , "STRING - Date", "STRING - Notes", "FLOAT - Rating", "INT - Year", "FLOAT - Amount"]
+    session["validFonts"] = ["OpenSansRegular", "RobotoRegular", "RobotoBold", "MerriweatherRegular", "MontserratRegular"]
     global TeaStash
     global TeaCategories
     TeaCategories = []
@@ -2284,6 +2300,15 @@ def main():
         dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 16, tag="MontserratRegular")
         # Opensans regular
         dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 18, tag="OpenSansRegular")
+
+        # Test
+        if settings["DEFAULT_FONT"] in session["validFonts"]:
+            RichPrintInfo(f"Font {settings["DEFAULT_FONT"]} loaded")
+            dpg.bind_font(settings["DEFAULT_FONT"])
+        else:
+            RichPrintError(f"Font {settings["DEFAULT_FONT"]} not found, defaulting to OpenSansRegular")
+            dpg.bind_font("OpenSansRegular")
+        
     dpg.set_global_font_scale(settings["UI_SCALE"])
 
     # Start first welcome window
