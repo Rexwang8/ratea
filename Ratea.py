@@ -100,7 +100,13 @@ def parseDTToStringWithHoursMinutes(stringOrDT):
     # Convert to timezone
     timezoneObj = dt.timezone(dt.timedelta(hours=timezoneToOffset(timezone)))
     datetimeobj = datetimeobj.astimezone(timezoneObj)
-    return datetimeobj.strftime(format)
+    returnedString = datetimeobj.strftime(format)
+
+    # Clean of spaces, colons
+    returnedString = re.sub(r'\s+', ' ', returnedString)
+    returnedString = re.sub(r':', '', returnedString)
+    returnedString = re.sub(r' ', '', returnedString)
+    return returnedString
 
 def DTToDateDict(dt):
     # Convert datetime to date dict
@@ -2268,6 +2274,16 @@ def main():
 
     Settings_SaveCurrentSettings()
     # Set the DearPyGui theme
+    # Load fonts
+    with dpg.font_registry():
+        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 16, tag="RobotoRegular")
+        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 16, tag="RobotoBold")
+        # Merriweather 24pt regular
+        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 16, tag="MerriweatherRegular")
+        # Montserrat-regular
+        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 16, tag="MontserratRegular")
+        # Opensans regular
+        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 18, tag="OpenSansRegular")
     dpg.set_global_font_scale(settings["UI_SCALE"])
 
     # Start first welcome window
