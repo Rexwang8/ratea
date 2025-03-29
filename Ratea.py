@@ -158,6 +158,31 @@ def printTeasAndReviews():
     RichPrintSeparator()
 
 
+# Defines valid categories, and acts as categories
+# Also defines the types of acts as
+
+def setValidTypes():
+    session["validTypesCategory"] = ["string", "int", "float", "bool", "datetime"]
+    session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
+    session["validActsAsCategory"] = ["UNUSED", "STRING - Name", "STRING - Date", "STRING - Notes", "FLOAT - Remaining", "INT - Year", "STRING - Type", "STRING - Vendor"]
+    session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Name" , "STRING - Date", "STRING - Notes", "FLOAT - Rating", "INT - Year", "FLOAT - Amount"]
+    
+    session["validActsAsCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
+                                "int": ["UNUSED", "Total Score", "Year", "Amount", "Remaining"],
+                                "float": ["UNUSED", "Total Score", "Amount", "Remaining"],
+                                "bool": ["UNUSED", "bool"],
+                                "date": ["UNUSED", "date"],
+                                "datetime": ["UNUSED", "date"]}
+    
+    session["validActsAsReviewCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
+                                "int": ["UNUSED", "Score", "Final Score", "Year", "Amount"],
+                                "float": ["UNUSED", "Score", "Final Score", "Amount"],
+                                "bool": ["UNUSED", "bool"],
+                                "date": ["UNUSED", "date"],
+                                "datetime": ["UNUSED", "date"]}
+    
+
+
 #endregion
 
 
@@ -228,6 +253,16 @@ class TeaCategory:
     defaultValue = None
     widthPixels = 100
     categoryActsAs = None
+
+    # If is required, for when talking about tea, or for all, like teaware and shipping
+    isRequiredForTea = False
+    isRequiredForAll = False
+
+    # Autocalculated, if it is, it would be hidden in entry window and would rely on a calc step after submission
+    # based on its ActsAs, would be Not Required if so.
+    isAutoCalculated = False
+
+    
     def __init__(self, name, categoryType, widthPixels=100):
         self.name = name
         self.categoryType = categoryType
@@ -245,18 +280,37 @@ class TeaCategory:
         self.widthPixels = widthPixels
         self.categoryActsAs = "UNUSED"
 
+        self.isRequiredForTea = False
+        self.isRequiredForAll = False
+
+
 class ReviewCategory:
     name = ""
     categoryType = ""
     widthPixels = 100
     defaultValue = ""
     categoryActsAs = None
+
+    # If is required, for when talking about tea, or for all, like teaware and shipping
+    isRequiredForTea = False
+    isRequiredForAll = False
+    
+    # Autocalculated, if it is, it would be hidden in entry window and would rely on a calc step after submission
+    # based on its ActsAs, would be Not Required if so.
+    isAutoCalculated = False
+
     def __init__(self, name, categoryType, widthPixels=100):
         self.name = name
         self.categoryType = categoryType
         self.widthPixels = widthPixels
         self.categoryActsAs = self.categoryType
-
+        self.ifisRequiredForTea = False
+        self.ifisRequiredForAll = False
+        
+    # Define if is required depending on ActsAs
+    def setRequired(self, isRequiredForTea, isRequiredForAll):
+        self.isRequiredForTea = isRequiredForTea
+        self.isRequiredForAll = isRequiredForAll
 
 #endregion
 
@@ -1339,8 +1393,7 @@ class Window_EditCategories(WindowBase):
             validTypes = session["validTypesCategory"]
             dp.Separator()
             dp.Text("Type of Category")
-            height = 200 * settings["UI_SCALE"]
-            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", height=height)
+            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5)
             addCategoryWindowItems["Type"] = catItem
                 
             
@@ -1384,8 +1437,7 @@ class Window_EditCategories(WindowBase):
             validTypes = session["validTypesReviewCategory"]
             dp.Separator()
             dp.Text("Type of Category")
-            height = 200 * settings["UI_SCALE"]
-            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", height=height)
+            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5)
             addReviewCategoryWindowItems["Type"] = catItem
                 
             
@@ -1450,7 +1502,7 @@ class Window_EditCategories(WindowBase):
             validTypes = session["validTypesCategory"]
             dp.Separator()
             dp.Text(f"Type of Category")
-            catItem = dp.Listbox(items=validTypes, default_value=category.categoryType)
+            catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, label="Type", callback=self.updateTypeDuringEdit, num_items=5)
             if category.categoryType not in validTypes:
                 catItem.set_value("ERR: Assume String")
 
@@ -1458,14 +1510,20 @@ class Window_EditCategories(WindowBase):
 
             # Dropdown for category acts as
             dp.Text("Category acts as")
-            items = session["validActsAsCategory"]
-            actsAsItem = dp.Listbox(items=items, default_value=category.categoryActsAs)
+            typeCategory = f"{category.categoryType}"
+            items = session["validActsAsCategory"][typeCategory]
+            actsAsItem = dp.Listbox(items=items, default_value=category.categoryActsAs, num_items=5)
             if category.categoryActsAs not in items:
                 actsAsItem.set_value("ERR: Assume Unused")
             
             editCategoryWindowItems["ActsAs"] = actsAsItem
 
+
             dp.Separator()
+
+            editCategoryWindowItems["Type"].user_data = (editCategoryWindowItems["Type"], actsAsItem)
+            
+            
 
             with dp.Group(horizontal=True):
                 dp.Button(label="Save", callback=self.EditCategory, user_data=(category, editCategoryWindowItems, editCategoryWindow))
@@ -1477,6 +1535,16 @@ class Window_EditCategories(WindowBase):
                     dp.Text("Edit the category name, type, and width in pixels")
         print("Edit Category")
 
+    def updateTypeDuringEdit(self, sender, app_data, user_data):
+        # We need to update type during edit to show correct acts as
+        RichPrintInfo(F"[INFO] Updated Type: {user_data[0].get_value()}")
+        valueToSet = user_data[0].get_value()
+        actsAsItem = user_data[1]
+        validTypes = session["validActsAsCategory"][valueToSet]
+        dpg.configure_item(actsAsItem.tag, items=validTypes)
+        actsAsItem.set_value(validTypes[0])
+
+
     def EditCategory(self, sender, app_data, user_data):
         category = user_data[0]
         allAttributes = user_data[1]
@@ -1487,7 +1555,7 @@ class Window_EditCategories(WindowBase):
         category.defaultValue = allAttributes["DefaultValue"].get_value()
 
         category.categoryActsAs = allAttributes["ActsAs"].get_value()
-        if category.categoryActsAs not in session["validActsAsCategory"]:
+        if category.categoryActsAs not in session["validActsAsCategory"][allAttributes["Type"].get_value()]:
             category.categoryActsAs = "UNUSED"
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
@@ -1516,7 +1584,7 @@ class Window_EditCategories(WindowBase):
             validTypes = session["validTypesReviewCategory"]
             dp.Separator()
             dp.Text(f"Type of Category")
-            catItem = dp.Listbox(items=validTypes, default_value=category.categoryType)
+            catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, label="Type", num_items=5, callback=self.updateTypeDuringEditReview)
             if category.categoryType not in validTypes:
                 catItem.set_value("ERR: Assume String")
 
@@ -1524,12 +1592,14 @@ class Window_EditCategories(WindowBase):
 
             dp.Text("Category acts as")
             # Dropdown for category acts as
-            items = session["validActsAsReviewCategory"]
+            items = session["validActsAsReviewCategory"][category.categoryType]
             actsAsItem = dp.Listbox(items=items, default_value=category.categoryActsAs)
             editReviewCategoryWindowItems["ActsAs"] = actsAsItem
             if category.categoryActsAs not in items:
                 actsAsItem.set_value("ERR: Assume Unused")
             dp.Separator()
+
+            editReviewCategoryWindowItems["Type"].user_data = (editReviewCategoryWindowItems["Type"], actsAsItem)
 
             with dp.Group(horizontal=True):
                 dp.Button(label="Save", callback=self.EditReviewCategory, user_data=(category, editReviewCategoryWindowItems, editReviewCategoryWindow))
@@ -1539,6 +1609,15 @@ class Window_EditCategories(WindowBase):
                 # Hover tooltip
                 with dpg.tooltip(dpg.last_item()):
                     dp.Text("Edit the review category name, type, and width in pixels")
+
+    def updateTypeDuringEditReview(self, sender, app_data, user_data):
+        # We need to update type during edit to show correct acts as
+        RichPrintInfo(F"[INFO] Updated Type: {user_data[0].get_value()}")
+        valueToSet = user_data[0].get_value()
+        actsAsItem = user_data[1]
+        validTypes = session["validActsAsReviewCategory"][valueToSet]
+        dpg.configure_item(actsAsItem.tag, items=validTypes)
+        actsAsItem.set_value(validTypes[0])
 
     def EditReviewCategory(self, sender, app_data, user_data):
         category = user_data[0]
@@ -1550,7 +1629,7 @@ class Window_EditCategories(WindowBase):
         category.defaultValue = allAttributes["DefaultValue"].get_value()
 
         category.categoryActsAs = allAttributes["ActsAs"].get_value()
-        if category.categoryActsAs not in session["validActsAsReviewCategory"]:
+        if category.categoryActsAs not in session["validActsAsReviewCategory"][allAttributes["Type"].get_value()]:
             category.categoryActsAs = "UNUSED"
 
 
@@ -1571,10 +1650,12 @@ class Window_EditCategories(WindowBase):
         self.refresh()
 
     def deleteReviewCategory(self, sender, app_data, user_data):
-        print(f"Delete Review Category - {user_data}")
+        nameOfCategory = TeaReviewCategories[user_data].name
         # Delete the category
         TeaReviewCategories.pop(user_data)
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
+
+        RichPrintSuccess(f"Deleted {nameOfCategory} category")
         
         # Refresh the window
         self.refresh()
@@ -2006,13 +2087,13 @@ def startBackupThread(shouldStart=False):
     if shouldStart and backupThread == False:
         backupThread = threading.Thread(target=backupThreadFunc, daemon=True)
         backupThread.start()
-        print("Backup thread started")
+        RichPrintInfo("Backup thread started")
     elif not shouldStart and backupThread != False:
         backupThread.join()
         backupThread = False
-        print("Backup thread stopped")
+        RichPrintInfo("Backup thread stopped")
     else:
-        print("Backup thread already started or stopped, doing nothing")
+        RichPrintInfo("Backup thread already started or stopped, doing nothing")
 
 
 
@@ -2174,10 +2255,11 @@ def main():
     global session
     session = {}
     # Get a list of all valid types for Categories
-    session["validTypesCategory"] = ["string", "int", "float", "bool", "datetime"]
-    session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
-    session["validActsAsCategory"] = ["UNUSED", "STRING - Name", "STRING - Date", "STRING - Notes", "FLOAT - Remaining", "INT - Year", "STRING - Type", "STRING - Vendor"]
-    session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Name" , "STRING - Date", "STRING - Notes", "FLOAT - Rating", "INT - Year", "FLOAT - Amount"]
+    setValidTypes()
+    #session["validTypesCategory"] = ["string", "int", "float", "bool", "datetime"]
+    #session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
+    #session["validActsAsCategory"] = ["UNUSED", "STRING - Name", "STRING - Date", "STRING - Notes", "FLOAT - Remaining", "INT - Year", "STRING - Type", "STRING - Vendor"]
+    #session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Name" , "STRING - Date", "STRING - Notes", "FLOAT - Rating", "INT - Year", "FLOAT - Amount"]
     session["validFonts"] = ["OpenSansRegular", "RobotoRegular", "RobotoBold", "MerriweatherRegular", "MontserratRegular"]
     global TeaStash
     global TeaCategories
