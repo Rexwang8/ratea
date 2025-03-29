@@ -262,7 +262,7 @@ class TeaCategory:
     # based on its ActsAs, would be Not Required if so.
     isAutoCalculated = False
 
-    
+
     def __init__(self, name, categoryType, widthPixels=100):
         self.name = name
         self.categoryType = categoryType
@@ -2243,7 +2243,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.5.3", # Updates to most recently loaded
+        "APP_VERSION": "0.5.4", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
