@@ -152,11 +152,77 @@ def printTeasAndReviews():
     RichPrintSeparator()
     RichPrintInfo("Teas and Reviews:")
     for i, tea in enumerate(TeaStash):
-        RichPrintInfo(f"|Tea Name {i}: {tea.name} ({tea.year})")
+        RichPrintInfo(f"Tea {i}: {tea.name} ({tea.year})")
         for j, review in enumerate(tea.reviews):
             RichPrintInfo(f"\tReview {j}: {review.name} ({review.year})")
     RichPrintSeparator()
 
+# Fast print of Categories and Review Categories
+def printCategories():
+    RichPrintSeparator()
+    RichPrintInfo("Categories:")
+    for i, cat in enumerate(TeaCategories):
+        RichPrintInfo(f"Category {i}: {cat.name} ({cat.categoryType}) ({cat.categoryActsAs})")
+    RichPrintSeparator()
+    RichPrintInfo("Review Categories:")
+    for i, cat in enumerate(TeaReviewCategories):
+        RichPrintInfo(f"Category {i}: {cat.name} ({cat.categoryType}) ({cat.categoryActsAs})")
+    RichPrintSeparator()
+
+# Iterates through list of categories and returns first category id that matches the ActsAs
+def getCategoryIDByActsAs(actsAs):
+    noneFoundValue = -1
+    for i, cat in enumerate(TeaCategories):
+        if cat.categoryActsAs == actsAs:
+            return i
+        
+    return noneFoundValue
+
+def debugGetCategoryActsAs():
+    allActsAsCategories = []
+    for k, v in session["validActsAsCategory"].items():
+        for i, cat in enumerate(v):
+            allActsAsCategories.append(cat)
+
+    # Dedup and remove UNUSED
+    allActsAsCategories = list(set(allActsAsCategories))
+    allActsAsCategories.remove("UNUSED")
+
+
+    print(f"All ActsAs Categories: {allActsAsCategories}")
+    for i, cat in enumerate(allActsAsCategories):
+        hasCoorespondingCategory = getCategoryIDByActsAs(cat)
+        if hasCoorespondingCategory == -1:
+            print(f"Category {cat} does not have a cooresponding category")
+        else:
+            print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaCategories[hasCoorespondingCategory].name}")
+
+# Iterate through ReviewCategories and return the first category id that matches the ActsAs
+def getReviewCategoryIDByActsAs(actsAs):
+    noneFoundValue = -1
+    for i, cat in enumerate(TeaReviewCategories):
+        if cat.categoryActsAs == actsAs:
+            return i
+        
+    return noneFoundValue
+
+def debugGetReviewCategoryActsAs():
+    allActsAsCategories = []
+    for k, v in session["validActsAsReviewCategory"].items():
+        for i, cat in enumerate(v):
+            allActsAsCategories.append(cat)
+
+    # Dedup and remove UNUSED
+    allActsAsCategories = list(set(allActsAsCategories))
+    allActsAsCategories.remove("UNUSED")
+    
+    print(f"All ActsAs Categories: {allActsAsCategories}")
+    for i, cat in enumerate(allActsAsCategories):
+        hasCoorespondingCategory = getReviewCategoryIDByActsAs(cat)
+        if hasCoorespondingCategory == -1:
+            print(f"Category {cat} does not have a cooresponding category")
+        else:
+            print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaReviewCategories[hasCoorespondingCategory].name}")
 
 # Defines valid categories, and acts as categories
 # Also defines the types of acts as
@@ -164,8 +230,6 @@ def printTeasAndReviews():
 def setValidTypes():
     session["validTypesCategory"] = ["string", "int", "float", "bool", "datetime"]
     session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
-    session["validActsAsCategory"] = ["UNUSED", "STRING - Name", "STRING - Date", "STRING - Notes", "FLOAT - Remaining", "INT - Year", "STRING - Type", "STRING - Vendor"]
-    session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Name" , "STRING - Date", "STRING - Notes", "FLOAT - Rating", "INT - Year", "FLOAT - Amount"]
     
     session["validActsAsCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
                                 "int": ["UNUSED", "Total Score", "Year", "Amount", "Remaining"],
@@ -2181,10 +2245,15 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Sort Windows", callback=windowManager.sortWindows)
             dp.Button(label="Export Windows", callback=windowManager.exportPersistantWindows)
             dp.Button(label="Import Windows", callback=windowManager.importPersistantWindows)
+        with dp.Menu(label="Debug 2"):
             dp.Button(label="Demo", callback=demo.show_demo)
             dp.Button(label="Poll Time", callback=pollTimeSinceStartMinutes)
             dp.Button(label="Stop Backup Thread", callback=startBackupThread)
             dp.Button(label="printTeasAndReviews", callback=printTeasAndReviews)
+            dp.Button(label="Print Categories/Reviews", callback=printCategories)
+            dp.Button(label="Print ActsAs Cat", callback=debugGetCategoryActsAs)
+            dp.Button(label="Print ActsAs Rev Cat", callback=debugGetReviewCategoryActsAs)
+            
 
 def printSettings():
     for key, value in settings.items():
@@ -2262,10 +2331,6 @@ def main():
     session = {}
     # Get a list of all valid types for Categories
     setValidTypes()
-    #session["validTypesCategory"] = ["string", "int", "float", "bool", "datetime"]
-    #session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
-    #session["validActsAsCategory"] = ["UNUSED", "STRING - Name", "STRING - Date", "STRING - Notes", "FLOAT - Remaining", "INT - Year", "STRING - Type", "STRING - Vendor"]
-    #session["validActsAsReviewCategory"] = ["UNUSED", "STRING - Name" , "STRING - Date", "STRING - Notes", "FLOAT - Rating", "INT - Year", "FLOAT - Amount"]
     session["validFonts"] = ["OpenSansRegular", "RobotoRegular", "RobotoBold", "MerriweatherRegular", "MontserratRegular"]
     global TeaStash
     global TeaCategories
