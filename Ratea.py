@@ -981,7 +981,7 @@ class Window_Stash(WindowBase):
                     tableRow = dp.TableRow()
                     with tableRow:
                         # Add ID index based on position in list
-                        dp.Text(label=f"{i+1}", default_value=f"{i+1}")
+                        dp.Text(label=f"{i}", default_value=f"{i}")
                         # Add the tea attributes
 
                         cat: TeaCategory
@@ -1034,6 +1034,7 @@ class Window_Stash(WindowBase):
             self.deleteTeasWindow()
 
         teasData = None
+        self.addTeaList = dict()
         if user_data[1] == "add":
             teasData = None
         elif user_data[1] == "edit":
@@ -1055,7 +1056,6 @@ class Window_Stash(WindowBase):
                     defaultValue = teasData.attributes[cat.name]
                 except:
                     defaultValue = f"{cat.defaultValue}"
-                print(f"Default value: {defaultValue, type(defaultValue)}")
 
                 # If the category is a string, int, float, or bool, add the appropriate input type
                 catItem = None
@@ -1084,7 +1084,10 @@ class Window_Stash(WindowBase):
                     catItem = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
 
                 # Add it to the list
-                self.addTeaList[cat.name] = catItem
+                if catItem != None:
+                    self.addTeaList[cat.name] = catItem
+                else:
+                    RichPrintError(f"Error: {cat.name} not supported")
 
             # Add buttons
             if user_data[1] == "add":
@@ -1099,7 +1102,7 @@ class Window_Stash(WindowBase):
         if self.teasWindow != None:
             self.teasWindow.delete()
             self.teasWindow = None
-            self.addTeaList = list()
+            self.addTeaList = dict()
         else:
             print("No window to delete")
 
@@ -1117,12 +1120,15 @@ class Window_Stash(WindowBase):
         # All input texts and other input widgets are in the addTeaGroup
         # create a new tea and add it to the stash
         allAttributes = {}
-        for item in self.addTeaList:
-            # If input text
-            if type(item) == dp.InputText and item.exists():
-                allAttributes[item.label] = item.get_value()
+        for k, v in self.addTeaList.items():
+            if type(v) == dp.DatePicker:
+                allAttributes[k] = DateToDT(v.get_value())
+            else:
+                allAttributes[k] = v.get_value()
 
-        
+        RichPrintInfo(f"Adding tea: {allAttributes}")
+
+        # Create a new tea and add it to the stash
         newTea = StashedTea(len(TeaStash) + 1, allAttributes["Name"], allAttributes["Year"], allAttributes)
         TeaStash.append(newTea)
 
