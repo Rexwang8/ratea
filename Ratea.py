@@ -162,83 +162,83 @@ def printCategories():
     RichPrintSeparator()
     RichPrintInfo("Categories:")
     for i, cat in enumerate(TeaCategories):
-        RichPrintInfo(f"Category {i}: {cat.name} ({cat.categoryType}) ({cat.categoryActsAs})")
+        RichPrintInfo(f"Category {i}: {cat.name} ({cat.categoryType}) ({cat.categoryRole})")
     RichPrintSeparator()
     RichPrintInfo("Review Categories:")
     for i, cat in enumerate(TeaReviewCategories):
-        RichPrintInfo(f"Category {i}: {cat.name} ({cat.categoryType}) ({cat.categoryActsAs})")
+        RichPrintInfo(f"Category {i}: {cat.name} ({cat.categoryType}) ({cat.categoryRole})")
     RichPrintSeparator()
 
-# Iterates through list of categories and returns first category id that matches the ActsAs
-def getCategoryIDByActsAs(actsAs):
+# Iterates through list of categories and returns first category id that matches the role
+def getCategoryIDByrole(role):
     noneFoundValue = -1
     for i, cat in enumerate(TeaCategories):
-        if cat.categoryActsAs == actsAs:
+        if cat.categoryRole == role:
             return i
         
     return noneFoundValue
 
-def debugGetCategoryActsAs():
-    allActsAsCategories = []
-    for k, v in session["validActsAsCategory"].items():
+def debugGetcategoryRole():
+    allroleCategories = []
+    for k, v in session["validroleCategory"].items():
         for i, cat in enumerate(v):
-            allActsAsCategories.append(cat)
+            allroleCategories.append(cat)
 
     # Dedup and remove UNUSED
-    allActsAsCategories = list(set(allActsAsCategories))
-    allActsAsCategories.remove("UNUSED")
+    allroleCategories = list(set(allroleCategories))
+    allroleCategories.remove("UNUSED")
 
 
-    print(f"All ActsAs Categories: {allActsAsCategories}")
-    for i, cat in enumerate(allActsAsCategories):
-        hasCoorespondingCategory = getCategoryIDByActsAs(cat)
+    print(f"All role Categories: {allroleCategories}")
+    for i, cat in enumerate(allroleCategories):
+        hasCoorespondingCategory = getCategoryIDByrole(cat)
         if hasCoorespondingCategory == -1:
             print(f"Category {cat} does not have a cooresponding category")
         else:
             print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaCategories[hasCoorespondingCategory].name}")
 
-# Iterate through ReviewCategories and return the first category id that matches the ActsAs
-def getReviewCategoryIDByActsAs(actsAs):
+# Iterate through ReviewCategories and return the first category id that matches the role
+def getReviewCategoryIDByrole(role):
     noneFoundValue = -1
     for i, cat in enumerate(TeaReviewCategories):
-        if cat.categoryActsAs == actsAs:
+        if cat.categoryRole == role:
             return i
         
     return noneFoundValue
 
-def debugGetReviewCategoryActsAs():
-    allActsAsCategories = []
-    for k, v in session["validActsAsReviewCategory"].items():
+def debugGetReviewcategoryRole():
+    allroleCategories = []
+    for k, v in session["validroleReviewCategory"].items():
         for i, cat in enumerate(v):
-            allActsAsCategories.append(cat)
+            allroleCategories.append(cat)
 
     # Dedup and remove UNUSED
-    allActsAsCategories = list(set(allActsAsCategories))
-    allActsAsCategories.remove("UNUSED")
+    allroleCategories = list(set(allroleCategories))
+    allroleCategories.remove("UNUSED")
     
-    print(f"All ActsAs Categories: {allActsAsCategories}")
-    for i, cat in enumerate(allActsAsCategories):
-        hasCoorespondingCategory = getReviewCategoryIDByActsAs(cat)
+    print(f"All role Categories: {allroleCategories}")
+    for i, cat in enumerate(allroleCategories):
+        hasCoorespondingCategory = getReviewCategoryIDByrole(cat)
         if hasCoorespondingCategory == -1:
             print(f"Category {cat} does not have a cooresponding category")
         else:
             print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaReviewCategories[hasCoorespondingCategory].name}")
 
-# Defines valid categories, and acts as categories
-# Also defines the types of acts as
+# Defines valid categories, and role as categories
+# Also defines the types of role
 
 def setValidTypes():
     session["validTypesCategory"] = ["string", "int", "float", "bool", "datetime"]
     session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
     
-    session["validActsAsCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
+    session["validroleCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
                                 "int": ["UNUSED", "Total Score", "Year", "Amount", "Remaining"],
                                 "float": ["UNUSED", "Total Score", "Amount", "Remaining"],
                                 "bool": ["UNUSED", "bool"],
                                 "date": ["UNUSED", "date"],
                                 "datetime": ["UNUSED", "date"]}
     
-    session["validActsAsReviewCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
+    session["validroleReviewCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
                                 "int": ["UNUSED", "Score", "Final Score", "Year", "Amount"],
                                 "float": ["UNUSED", "Score", "Final Score", "Amount"],
                                 "bool": ["UNUSED", "bool"],
@@ -316,14 +316,14 @@ class TeaCategory:
     color = ""
     defaultValue = None
     widthPixels = 100
-    categoryActsAs = None
+    categoryRole = None
 
     # If is required, for when talking about tea, or for all, like teaware and shipping
     isRequiredForTea = False
     isRequiredForAll = False
 
     # Autocalculated, if it is, it would be hidden in entry window and would rely on a calc step after submission
-    # based on its ActsAs, would be Not Required if so.
+    # based on its role, would be Not Required if so.
     isAutoCalculated = False
 
 
@@ -342,7 +342,7 @@ class TeaCategory:
             # Set the default value to the current date and time
             self.defaultValue = dt.datetime.now(tz=dt.timezone.utc)
         self.widthPixels = widthPixels
-        self.categoryActsAs = "UNUSED"
+        self.categoryRole = "UNUSED"
 
         self.isRequiredForTea = False
         self.isRequiredForAll = False
@@ -353,25 +353,25 @@ class ReviewCategory:
     categoryType = ""
     widthPixels = 100
     defaultValue = ""
-    categoryActsAs = None
+    categoryRole = None
 
     # If is required, for when talking about tea, or for all, like teaware and shipping
     isRequiredForTea = False
     isRequiredForAll = False
     
     # Autocalculated, if it is, it would be hidden in entry window and would rely on a calc step after submission
-    # based on its ActsAs, would be Not Required if so.
+    # based on its role, would be Not Required if so.
     isAutoCalculated = False
 
     def __init__(self, name, categoryType, widthPixels=100):
         self.name = name
         self.categoryType = categoryType
         self.widthPixels = widthPixels
-        self.categoryActsAs = self.categoryType
+        self.categoryRole = self.categoryType
         self.ifisRequiredForTea = False
         self.ifisRequiredForAll = False
         
-    # Define if is required depending on ActsAs
+    # Define if is required depending on role
     def setRequired(self, isRequiredForTea, isRequiredForAll):
         self.isRequiredForTea = isRequiredForTea
         self.isRequiredForAll = isRequiredForAll
@@ -955,15 +955,15 @@ class Window_Stash_Reviews(WindowBase):
                                         displayValue = review.attributes[cat.name]
 
 
-                            if cat.categoryActsAs == "string" or cat.categoryActsAs == "float" or cat.categoryActsAs == "int":
+                            if cat.categoryRole == "string" or cat.categoryRole == "float" or cat.categoryRole == "int":
                                 dp.Text(label=displayValue, default_value=displayValue)
-                            elif cat.categoryActsAs == "bool":
+                            elif cat.categoryRole == "bool":
                                 if displayValue == "True" or displayValue == True:
                                     displayValue = True
                                 else:
                                     displayValue = False
                                 dp.Checkbox(label=cat.name, default_value=True, enabled=False)
-                            elif cat.categoryActsAs == "date" or cat.categoryActsAs == "datetime":
+                            elif cat.categoryRole == "date" or cat.categoryRole == "datetime":
                                 # Date picker widget
                                 displayValue = parseDTToStringWithFallback(displayValue, "None")
                                 # If supported, display as date
@@ -1062,15 +1062,15 @@ class Window_Stash(WindowBase):
                                 else:
                                     if cat.name in tea.attributes:
                                         displayValue = tea.attributes[cat.name]
-                            if cat.categoryActsAs == "string" or cat.categoryActsAs == "float" or cat.categoryActsAs == "int":
+                            if cat.categoryRole == "string" or cat.categoryRole == "float" or cat.categoryRole == "int":
                                 dp.Text(label=displayValue, default_value=displayValue)
-                            elif cat.categoryActsAs == "bool":
+                            elif cat.categoryRole == "bool":
                                 if displayValue == "True" or displayValue == True:
                                     displayValue = True
                                 else:
                                     displayValue = False
                                 dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
-                            elif cat.categoryActsAs == "date" or cat.categoryActsAs == "datetime":
+                            elif cat.categoryRole == "date" or cat.categoryRole == "datetime":
                                 # Date picker widget
                                 displayValue = parseDTToStringWithFallback(displayValue, "None")
                                 # If supported, display as date
@@ -1365,7 +1365,7 @@ class Window_EditCategories(WindowBase):
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Default Value: {category.defaultValue}")
-                        dp.Text(f"Category acts as: {category.categoryActsAs}")
+                        dp.Text(f"Category Role: {category.categoryRole}")
                         dp.Text(label=f"Width: {category.widthPixels}")
 
                     scaledWidth = 75 * settings["UI_SCALE"]
@@ -1393,7 +1393,7 @@ class Window_EditCategories(WindowBase):
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Default Value: {category.defaultValue}")
-                        dp.Text(f"Category acts as: {category.categoryActsAs}")
+                        dp.Text(f"Category Role: {category.categoryRole}")
                         dp.Text(label=f"Width: {category.widthPixels}")
 
                     scaledWidth = 75 * settings["UI_SCALE"]
@@ -1578,20 +1578,20 @@ class Window_EditCategories(WindowBase):
 
             editCategoryWindowItems["Type"] = catItem
 
-            # Dropdown for category acts as
-            dp.Text("Category acts as")
+            # Dropdown for category role
+            dp.Text("Category Role")
             typeCategory = f"{category.categoryType}"
-            items = session["validActsAsCategory"][typeCategory]
-            actsAsItem = dp.Listbox(items=items, default_value=category.categoryActsAs, num_items=5)
-            if category.categoryActsAs not in items:
-                actsAsItem.set_value("ERR: Assume Unused")
+            items = session["validroleCategory"][typeCategory]
+            roleItem = dp.Listbox(items=items, default_value=category.categoryRole, num_items=5)
+            if category.categoryRole not in items:
+                roleItem.set_value("ERR: Assume Unused")
             
-            editCategoryWindowItems["ActsAs"] = actsAsItem
+            editCategoryWindowItems["role"] = roleItem
 
 
             dp.Separator()
 
-            editCategoryWindowItems["Type"].user_data = (editCategoryWindowItems["Type"], actsAsItem)
+            editCategoryWindowItems["Type"].user_data = (editCategoryWindowItems["Type"], roleItem)
             
             
 
@@ -1606,13 +1606,13 @@ class Window_EditCategories(WindowBase):
         print("Edit Category")
 
     def updateTypeDuringEdit(self, sender, app_data, user_data):
-        # We need to update type during edit to show correct acts as
+        # We need to update type during edit to show correct role
         RichPrintInfo(F"[INFO] Updated Type: {user_data[0].get_value()}")
         valueToSet = user_data[0].get_value()
-        actsAsItem = user_data[1]
-        validTypes = session["validActsAsCategory"][valueToSet]
-        dpg.configure_item(actsAsItem.tag, items=validTypes)
-        actsAsItem.set_value(validTypes[0])
+        roleItem = user_data[1]
+        validTypes = session["validroleCategory"][valueToSet]
+        dpg.configure_item(roleItem.tag, items=validTypes)
+        roleItem.set_value(validTypes[0])
 
 
     def EditCategory(self, sender, app_data, user_data):
@@ -1624,9 +1624,9 @@ class Window_EditCategories(WindowBase):
         category.widthPixels = allAttributes["Width"].get_value()
         category.defaultValue = allAttributes["DefaultValue"].get_value()
 
-        category.categoryActsAs = allAttributes["ActsAs"].get_value()
-        if category.categoryActsAs not in session["validActsAsCategory"][allAttributes["Type"].get_value()]:
-            category.categoryActsAs = "UNUSED"
+        category.categoryRole = allAttributes["role"].get_value()
+        if category.categoryRole not in session["validroleCategory"][allAttributes["Type"].get_value()]:
+            category.categoryRole = "UNUSED"
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
         # close the popup
@@ -1660,16 +1660,16 @@ class Window_EditCategories(WindowBase):
 
             editReviewCategoryWindowItems["Type"] = catItem
 
-            dp.Text("Category acts as")
-            # Dropdown for category acts as
-            items = session["validActsAsReviewCategory"][category.categoryType]
-            actsAsItem = dp.Listbox(items=items, default_value=category.categoryActsAs)
-            editReviewCategoryWindowItems["ActsAs"] = actsAsItem
-            if category.categoryActsAs not in items:
-                actsAsItem.set_value("ERR: Assume Unused")
+            dp.Text("Category role")
+            # Dropdown for category role
+            items = session["validroleReviewCategory"][category.categoryType]
+            roleItem = dp.Listbox(items=items, default_value=category.categoryRole)
+            editReviewCategoryWindowItems["role"] = roleItem
+            if category.categoryRole not in items:
+                roleItem.set_value("ERR: Assume Unused")
             dp.Separator()
 
-            editReviewCategoryWindowItems["Type"].user_data = (editReviewCategoryWindowItems["Type"], actsAsItem)
+            editReviewCategoryWindowItems["Type"].user_data = (editReviewCategoryWindowItems["Type"], roleItem)
 
             with dp.Group(horizontal=True):
                 dp.Button(label="Save", callback=self.EditReviewCategory, user_data=(category, editReviewCategoryWindowItems, editReviewCategoryWindow))
@@ -1681,13 +1681,13 @@ class Window_EditCategories(WindowBase):
                     dp.Text("Edit the review category name, type, and width in pixels")
 
     def updateTypeDuringEditReview(self, sender, app_data, user_data):
-        # We need to update type during edit to show correct acts as
+        # We need to update type during edit to show correct role
         RichPrintInfo(F"[INFO] Updated Type: {user_data[0].get_value()}")
         valueToSet = user_data[0].get_value()
-        actsAsItem = user_data[1]
-        validTypes = session["validActsAsReviewCategory"][valueToSet]
-        dpg.configure_item(actsAsItem.tag, items=validTypes)
-        actsAsItem.set_value(validTypes[0])
+        roleItem = user_data[1]
+        validTypes = session["validroleReviewCategory"][valueToSet]
+        dpg.configure_item(roleItem.tag, items=validTypes)
+        roleItem.set_value(validTypes[0])
 
     def EditReviewCategory(self, sender, app_data, user_data):
         category = user_data[0]
@@ -1698,9 +1698,9 @@ class Window_EditCategories(WindowBase):
         category.widthPixels = allAttributes["Width"].get_value()
         category.defaultValue = allAttributes["DefaultValue"].get_value()
 
-        category.categoryActsAs = allAttributes["ActsAs"].get_value()
-        if category.categoryActsAs not in session["validActsAsReviewCategory"][allAttributes["Type"].get_value()]:
-            category.categoryActsAs = "UNUSED"
+        category.categoryRole = allAttributes["role"].get_value()
+        if category.categoryRole not in session["validroleReviewCategory"][allAttributes["Type"].get_value()]:
+            category.categoryRole = "UNUSED"
 
 
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
@@ -2039,7 +2039,7 @@ def saveTeaCategories(categories, path):
             "categoryType": category.categoryType,
             "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
-            "categoryActsAs": category.categoryActsAs
+            "categoryRole": category.categoryRole
         }
         allData.append(categoryData)
 
@@ -2063,11 +2063,11 @@ def loadTeaCategories(path):
         if category.categoryType not in session["validTypesCategory"]:
             category.categoryType = "string"
 
-        # Add actsAs
-        if "categoryActsAs" in categoryData:
-            category.categoryActsAs = categoryData["categoryActsAs"]
+        # Add role
+        if "categoryRole" in categoryData:
+            category.categoryRole = categoryData["categoryRole"]
         else:
-            category.categoryActsAs = category.categoryType
+            category.categoryRole = category.categoryType
         TeaCategories.append(category)
     return TeaCategories
 
@@ -2090,11 +2090,11 @@ def loadTeaReviewCategories(path):
             category.categoryType = "string"
         TeaReviewCategories.append(category)
 
-        # Add actsAs
-        if "categoryActsAs" in categoryData:
-            category.categoryActsAs = categoryData["categoryActsAs"]
+        # Add role
+        if "categoryRole" in categoryData:
+            category.categoryRole = categoryData["categoryRole"]
         else:
-            category.categoryActsAs = category.categoryType
+            category.categoryRole = category.categoryType
     return TeaReviewCategories
 
 def verifyCategoriesReviewCategories():
@@ -2102,13 +2102,13 @@ def verifyCategoriesReviewCategories():
     for category in TeaCategories:
         if category.categoryType not in session["validTypesCategory"]:
             category.categoryType = "string"
-        if category.categoryActsAs not in session["validActsAsCategory"]:
-            category.categoryActsAs = "UNUSED"
+        if category.categoryRole not in session["validroleCategory"]:
+            category.categoryRole = "UNUSED"
     for category in TeaReviewCategories:
         if category.categoryType not in session["validTypesReviewCategory"]:
             category.categoryType = "string"
-        if category.categoryActsAs not in session["validActsAsReviewCategory"]:
-            category.categoryActsAs = "UNUSED"
+        if category.categoryRole not in session["validroleReviewCategory"]:
+            category.categoryRole = "UNUSED"
 
     print(f"Number of Tea Categories: {len(TeaCategories)}")
     print(f"Number of Review Categories: {len(TeaReviewCategories)}")
@@ -2125,7 +2125,7 @@ def saveTeaReviewCategories(categories, path):
             "categoryType": category.categoryType,
             "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
-            "categoryActsAs": category.categoryActsAs
+            "categoryRole": category.categoryRole
         }
         allData.append(categoryData)
 
@@ -2251,8 +2251,8 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Stop Backup Thread", callback=startBackupThread)
             dp.Button(label="printTeasAndReviews", callback=printTeasAndReviews)
             dp.Button(label="Print Categories/Reviews", callback=printCategories)
-            dp.Button(label="Print ActsAs Cat", callback=debugGetCategoryActsAs)
-            dp.Button(label="Print ActsAs Rev Cat", callback=debugGetReviewCategoryActsAs)
+            dp.Button(label="Print role Cat", callback=debugGetcategoryRole)
+            dp.Button(label="Print role Rev Cat", callback=debugGetReviewcategoryRole)
             
 
 def printSettings():
