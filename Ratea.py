@@ -108,6 +108,40 @@ def parseDTToStringWithHoursMinutes(stringOrDT):
     returnedString = re.sub(r' ', '', returnedString)
     return returnedString
 
+def parseStringToDT(string, default=None, format=None):
+    fallbackFormats = [
+        "%Y-%m-%d",  # YYYY-MM-DD
+        "%m-%d-%Y",  # MM-DD-YYYY
+        "%d-%m-%Y",  # DD-MM-YYYY
+        "%Y/%m/%d",  # YYYY/MM/DD
+        "%m/%d/%Y",  # MM/DD/YYYY
+        "%d/%m/%Y",  # DD/MM/YYYY
+        "%Y-%m-%d %H:%M",  # YYYY-MM-DD HH:MM (with time)
+    ]
+
+    if format is None:
+        format = settings["DATE_FORMAT"]
+    try:
+        return dt.datetime.strptime(string, format)
+    except ValueError:
+        for fallback_format in fallbackFormats:
+            try:
+                return dt.datetime.strptime(string, fallback_format)
+            except ValueError:
+                continue
+
+    # Nothing works
+    if default is not None:
+        if isinstance(default, dt.datetime):
+            return default
+        elif isinstance(default, str):
+            return dt.datetime.strptime(default, format)
+        else:
+            raise ValueError("Default value must be a datetime object or a string in the correct format.")
+    return False  # Return False if no valid date found and no default provided
+    
+
+
 def DTToDateDict(dt):
     # Convert datetime to date dict
     return {
@@ -224,6 +258,36 @@ def debugGetReviewcategoryRole():
         else:
             print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaReviewCategories[hasCoorespondingCategory].name}")
 
+# Renumbers the IDs of all teas and reviews in the stash
+def renumberTeasAndReviews(save=True):
+    global TeaStash
+    RichPrintInfo("Renumbering Teas and Reviews...")
+    
+    # Sort by date added, if available, otherwise by id
+    if hasattr(TeaStash, 'sort') and callable(getattr(TeaStash, 'sort')):
+        TeaStash.sort(key=lambda tea: (getattr(tea, 'date', dt.datetime.min), tea.id))
+    else:
+        RichPrintWarning("TeaStash does not support sorting or has no dateAdded attribute. Renumbering will proceed without sorting.")
+        # Sort by id only if no dateAdded attribute is found
+        TeaStash.sort(key=lambda tea: tea.id)  # Fallback to sorting by id if no dateAdded attribute exists
+
+    # Renumber teas
+    for i, tea in enumerate(TeaStash):
+        tea.id = i
+
+        # Renumber reviews
+        for j, review in enumerate(tea.reviews):
+            review.id = j
+            review.parentID = tea.id  # Ensure parent ID is correct
+
+    RichPrintSuccess("Renumbering complete.")
+    printTeasAndReviews()  # Print the updated teas and reviews for verification
+
+    if save:
+        # Save to file after renumbering
+        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        RichPrintSuccess("Saved renumbered teas and reviews to file.")
+
 # Defines valid categories, and role as categories
 # Also defines the types of role
 
@@ -257,6 +321,7 @@ class StashedTea:
     id = 0
     name = ""
     year = 1900
+    dateAdded = None  # Date when the tea was added to the stash
     attributes = {}
     reviews = []
     calculated = {}
@@ -293,7 +358,7 @@ class Review:
     attributes = {}
     calculated = {}
     finalScore = 0
-    def __init__(self, id, name, year, attributes, rating, notes):
+    def __init__(self, id, name, year, attributes, rating, notes=""):
         self.id = id
         self.name = name
         self.year = year
@@ -770,11 +835,11 @@ class Window_Stash_Reviews(WindowBase):
             if type(item) == dp.InputText:
                 allAttributes[item.label] = item.get_value()
 
-        newReview = Review(teaID, user_data.name, user_data.year, allAttributes["Attributes"], allAttributes["Rating"], allAttributes["Notes"])
+        newReview = Review(teaID, user_data.name, user_data.year, allAttributes["Attributes"], allAttributes["Final Score"])
         user_data.addReview(newReview)
 
-        # Save to file
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        # Renumber and Save
+        renumberTeasAndReviews(save=True)  # Renumber teas and reviews to keep IDs consistent
         
         # close the popup
         dpg.configure_item(self.reviewsWindow.tag, show=False)
@@ -804,24 +869,24 @@ class Window_Stash_Reviews(WindowBase):
                 dp.Text(cat.name)
                 defaultValue = None
                 try:
-                    defaultValue = review.attributes[cat.name]
+                    defaultValue = review.attributes[cat.categoryRole]
                 except:
                     defaultValue = f"{cat.defaultValue}"
                 print(f"Default value: {defaultValue, type(defaultValue)}")
                 
                 # If the category is a string, int, float, or bool, add the appropriate input type
                 if cat.categoryType == "string":
-                    editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=defaultValue)
+                    editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=defaultValue)
                 elif cat.categoryType == "int":
-                    editReviewWindowItems[cat.name] = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                    editReviewWindowItems[cat.categoryRole] = dp.InputInt(label=cat.name, default_value=int(defaultValue))
                 elif cat.categoryType == "float":
-                    editReviewWindowItems[cat.name] = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                    editReviewWindowItems[cat.categoryRole] = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
                 elif cat.categoryType == "bool":
                     if defaultValue == "True" or defaultValue == True:
                         defaultValue = True
                     else:
                         defaultValue = False
-                    editReviewWindowItems[cat.name] = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
+                    editReviewWindowItems[cat.categoryRole] = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     # Date picker widget
                     try:
@@ -830,9 +895,9 @@ class Window_Stash_Reviews(WindowBase):
                     except:
                         defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
                     # If supported, display as date
-                    editReviewWindowItems[cat.name] =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
+                    editReviewWindowItems[cat.categoryRole] =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                 else:
-                    editReviewWindowItems[cat.name] = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
                     
             dp.Button(label="Save", callback=self.EditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow))
             dp.Button(label="Cancel", callback=self.deleteReviewsWindow)
@@ -852,7 +917,7 @@ class Window_Stash_Reviews(WindowBase):
             else:
                 allAttributes[k] = v.get_value()
 
-        newReview = Review(teaId, review.name, review.year, allAttributes, allAttributes["Rating"], allAttributes["Notes"])
+        newReview = Review(teaId, review.name, review.year, allAttributes, allAttributes["Final Score"])
 
         # Transfer the reviews
         for i, tea in enumerate(TeaStash):
@@ -891,7 +956,7 @@ class Window_Stash_Reviews(WindowBase):
             with hbarinfoGroup:
                 # Num reviews, average rating, etc
                 dp.Text(f"Num Reviews: {numReviews}")
-                dp.Text(f"Average Rating: X")
+                dp.Text(f"Average Rating: X TODO")
             hbarActionGroup = dp.Group(horizontal=True)
             with hbarActionGroup:
                 dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=tea)
@@ -944,15 +1009,22 @@ class Window_Stash_Reviews(WindowBase):
                             else:
                                 if type(review.attributes) == str:
                                     try:
-                                        attrJson = json.loads(review.attributes)
-                                        if cat.name in attrJson:
-                                            displayValue = attrJson[cat.name]
-                                    except:
+                                        attrJson = loadAttributesFromString(tea.attributes)
+                                        if cat.categoryRole in attrJson:
+                                            displayValue = attrJson[cat.categoryRole]
+                                    except json.JSONDecodeError:
+                                        # If there's an error in decoding, set to N/A
+                                        displayValue = "Err (JSON Decode Error)"
+                                    except KeyError:
+                                        # If the key doesn't exist, set to N/A
+                                        displayValue = "N/A"
+                                    except Exception as e:
+                                        RichPrintError(f"Error loading attributes: {e}")
                                         # If it fails, just set to N/A
-                                        displayValue = "Err"
+                                        displayValue = "Err (Exception)"
                                 else:
-                                    if cat.name in review.attributes:
-                                        displayValue = review.attributes[cat.name]
+                                    if cat.categoryRole in review.attributes:
+                                        displayValue = review.attributes[cat.categoryRole]
 
 
                             if cat.categoryRole == "string" or cat.categoryRole == "float" or cat.categoryRole == "int":
@@ -997,8 +1069,11 @@ class Window_Stash(WindowBase):
 
     def onDelete(self):
         # Close all popups
-        if self.teasWindow != None:
+        if self.teasWindow != None and type(self.teasWindow) == dp.Window and self.teasWindow.exists():
             self.teasWindow.delete()
+        elif self.teasWindow is not None:
+            RichPrintInfo("Warning: Attempted to delete a non-existent teas window.")
+            self.teasWindow = None
         # Invoke base class delete
         super().onDelete()
 
@@ -1020,7 +1095,6 @@ class Window_Stash(WindowBase):
             hgroupButtons = dp.Group(horizontal=True)
             with hgroupButtons:
                 dp.Button(label="Add Tea", callback=self.ShowAddTea)
-                dp.Button(label="Delete Tea", callback=self.DeleteTea)
                 dp.Button(label="Import One (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
@@ -1056,12 +1130,27 @@ class Window_Stash(WindowBase):
                                 displayValue = tea.name
                             else:
                                 if type(tea.attributes) == str:
-                                    attrJson = json.loads(tea.attributes)
-                                    if cat.name in attrJson:
-                                        displayValue = attrJson[cat.name]
+                                    try:
+                                        attrJson = loadAttributesFromString(tea.attributes)
+                                        if cat.categoryRole in attrJson:
+                                            displayValue = attrJson[cat.categoryRole]
+                                    except json.JSONDecodeError:
+                                        # If there's an error in decoding, set to N/A
+                                        displayValue = "Err (JSON Decode Error)"
+                                    except KeyError:
+                                        # If the key doesn't exist, set to N/A
+                                        displayValue = "N/A"
+                                    except Exception as e:
+                                        
+                                        RichPrintError(f"Error loading attributes: {e}")
+                                        # If it fails, just set to N/A
+                                        displayValue = "Err (Exception)"
                                 else:
-                                    if cat.name in tea.attributes:
-                                        displayValue = tea.attributes[cat.name]
+                                    if cat.categoryRole in tea.attributes:
+                                        displayValue = tea.attributes[cat.categoryRole]
+                                    else:
+                                        displayValue = "N/A"
+
                             if cat.categoryRole == "string" or cat.categoryRole == "float" or cat.categoryRole == "int":
                                 dp.Text(label=displayValue, default_value=displayValue)
                             elif cat.categoryRole == "bool":
@@ -1117,7 +1206,7 @@ class Window_Stash(WindowBase):
                 dp.Text(cat.name)
                 defaultValue = None
                 try:
-                    defaultValue = teasData.attributes[cat.name]
+                    defaultValue = teasData.attributes[cat.categoryRole]
                 except:
                     defaultValue = f"{cat.defaultValue}"
 
@@ -1149,16 +1238,16 @@ class Window_Stash(WindowBase):
 
                 # Add it to the list
                 if catItem != None:
-                    self.addTeaList[cat.name] = catItem
+                    self.addTeaList[cat.categoryRole] = catItem
                 else:
-                    RichPrintError(f"Error: {cat.name} not supported")
+                    RichPrintError(f"Error: {cat.categoryRole} not supported")
 
             # Add buttons
             if user_data[1] == "add":
                 dp.Button(label="Add", callback=self.AddTea, user_data=teasData)
             elif user_data[1] == "edit":
                 dp.Button(label="Edit", callback=self.EditTea, user_data=teasData)
-            dp.Button(label="Delete", callback=self.DeleteTea)
+            dp.Button(label="Delete", callback=self.DeleteTea, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
 
     def deleteTeasWindow(self):
@@ -1194,6 +1283,8 @@ class Window_Stash(WindowBase):
 
         # Create a new tea and add it to the stash
         newTea = StashedTea(len(TeaStash) + 1, allAttributes["Name"], allAttributes["Year"], allAttributes)
+        dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+        newTea.dateAdded = dateAdded
         TeaStash.append(newTea)
 
         # Save to file
@@ -1220,6 +1311,14 @@ class Window_Stash(WindowBase):
 
 
         newTea = StashedTea(tea.id, allAttributes["Name"], allAttributes["Year"], allAttributes)
+        dateAdded = None
+        if hasattr(tea, 'dateAdded') and tea.dateAdded is not None:
+            dateAdded = tea.dateAdded
+        # Transfer the dateAdded if it exists, otherwise use the current time
+        if dateAdded is None:
+            dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+        newTea.dateAdded = dateAdded
+
         # Transfer the reviews
         newTea.reviews = tea.reviews
         # Transfer the calculated values
@@ -1239,7 +1338,43 @@ class Window_Stash(WindowBase):
         self.refresh()
 
     def DeleteTea(self, sender, app_data, user_data):
-        print("Delete Tea")
+        # Remove tea from the stash (DUMMY, JUST PRINT)
+        # User data is the tea object to be deleted, which we need to get the tag and grab from the TeaStash list
+        if self.teasWindow is None:
+            RichPrintError("No teas window to delete from.")
+            return
+        
+        selectedTea = None
+        try:
+            selectedTea = user_data  # This should be the tea object to delete
+            if selectedTea is None:
+                RichPrintError("No tea selected for deletion.")
+                return
+        except Exception as e:
+            RichPrintError(f"Error getting selected tea: {e}")
+            return
+        
+        # Tag
+        for i, tea in enumerate(TeaStash):
+            if tea.id == selectedTea.id:
+                RichPrintInfo(f"Deleting tea: {tea.name} (ID: {tea.id})")
+                TeaStash.pop(i)
+                break
+
+        # Renumber the IDs of the remaining teas
+        renumberTeasAndReviews(save=False)
+
+        # Save to file
+        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+
+        # Refresh the window to reflect the deletion
+        self.refresh()
+        # Close the teas window if it's open (This is the edit reviews window)
+        if self.teasWindow is not None:
+            self.teasWindow.delete()
+            self.teasWindow = None
+
+        
 
 
 def Menu_Notepad(sender, app_data, user_data):
@@ -1978,21 +2113,27 @@ def generateBackup():
 def saveTeasReviews(stash, path):
     # Save as one file in yml format
     allData = []
+    nowString = parseDTToString(dt.datetime.now(tz=dt.timezone.utc))  # Get current time as string for default dateAdded
     for tea in stash:
+        print(tea.__dict__)  # Debugging line to see the tea object
         teaData = {
             "_index": tea.id,
             "name": tea.name,
             "year": tea.year,
+            "dateAdded": parseDTToStringWithFallback(tea.dateAdded, fallbackString=nowString),  # Save dateAdded as string, default to now if not specified
             "attributes": tea.attributes,
+            "attributesJson": dumpAttributesToString(tea.attributes),  # Save attributes as JSON string for easier parsing
             "reviews": []
         }
         for review in tea.reviews:
+            print( review.__dict__)  # Debugging line to see the review object
             reviewData = {
                 "_reviewindex": review.id,
                 "parentIDX": tea.id,
                 "name": review.name,
                 "year": review.year,
                 "attributes": review.attributes,
+                "attributesJson": dumpAttributesToString(review.attributes),  # Save review attributes as JSON string for easier parsing
                 "rating": review.rating,
                 "notes": review.notes
             }
@@ -2017,6 +2158,22 @@ def loadTeasReviews(path):
         if "_index" in teaData:
             idx = teaData["_index"]
         tea = StashedTea(idx, teaData["name"], teaData["year"], teaData["attributes"])
+        dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
+        if "dateAdded" in teaData:
+            dateAdded = parseStringToDT(teaData["dateAdded"], default=dt.datetime.now(tz=dt.timezone.utc))
+        if "attributesJson" in teaData and teaData["attributesJson"]:
+            # If attributesJson is present, load it
+            try:
+                tea.attributes = loadAttributesFromString(teaData["attributesJson"])
+            except Exception as e:
+                # Fall back on loading from the old attributes format if JSON loading fails
+                if "attributes" in teaData:
+                    tea.attributes = teaData["attributes"]
+                else:
+                    RichPrintError(f"Failed to load attributes from JSON: {e}. Falling back to old attributes format.")
+                    tea.attributes = {}  # Fallback to empty attributes if both fail
+        tea.dateAdded = dateAdded
+        
         for reviewData in teaData["reviews"]:
             idx2 = j
             if "_reviewindex" in reviewData:
@@ -2193,21 +2350,97 @@ def pollAndAutosaveIfNeeded():
 
     RichPrintInfo(f"Autosave interval is {autosaveInterval} minutes, last save was {timeLastSave} minutes ago")
 
+def LoadSettings(path=None):
+    global settings
+    if path is None:
+        path = session["settingsPath"]
+    if not os.path.exists(path):
+        RichPrintError(f"Settings file {path} does not exist. Using default settings.")
+        return False
+    settings = ReadYaml(path)
+    if settings is None:
+        RichPrintError("Failed to load settings from YAML.")
+        return False
+    session["settingsPath"] = path
+    print(f"Loaded settings from {path}")
+    return settings
+
 def LoadAll():
     # Load all data
     global settings
-    settings = ReadYaml(session["settingsPath"])
+    baseDir = os.path.dirname(os.path.abspath(__file__))
+    settingsPath = f"{baseDir}/{default_settings['SETTINGS_FILENAME']}"
+    session["settingsPath"] = settingsPath
+    settings = LoadSettings(session["settingsPath"])
+    # Update version
+    print(session)
+    categoriesPath = f"{baseDir}/{settings["TEA_CATEGORIES_PATH"]}"
+    teaReviewCategoriesPath = f"{baseDir}/{settings["TEA_REVIEW_CATEGORIES_PATH"]}"
+    session["categoriesPath"] = categoriesPath
+    session["reviewCategoriesPath"] = teaReviewCategoriesPath
+    settings["APP_VERSION"] = default_settings["APP_VERSION"]
     global TeaStash
     TeaStash = loadTeasReviews(settings["TEA_REVIEWS_PATH"])
     global TeaCategories
     TeaCategories = loadTeaCategories(session["categoriesPath"])
     global TeaReviewCategories
     TeaReviewCategories = loadTeaReviewCategories(session["reviewCategoriesPath"])
+    # Renumber the teas and reviews if needed
+    renumberTeasAndReviews()  # Ensure all teas and reviews have unique IDs after loading
 
-    windowManager.importPersistantWindows(settings["PERSISTANT_WINDOWS_PATH"])
+    #windowManager.importPersistantWindows(settings["PERSISTANT_WINDOWS_PATH"])
     print(f"Loaded settings from {session['settingsPath']}")
     
     print(f"Loaded {len(TeaStash)} teas and {len(TeaCategories)} categories")
+
+# Attributes to string, json, with special datetime handling
+def dumpAttributesToString(attributes):
+    returnDict = {}
+    parseDict = json.loads(json.dumps(attributes, default=str))  # Convert datetime objects to string
+    if not isinstance(parseDict, dict):
+        try:
+            parseDict = json.loads(parseDict)  # Try to parse it again if it's not a dict
+        except json.JSONDecodeError:
+            RichPrintError("Failed to parse attributes to dict")
+            return {}
+    if not isinstance(parseDict, dict):
+        RichPrintError("Attributes must be a dictionary")
+        return {}
+    
+    # Ensure all datetime objects are converted to strings
+    for key, value in parseDict.items():
+        if isinstance(value, dt.datetime):
+            returnDict[key] = parseDTToString(value)
+        else:
+            returnDict[key] = value
+    return json.dumps(returnDict)  # Ensure JSON is properly formatted with non-ASCII characters
+
+# Return Attributes dict from a JSON string, handling datetime parsing
+def loadAttributesFromString(json_string):
+    if not json_string or json_string.strip() == "":
+        return {}
+    try:
+        attributes = json.loads(json_string)
+        # Convert datetime strings back to datetime objects if needed
+        for key, value in attributes.items():
+            if isinstance(value, str):
+                try:
+                    # Attempt to parse as datetime
+                    parsed_date = parseStringToDT(value)
+                    if type(parsed_date) is dt.datetime:
+                        attributes[key] = parsed_date
+                    else:
+                        attributes[key] = value
+                except (ValueError, TypeError):
+                    # If parsing fails, keep the original string value
+                    attributes[key] = value
+                except ValueError:
+                    pass  # Not a datetime string, keep it as is
+        return attributes
+    except json.JSONDecodeError:
+        print (f"Error decoding JSON string: {json_string}")
+        RichPrintError("Failed to decode JSON string for attributes")
+        return {}
 
 
 #endregion
@@ -2253,6 +2486,7 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Print Categories/Reviews", callback=printCategories)
             dp.Button(label="Print role Cat", callback=debugGetcategoryRole)
             dp.Button(label="Print role Rev Cat", callback=debugGetReviewcategoryRole)
+            dp.Button(label="Renumber data", callback=renumberTeasAndReviews)
             
 
 def printSettings():
@@ -2318,7 +2552,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.5.4", # Updates to most recently loaded
+        "APP_VERSION": "0.5.5", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
@@ -2365,6 +2599,7 @@ def main():
     TeaReviewCategories.append(TeaReviewCategory)
 
 
+    '''
 
     settingsPath = f"{baseDir}/{default_settings['SETTINGS_FILENAME']}"
     session["settingsPath"] = settingsPath
@@ -2381,10 +2616,10 @@ def main():
         # Create the settings file and write the default settings
         WriteYaml(settingsPath, default_settings)
     for key, value in settings.items():
-        print(f"Setting {key} is {value}")
+        print(f"Setting {key} is {value}")'
+    
 
-    # Update version
-    settings["APP_VERSION"] = default_settings["APP_VERSION"]
+    
 
 
     
@@ -2410,7 +2645,9 @@ def main():
         # Create the settings file and write the default settings
         saveTeaReviewCategories(TeaReviewCategories, teaReviewCategoriesPath)
 
-    
+    '''
+
+    LoadAll()  # Load all data including settings, teas, categories, reviews, etc
 
 
 
@@ -2424,18 +2661,23 @@ def main():
         MakeFilePath(dataPath)
         RichPrintInfo(f"Made {settings["DIRECTORY"]} at full path {os.path.abspath(settings["DIRECTORY"])}")
 
-    global TeaStash
-    TeaStash = loadTeasReviews(settings["TEA_REVIEWS_PATH"])
+    #global TeaStash
+    #TeaStash = loadTeasReviews(settings["TEA_REVIEWS_PATH"])
     if len(TeaStash) == 0:
+        RichPrintError("No teas found in stash! Potentially issue with loading teas. ")
+        '''
         Tea1 = StashedTea(1, "Tea 1", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"})
+        Tea1.dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
         Tea1.addReview(Review(1, "Tea 1", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 90, "Good tea"))
         Tea1.addReview(Review(1, "Tea 1", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 70, "Okay tea"))
         Tea1.addReview(Review(1, "Tea 1", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 60, "Bad tea"))
         Tea2 = StashedTea(2, "Tea 2", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"})
         Tea2.addReview(Review(2, "Tea 2", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 80, "Good tea"))
+        Tea2.addReview(Review(2, "Tea 2", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 75, "Okay tea"))
+        Tea2.dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
         TeaStash.append(Tea1)
         TeaStash.append(Tea2)
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])'''
     
     UI_CreateViewPort_MenuBar()
 
