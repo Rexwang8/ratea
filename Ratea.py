@@ -173,10 +173,8 @@ def DTToDateDict(dt):
 def DateDictToDT(dateDict):
     # Convert date dict to datetime
     year = dateDict['year']
-    if year < 100 and year > 30:
-        year += 1900
-    elif year < 30:
-        year += 2000
+    if year < 1900:
+        year += 1900  # Convert 2-digit year to 4-digit year
     return dt.datetime(year, dateDict['month']+1, dateDict['month_day'])
 
 def RichPrint(text, color):
