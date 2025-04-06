@@ -121,10 +121,22 @@ def parseStringToDT(string, default=None, format=None):
         "%m/%d/%Y",  # MM/DD/YYYY
         "%d/%m/%Y",  # DD/MM/YYYY
         "%Y-%m-%d %H:%M",  # YYYY-MM-DD HH:MM (with time)
+        "%m-%d-%Y %H:%M",  # MM-DD-YYYY HH:MM (with time)
+        "%d-%m-%Y %H:%M",  # DD-MM-YYYY HH:MM (with time)
+        "%Y/%m/%d %H:%M",  # YYYY/MM/DD HH:MM (with time)
+        # With HMS
+        "%Y-%m-%d %H:%M:%S",  # YYYY-MM-DD HH:MM:SS
+        "%m-%d-%Y %H:%M:%S",  # MM-DD-YYYY HH:MM:SS
+        "%d-%m-%Y %H:%M:%S",  # DD-MM-YYYY HH:MM:SS
+        "%Y/%m/%d %H:%M:%S",  # YYYY/MM/DD HH:MM:SS
     ]
 
     if format is None:
         format = settings["DATE_FORMAT"]
+
+    if type(string) is dt.datetime:
+        # If it's already a datetime object, return it directly
+        return string
     try:
         return dt.datetime.strptime(string, format)
     except ValueError:
@@ -1045,6 +1057,7 @@ class Window_Stash_Reviews(WindowBase):
                                 dp.Checkbox(label=cat.name, default_value=True, enabled=False)
                             elif cat.categoryRole == "date" or cat.categoryRole == "datetime":
                                 # Date picker widget
+                                displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
                                 displayValue = parseDTToStringWithFallback(displayValue, "None")
                                 # If supported, display as date
                                 dp.Text(label=displayValue, default_value=displayValue)
@@ -1149,7 +1162,6 @@ class Window_Stash(WindowBase):
                                         # If the key doesn't exist, set to N/A
                                         displayValue = "N/A"
                                     except Exception as e:
-                                        
                                         RichPrintError(f"Error loading attributes: {e}")
                                         # If it fails, just set to N/A
                                         displayValue = "Err (Exception)"
@@ -1169,6 +1181,7 @@ class Window_Stash(WindowBase):
                                 dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
                             elif cat.categoryRole == "date" or cat.categoryRole == "datetime":
                                 # Date picker widget
+                                displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
                                 displayValue = parseDTToStringWithFallback(displayValue, "None")
                                 # If supported, display as date
                                 dp.Text(label=displayValue, default_value=displayValue)
