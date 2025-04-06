@@ -894,7 +894,12 @@ class Window_Stash_Reviews(WindowBase):
                 
                 # If the category is a string, int, float, or bool, add the appropriate input type
                 if cat.categoryType == "string":
-                    editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=defaultValue)
+                    if cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
+                        # For notes, allow multiline input
+                        editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
+                    else:
+                        # For other strings, single line input
+                        editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=defaultValue)
                 elif cat.categoryType == "int":
                     editReviewWindowItems[cat.categoryRole] = dp.InputInt(label=cat.name, default_value=int(defaultValue))
                 elif cat.categoryType == "float":
@@ -1232,7 +1237,11 @@ class Window_Stash(WindowBase):
                 # If the category is a string, int, float, or bool, add the appropriate input type
                 catItem = None
                 if cat.categoryType == "string":
-                    catItem = dp.InputText(label=cat.name, default_value=defaultValue)
+                    # For notes, allow multiline input if it's a note
+                    if cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
+                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
+                    else:
+                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=False)
                 elif cat.categoryType == "int":
                     catItem = dp.InputInt(label=cat.name, default_value=int(defaultValue))
                 elif cat.categoryType == "float":
