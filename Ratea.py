@@ -148,9 +148,13 @@ def parseStringToDT(string, default=None, format=None):
 
 def DTToDateDict(dt):
     # Convert datetime to date dict
+    # convert year to 2 digits
+    year = dt.year
+    if year > 1900:
+        year = year - 1900
     return {
         'month_day': dt.day,
-        'year': dt.year,
+        'year': year,
         'month': dt.month,
     }
     
@@ -1235,6 +1239,7 @@ class Window_Stash(WindowBase):
                         defaultValue = DTToDateDict(defaultValue)
                     except:
                         defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
+                        #defaultValue = dt.datetime.now(tz=dt.timezone.utc).date()  # Fallback to now if parsing fails
                     # If supported, display as date
                     catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                 else:
