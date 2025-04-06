@@ -842,8 +842,8 @@ class Window_Stash_Reviews(WindowBase):
     reviewsWindow = None
     editReviewsWindow = None
     def ShowAddReview(self, sender, app_data, user_data):
-        self.reviewsWindow.set_value(user_data)
-        self.reviewsWindow.show = True
+        # Call Edit review with Add
+        self.GenerateEditReviewWindow(sender, app_data, user_data=(None, "add", user_data))  # Pass None for review to indicate new review
     def AddReview(self, sender, app_data, user_data):
         # Add a review to the tea
         allAttributes = {}
@@ -867,34 +867,63 @@ class Window_Stash_Reviews(WindowBase):
         # Create a new window for editing the review
         w = 600 * settings["UI_SCALE"]
         h = 700 * settings["UI_SCALE"]
-        self.editReviewWindow = dp.Window(label="Edit Review", width=w, height=h, modal=True, show=True)
-        windowManager.addSubWindow(self.editReviewWindow)
+        
         editReviewWindowItems = dict()
-        review = user_data
-        print(f"type of review: {type(review)}")
-        if review.attributes == None or review.attributes == "":
-            review.attributes = {}
-        if review.name == None or review.name == "":
-            # Get from name of parent
-            for i, tea in enumerate(TeaStash):
-                if tea.id == review.parentID:
-                    review.name = tea.name
-                    break
+        review = user_data[0]
+        parentTea = user_data[2]
+        isEdit = user_data[1] if len(user_data) > 1 else False
+        if isEdit != "edit":
+            isEdit = False
+        else:
+            isEdit = True
+        if not isEdit:
+            # Assume add, drop review data if provided
+            review = None
+
+        windowName = "Edit Review" if isEdit else "Add New Review"
+        self.editReviewWindow = dp.Window(label=windowName, width=w, height=h, modal=True, show=True)
+        windowManager.addSubWindow(self.editReviewWindow)
+
+        nameReview = ""
+        idReview = 0
+        if review is not None:
+            idReview = review.id
+            if review.attributes == None or review.attributes == "":
+                review.attributes = {}
+            if review.name == None or review.name == "":
+                # Get from name of parent
+                for i, tea in enumerate(TeaStash):
+                    if tea.id == review.parentID:
+                        nameReview = tea.name
+                        review.name = nameReview
+                        break
+        else:
+            # Infer parent name and ID from parent Tea instead of review
+            if parentTea is not None:
+                nameReview = parentTea.name
+                idReview = len(parentTea.reviews)  # New review ID is the length of existing reviews
+            else:
+                nameReview = "New Review"
+
+            
         with self.editReviewWindow:
-            dp.Text("Edit Review")
             for cat in TeaReviewCategories:
                 # Add it to the window
                 dp.Text(cat.name)
                 defaultValue = None
+
                 try:
                     defaultValue = review.attributes[cat.categoryRole]
                 except:
+                    # also try to get from nameReview if review is None
                     defaultValue = f"{cat.defaultValue}"
-                print(f"Default value: {defaultValue, type(defaultValue)}")
                 
                 # If the category is a string, int, float, or bool, add the appropriate input type
                 if cat.categoryType == "string":
-                    if cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
+                    if cat.categoryRole == "Name":
+                        # For the name, use a single line input text
+                        editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=str(nameReview), width=300)
+                    elif cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
                         # For notes, allow multiline input
                         editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
                     else:
@@ -922,13 +951,22 @@ class Window_Stash_Reviews(WindowBase):
                 else:
                     editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
                     
-            dp.Button(label="Save", callback=self.EditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow))
-            dp.Button(label="Cancel", callback=self.deleteReviewsWindow)
-    def EditReview(self, sender, app_data, user_data):
+            # Final Score input
+            dp.Button(label="Save", callback=self.EditAddReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
+            dp.Button(label="Cancel", callback=self.deleteEditReviewWindow)
+
+
+    def EditAddReview(self, sender, app_data, user_data):
         # Get the tea from the stash
         review = user_data[0]
-        teaId = review.parentID
+        teaId = review.parentID if review else None
         editReviewWindowItems = user_data[1]
+        isEdit = user_data[3]  # Check if it's an edit or add operation
+        if not isEdit:
+            review = None
+            teaId = self.tea.id
+            
+
 
         # All input texts and other input widgets are in the addTeaGroup
         # Revise the tea and save it to the stash, overwriting the old one
@@ -940,23 +978,59 @@ class Window_Stash_Reviews(WindowBase):
             else:
                 allAttributes[k] = v.get_value()
 
-        newReview = Review(teaId, review.name, review.year, allAttributes, allAttributes["Final Score"])
+        # Infer name from allAttributes if avaliable, review or parent else
+        reviewName = ""
+        if "Name" in allAttributes and allAttributes["Name"].strip() != "":
+            reviewName = allAttributes["Name"].strip()
+        elif review is not None and review.name.strip() != "":
+            reviewName = review.name.strip()
+        elif self.tea is not None:
+            reviewName = self.tea.name.strip()
+        else:
+            RichPrintError("No review name provided and no parent tea found. Cannot save review.")
+            return
+        
+        # Infer year from allAttributes if avaliable, review or parent else. Fall back on current year if not found
+        reviewYear = allAttributes.get("Year", "").strip()
+        if reviewYear == "" or reviewYear == "0":
+            if review is not None and int(review.year) > 0:
+                reviewYear = review.year
+            elif self.tea is not None and self.tea.year > 0:
+                reviewYear = self.tea.year
+            else:
+                reviewYear = dt.datetime.now(tz=dt.timezone.utc).year
+        else:
+            try:
+                reviewYear = int(reviewYear)
+            except ValueError:
+                RichPrintError("Invalid year provided, falling back to current year.")
+                reviewYear = dt.datetime.now(tz=dt.timezone.utc).year
 
-        # Transfer the reviews
-        for i, tea in enumerate(TeaStash):
-            if tea.id == review.parentID:
-                # Find the review and replace it
-                for j, rev in enumerate(tea.reviews):
-                    if rev == review:
-                        TeaStash[i].reviews[j] = newReview
-                        break
+        newReview = Review(teaId, reviewName, reviewYear, allAttributes, allAttributes["Final Score"])
+
+        if isEdit:
+            # Transfer the reviews
+            for i, tea in enumerate(TeaStash):
+                if tea.id == teaId:
+                    # Find the review and replace it
+                    for j, rev in enumerate(tea.reviews):
+                        if rev == review:
+                            TeaStash[i].reviews[j] = newReview
+                            break
+        else:
+            # Append to the tea's reviews if it's a new review
+            for i, tea in enumerate(TeaStash):
+                if tea.id == teaId:
+                    TeaStash[i].addReview(newReview)
+                    print(f"Teastash I is now {TeaStash[i]}, added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
+                    break
 
         # Save to file
         saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
 
         # hide the popup
         dpg.configure_item(self.reviewsWindow.tag, show=False)
-        self.deleteReviewsWindow()
+        self.deleteEditReviewWindow()
         # Refresh the window
         self.refresh()
         self.parentWindow.refresh()
@@ -1071,13 +1145,13 @@ class Window_Stash_Reviews(WindowBase):
                         
 
                         # button that opens a modal with reviews
-                        dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=review)
+                        dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
 
-    def deleteReviewsWindow(self):
+    def deleteEditReviewWindow(self):
         # If window is open, close it first
-        if self.reviewsWindow != None:
-            self.reviewsWindow.delete()
-            self.reviewsWindow = None
+        if self.editReviewWindow != None:
+            self.editReviewWindow.delete()
+            self.editReviewWindow = None
             self.addReviewList = list()
         else:
             print("No window to delete")
@@ -1253,6 +1327,9 @@ class Window_Stash(WindowBase):
                         defaultValue = False
                     catItem = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
+                    if teasData is None:
+                        # Add, so default to now if no date is set
+                        defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
                     # Date picker widget
                     try:
                         defaultValue = dt.datetime.strptime(defaultValue, settings["DATE_FORMAT"]).date()
