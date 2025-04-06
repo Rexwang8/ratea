@@ -77,10 +77,14 @@ def parseDTToString(stringOrDT):
     timezone = settings["TIMEZONE"]
     # Parse into datetime
     datetimeobj = None
+    if isinstance(stringOrDT, dict) and "year" in stringOrDT and "month" in stringOrDT and "month_day" in stringOrDT:
+        datetimeobj = DateDictToDT(stringOrDT)  # Convert dict to datetime object
     if isinstance(stringOrDT, str):
         datetimeobj = dt.datetime.strptime(stringOrDT, format)
     elif isinstance(stringOrDT, dt.datetime):
         datetimeobj = stringOrDT
+    else:
+        raise ValueError("Input must be a string or datetime object.")
 
     # Convert to timezone
     timezoneObj = dt.timezone(dt.timedelta(hours=timezoneToOffset(timezone)))
@@ -150,7 +154,7 @@ def DTToDateDict(dt):
         'month': dt.month,
     }
     
-def DateToDT(dateDict):
+def DateDictToDT(dateDict):
     # Convert date dict to datetime
     year = dateDict['year']
     if year < 100 and year > 30:
@@ -913,7 +917,7 @@ class Window_Stash_Reviews(WindowBase):
         for k in editReviewWindowItems:
             v = editReviewWindowItems[k]
             if type(v) == dp.DatePicker:
-                allAttributes[k] = DateToDT(v.get_value())
+                allAttributes[k] = DateDictToDT(v.get_value())
             else:
                 allAttributes[k] = v.get_value()
 
@@ -1244,11 +1248,75 @@ class Window_Stash(WindowBase):
 
             # Add buttons
             if user_data[1] == "add":
-                dp.Button(label="Add", callback=self.AddTea, user_data=teasData)
+                dp.Button(label="Add New Tea", callback=self.AddTea, user_data=teasData)
             elif user_data[1] == "edit":
-                dp.Button(label="Edit", callback=self.EditTea, user_data=teasData)
-            dp.Button(label="Delete", callback=self.DeleteTea, user_data=teasData)
+                dp.Button(label="Confirm Edit", callback=self.EditTea, user_data=teasData)
+                # Copy Values to string (json) for the edit window, use function
+                dp.Button(label="Copy Values", callback=self.copyTeaValues, user_data=teasData)
+                dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
+
+    def copyTeaValues(self, sender, app_data, user_data):
+        # This function is to copy the current values of the tea input fields to a string (JSON format)
+        if self.teasWindow is None:
+            RichPrintError("No teas window to copy values from.")
+            return
+                
+        allAttributes = {}
+        for k, v in self.addTeaList.items():
+            if type(v) == dp.DatePicker:
+                allAttributes[k] = parseDTToString(DateDictToDT(v.get_value()))
+            else:
+                allAttributes[k] = v.get_value()
+
+        # Convert to JSON string
+        jsonString = json.dumps(allAttributes)
+        pyperclip.copy(jsonString)
+        RichPrintSuccess(f"Copied Tea Values: {jsonString}")
+
+    def pasteTeaValues(self, sender, app_data, user_data):
+        # (DEBUG) Print instead of actually setting, compare to original to see if it works
+        if self.teasWindow is None:
+            RichPrintError("No teas window to paste values into.")
+            return
+        
+        clipboardData = pyperclip.paste()
+        allAttributes = None
+        try:
+            allAttributes = json.loads(clipboardData)
+            for k, v in self.addTeaList.items():
+                if k in allAttributes:
+                    if type(v) == dp.DatePicker:
+                        # Convert string date to datetime object
+                        dt_value = parseStringToDT(allAttributes[k])
+                        v.set_value(DTToDateDict(dt_value))
+                    else:
+                        v.set_value(allAttributes[k])
+            RichPrintSuccess("Pasted Tea Values Successfully.")
+        except json.JSONDecodeError:
+            RichPrintError("Error: Clipboard data is not valid JSON.")
+        except Exception as e:
+            RichPrintError(f"Error pasting values: {e}")
+            return
+        
+        if allAttributes is None:
+            RichPrintError("No valid attributes found in clipboard data.")
+            return
+        
+        # If we reach here, it means we successfully pasted the values
+        RichPrintInfo(f"Pasted Tea Values: {allAttributes}")
+
+        # Update the window to reflect the new values
+        for k, v in self.addTeaList.items():
+            if k in allAttributes:
+                if type(v) == dp.DatePicker:
+                    dt_value = parseStringToDT(allAttributes[k])
+                    v.set_value(DTToDateDict(dt_value))
+                else:
+                    v.set_value(allAttributes[k])
+
+
+
 
     def deleteTeasWindow(self):
         # If window is open, close it first
@@ -1258,6 +1326,7 @@ class Window_Stash(WindowBase):
             self.addTeaList = dict()
         else:
             print("No window to delete")
+
 
 
 
@@ -1275,7 +1344,7 @@ class Window_Stash(WindowBase):
         allAttributes = {}
         for k, v in self.addTeaList.items():
             if type(v) == dp.DatePicker:
-                allAttributes[k] = DateToDT(v.get_value())
+                allAttributes[k] = parseStringToDT(v.get_value(), settings["DATE_FORMAT"])
             else:
                 allAttributes[k] = v.get_value()
 
@@ -1305,7 +1374,7 @@ class Window_Stash(WindowBase):
         for k in self.addTeaList:
             v = self.addTeaList[k]
             if type(v) == dp.DatePicker:
-                allAttributes[k] = DateToDT(v.get_value())
+                allAttributes[k] = DateDictToDT(v.get_value())
             else:
                 allAttributes[k] = v.get_value()
 
