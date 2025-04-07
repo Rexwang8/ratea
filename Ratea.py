@@ -853,7 +853,7 @@ class Window_Stash_Reviews(WindowBase):
             if type(item) == dp.InputText:
                 allAttributes[item.label] = item.get_value()
 
-        newReview = Review(teaID, user_data.name, user_data.year, allAttributes["Attributes"], allAttributes["Final Score"])
+        newReview = Review(teaID, user_data.name, user_data.year, allAttributes["attributes"], allAttributes["Final Score"])
         user_data.addReview(newReview)
 
         # Renumber and Save
@@ -1193,7 +1193,7 @@ class Window_Stash(WindowBase):
             hgroupButtons = dp.Group(horizontal=True)
             with hgroupButtons:
                 dp.Button(label="Add Tea", callback=self.ShowAddTea)
-                dp.Button(label="Import Tea (No Reviews)", callback=self.importOneTeaFromClipboard)
+                dp.Button(label="Import Tea", callback=self.importOneTeaFromClipboard)
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export All (TODO)", callback=self.DummyCallback)
@@ -1283,11 +1283,7 @@ class Window_Stash(WindowBase):
         allAttributes = None
         try:
             allAttributes = json.loads(clipboardData)
-            # Check if all attributes are present, if not, skip
-            for cat in TeaCategories:
-                if cat.categoryRole not in allAttributes:
-                    RichPrintError(f"Error: {cat.categoryRole} not found in clipboard data.")
-                    return
+            RichPrintInfo(f"Clipboard data: {clipboardData}")
             # Create a new tea object and add it to the stash
             newId = len(TeaStash)
             newTea = StashedTea(newId, allAttributes["Name"], allAttributes["Year"], allAttributes)
@@ -1296,13 +1292,7 @@ class Window_Stash(WindowBase):
             newTea.reviews = []  # No reviews for now, just an empty list
             clipboardReviews = allAttributes.get("reviews", [])
             for review in clipboardReviews:
-                # Create a new review object and add it to the tea
-                newReview = Review(newId, review["Name"], review["Year"], review["Attributes"], review["Final Score"])
-                newReview.attributes = loadAttributesFromString(review["Attributes"])
-                newReview.parentID = newId  # Set the parent ID to the tea ID
-                newReview.id = len(newTea.reviews)  # Set the review ID to the length of the reviews list
-                newReview.calculated = {}  # Set the calculated field to an empty dictionary
-                newTea.addReview(newReview) 
+                newTea.addReview(loadReviewFromDictNewID(review, len(newTea.reviews), newId))
 
             TeaStash.append(newTea)
             RichPrintSuccess(f"Imported tea from clipboard: {newTea.name}")
@@ -1403,16 +1393,17 @@ class Window_Stash(WindowBase):
                 dp.Button(label="Confirm Edit", callback=self.EditTea, user_data=teasData)
                 # Copy Values to string (json) for the edit window, use function
                 dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
-                dp.Button(label="Copy/Export Tea and Reviews", callback=self.copyTeaReviewsValues, user_data=teasData)
                 dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
 
+
     def copyTeaValues(self, sender, app_data, user_data):
-        # This function is to copy the current values of the tea input fields to a string (JSON format)
+        # Call the dumpReviewToString function to get the string representation of the review
+        # and copy it to the clipboard
         if self.teasWindow is None:
             RichPrintError("No teas window to copy values from.")
             return
-                
+        
         allAttributes = {}
         for k, v in self.addTeaList.items():
             if type(v) == dp.DatePicker:
@@ -1422,39 +1413,8 @@ class Window_Stash(WindowBase):
 
         # Add in recursive attributes field
         allAttributes["attributes"] = {}
-        categoryRoles = [cat.categoryRole for cat in TeaCategories]
         for k, v in allAttributes.items():
-            print(f"Key: {k}, Value: {v}")
-            if k != "attributes" and k in categoryRoles:
-                allAttributes["attributes"][k] = v
-
-        # Add in blank reviews and calculated field
-        allAttributes["reviews"] = []
-        allAttributes["calculated"] = {}
-
-        # Convert to JSON string
-        jsonString = json.dumps(allAttributes)
-        pyperclip.copy(jsonString)
-        RichPrintSuccess(f"Copied Tea Values: {jsonString}")
-
-    def copyTeaReviewsValues(self, sender, app_data, user_data):
-        # This function is to copy the current values of the tea input fields to a string (JSON format)
-        if self.teasWindow is None:
-            RichPrintError("No teas window to copy values from.")
-            return
-                
-        allAttributes = {}
-        for k, v in self.addTeaList.items():
-            if type(v) == dp.DatePicker:
-                allAttributes[k] = parseDTToString(DateDictToDT(v.get_value()))
-            else:
-                allAttributes[k] = v.get_value()
-
-        # Add in recursive attributes field
-        if "attributes" not in allAttributes:
-            allAttributes["attributes"] = {}
-        for k, v in allAttributes.items():
-            if k in TeaCategories:
+            if k != "attributes":
                 allAttributes["attributes"][k] = v
 
         # Add in blank reviews and calculated field
@@ -1466,23 +1426,17 @@ class Window_Stash(WindowBase):
             # Reviews is a list of Review objects, convert to dicts first
             reviews = []
             for review in user_data.reviews:
-                # Serialize review attributes to JSON string
-                reviewAttr = dumpAttributesToString(review.attributes)
-                reviewDict = {
-                    "id": review.id,
-                    "Name": review.name,
-                    "Year": review.year,
-                    "Attributes": reviewAttr,
-                    "Final Score": review.finalScore,
-                    "Calculated": review.calculated,
-                }
-                reviews.append(reviewDict)
+                reviews.append(dumpReviewToDict(review))
             allAttributes["reviews"] = reviews
 
         # Convert to JSON string
         jsonString = json.dumps(allAttributes)
         pyperclip.copy(jsonString)
         RichPrintSuccess(f"Copied Tea Values: {jsonString}")
+
+
+        RichPrintSuccess(f"Copied Tea Values: {jsonString}")
+
 
     def pasteTeaValues(self, sender, app_data, user_data):
         # (DEBUG) Print instead of actually setting, compare to original to see if it works
@@ -2397,24 +2351,24 @@ def saveTeasReviews(stash, path):
         print(tea.__dict__)  # Debugging line to see the tea object
         teaData = {
             "_index": tea.id,
-            "name": tea.name,
-            "year": tea.year,
+            "Name": tea.name,
+            "Year": tea.year,
             "dateAdded": parseDTToStringWithFallback(tea.dateAdded, fallbackString=nowString),  # Save dateAdded as string, default to now if not specified
             "attributes": tea.attributes,
             "attributesJson": dumpAttributesToString(tea.attributes),  # Save attributes as JSON string for easier parsing
             "reviews": []
         }
+        print(teaData["attributesJson"])
         for review in tea.reviews:
             print( review.__dict__)  # Debugging line to see the review object
             reviewData = {
                 "_reviewindex": review.id,
                 "parentIDX": tea.id,
-                "name": review.name,
-                "year": review.year,
+                "Name": review.name,
+                "Year": review.year,
                 "attributes": review.attributes,
                 "attributesJson": dumpAttributesToString(review.attributes),  # Save review attributes as JSON string for easier parsing
                 "rating": review.rating,
-                "notes": review.notes
             }
             teaData["reviews"].append(reviewData)
         allData.append(teaData)
@@ -2436,7 +2390,7 @@ def loadTeasReviews(path):
         idx = i
         if "_index" in teaData:
             idx = teaData["_index"]
-        tea = StashedTea(idx, teaData["name"], teaData["year"], teaData["attributes"])
+        tea = StashedTea(idx, teaData["Name"], teaData["Year"], teaData["attributes"])
         dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
         if "dateAdded" in teaData:
             dateAdded = parseStringToDT(teaData["dateAdded"], default=dt.datetime.now(tz=dt.timezone.utc))
@@ -2457,7 +2411,11 @@ def loadTeasReviews(path):
             idx2 = j
             if "_reviewindex" in reviewData:
                 idx2 = reviewData["_reviewindex"]
-            review = Review(idx2, reviewData["name"], reviewData["year"], reviewData["attributes"], reviewData["rating"], reviewData["notes"])
+            # Rating could be stored under 'rating' or 'Final Score', check both
+            rating = reviewData.get("rating", None)
+            if rating is None:
+                rating = reviewData.get("Final Score", None)
+            review = Review(idx2, reviewData["Name"], reviewData["Year"], reviewData["attributes"], rating)
             review.parentID = tea.id
             tea.addReview(review)
             j += 1
@@ -2471,7 +2429,7 @@ def saveTeaCategories(categories, path):
     allData = []
     for category in categories:
         categoryData = {
-            "name": category.name,
+            "Name": category.name,
             "categoryType": category.categoryType,
             "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
@@ -2491,7 +2449,7 @@ def loadTeaCategories(path):
     allData = ReadYaml(path)
     TeaCategories = []
     for categoryData in allData:
-        category = TeaCategory(categoryData["name"], categoryData["categoryType"], categoryData["widthPixels"])
+        category = TeaCategory(categoryData["Name"], categoryData["categoryType"], categoryData["widthPixels"])
         category.defaultValue = ""
         if "defaultValue" in categoryData:
             category.defaultValue = categoryData["defaultValue"]
@@ -2517,7 +2475,7 @@ def loadTeaReviewCategories(path):
     allData = ReadYaml(path)
     TeaReviewCategories = []
     for categoryData in allData:
-        category = ReviewCategory(categoryData["name"], categoryData["categoryType"], categoryData["widthPixels"])
+        category = ReviewCategory(categoryData["Name"], categoryData["categoryType"], categoryData["widthPixels"])
         category.defaultValue = ""
         if "defaultValue" in categoryData:
             category.defaultValue = categoryData["defaultValue"]
@@ -2557,7 +2515,7 @@ def saveTeaReviewCategories(categories, path):
     allData = []
     for category in categories:
         categoryData = {
-            "name": category.name,
+            "Name": category.name,
             "categoryType": category.categoryType,
             "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
@@ -2720,6 +2678,50 @@ def loadAttributesFromString(json_string):
         print (f"Error decoding JSON string: {json_string}")
         RichPrintError("Failed to decode JSON string for attributes")
         return {}
+    
+def dumpReviewToDict(review):
+    returnDict = {}
+    # Declare an empty dict then handle each attribute seperately, datetime needs to be converted to string
+    for key, value in review.__dict__.items():
+        if isinstance(value, dt.datetime):
+            returnDict[key] = parseDTToString(value)
+        elif isinstance(value, dict):
+            # Recursive handling
+            returnDict[key] = dumpAttributesToString(value)
+        else:
+            returnDict[key] = value
+    return returnDict
+
+def loadReviewFromDictNewID(reviewData, id, parentId):
+    # Create a new review object from the dict generated by the above function
+    review = Review(id, reviewData["Name"], reviewData["Year"], reviewData["attributes"], reviewData["Final Score"])
+    review.parentID = parentId  # Set the parent ID to the tea ID
+    if type(reviewData["attributes"]) is str:
+        review.attributes = loadAttributesFromString(reviewData["attributes"])
+    else:
+        review.attributes = reviewData["attributes"]
+
+    # Convert datetime strings back to datetime objects if needed
+    for key, value in review.__dict__.items():
+        if isinstance(value, str):
+            try:
+                # Attempt to parse as datetime
+                parsed_date = parseStringToDT(value)
+                if type(parsed_date) is dt.datetime:
+                    review.__dict__[key] = parsed_date
+                else:
+                    review.__dict__[key] = value
+            except (ValueError, TypeError):
+                # If parsing fails, keep the original string value
+                review.__dict__[key] = value
+            except ValueError:
+                pass
+
+    # If calculated is not in the review, add blank
+    if "calculated" not in review.__dict__:
+        review.calculated = {}
+
+    return review
 
 
 #endregion
