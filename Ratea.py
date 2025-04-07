@@ -1118,7 +1118,7 @@ class Window_Stash_Reviews(WindowBase):
                                     except Exception as e:
                                         RichPrintError(f"Error loading attributes: {e}")
                                         # If it fails, just set to N/A
-                                        displayValue = "Err (Exception)"
+                                        displayValue = f"Err (Exception {e})"
                                 else:
                                     if cat.categoryRole in review.attributes:
                                         displayValue = review.attributes[cat.categoryRole]
@@ -1193,7 +1193,7 @@ class Window_Stash(WindowBase):
             hgroupButtons = dp.Group(horizontal=True)
             with hgroupButtons:
                 dp.Button(label="Add Tea", callback=self.ShowAddTea)
-                dp.Button(label="Import One (TODO)", callback=self.DummyCallback)
+                dp.Button(label="Import Tea (No Reviews)", callback=self.importOneTeaFromClipboard)
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export All (TODO)", callback=self.DummyCallback)
@@ -1274,6 +1274,54 @@ class Window_Stash(WindowBase):
 
             # Add seperator and import/export buttons
             dp.Separator()
+
+    def importOneTeaFromClipboard(self, sender, app_data, user_data):
+        # Import a tea from the clipboard
+        # Ex: {"Name": "reviews", "Year": 2000, "Type": "Hong", "Remaining": 123123.0, "Vendor": "N/A", "bool": true, "datetime": "2025-05-07"}
+        # Get the data from the clipboard
+        clipboardData = pyperclip.paste()
+        allAttributes = None
+        try:
+            allAttributes = json.loads(clipboardData)
+            # Check if all attributes are present, if not, skip
+            for cat in TeaCategories:
+                if cat.categoryRole not in allAttributes:
+                    RichPrintError(f"Error: {cat.categoryRole} not found in clipboard data.")
+                    return
+            # Create a new tea object and add it to the stash
+            newId = len(TeaStash)
+            newTea = StashedTea(newId, allAttributes["Name"], allAttributes["Year"], allAttributes)
+
+            # Add reviews to the tea object
+            newTea.reviews = []  # No reviews for now, just an empty list
+            clipboardReviews = allAttributes.get("reviews", [])
+            for review in clipboardReviews:
+                # Create a new review object and add it to the tea
+                newReview = Review(newId, review["Name"], review["Year"], review["Attributes"], review["Final Score"])
+                newReview.attributes = loadAttributesFromString(review["Attributes"])
+                newReview.parentID = newId  # Set the parent ID to the tea ID
+                newReview.id = len(newTea.reviews)  # Set the review ID to the length of the reviews list
+                newReview.calculated = {}  # Set the calculated field to an empty dictionary
+                newTea.addReview(newReview) 
+
+            TeaStash.append(newTea)
+            RichPrintSuccess(f"Imported tea from clipboard: {newTea.name}")
+
+            # Save the tea stash to file
+            saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+
+            # Refresh the window
+            self.refresh()
+        except json.JSONDecodeError:
+            RichPrintError("Error: Clipboard data is not valid JSON.")
+        except Exception as e:
+            RichPrintError(f"Error importing tea from clipboard: {e}")
+            return
+        
+        if allAttributes is None:
+            RichPrintError("No valid attributes found in clipboard data.")
+            return
+        
             
 
     def generateReviewListWindow(self, sender, app_data, user_data):
@@ -1354,7 +1402,8 @@ class Window_Stash(WindowBase):
             elif user_data[1] == "edit":
                 dp.Button(label="Confirm Edit", callback=self.EditTea, user_data=teasData)
                 # Copy Values to string (json) for the edit window, use function
-                dp.Button(label="Copy Values", callback=self.copyTeaValues, user_data=teasData)
+                dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
+                dp.Button(label="Copy/Export Tea and Reviews", callback=self.copyTeaReviewsValues, user_data=teasData)
                 dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
 
@@ -1370,6 +1419,65 @@ class Window_Stash(WindowBase):
                 allAttributes[k] = parseDTToString(DateDictToDT(v.get_value()))
             else:
                 allAttributes[k] = v.get_value()
+
+        # Add in recursive attributes field
+        allAttributes["attributes"] = {}
+        categoryRoles = [cat.categoryRole for cat in TeaCategories]
+        for k, v in allAttributes.items():
+            print(f"Key: {k}, Value: {v}")
+            if k != "attributes" and k in categoryRoles:
+                allAttributes["attributes"][k] = v
+
+        # Add in blank reviews and calculated field
+        allAttributes["reviews"] = []
+        allAttributes["calculated"] = {}
+
+        # Convert to JSON string
+        jsonString = json.dumps(allAttributes)
+        pyperclip.copy(jsonString)
+        RichPrintSuccess(f"Copied Tea Values: {jsonString}")
+
+    def copyTeaReviewsValues(self, sender, app_data, user_data):
+        # This function is to copy the current values of the tea input fields to a string (JSON format)
+        if self.teasWindow is None:
+            RichPrintError("No teas window to copy values from.")
+            return
+                
+        allAttributes = {}
+        for k, v in self.addTeaList.items():
+            if type(v) == dp.DatePicker:
+                allAttributes[k] = parseDTToString(DateDictToDT(v.get_value()))
+            else:
+                allAttributes[k] = v.get_value()
+
+        # Add in recursive attributes field
+        if "attributes" not in allAttributes:
+            allAttributes["attributes"] = {}
+        for k, v in allAttributes.items():
+            if k in TeaCategories:
+                allAttributes["attributes"][k] = v
+
+        # Add in blank reviews and calculated field
+        allAttributes["reviews"] = []
+        allAttributes["calculated"] = {}
+
+        # Add in reviews from the tea object
+        if user_data is not None and hasattr(user_data, 'reviews'):
+            # Reviews is a list of Review objects, convert to dicts first
+            reviews = []
+            for review in user_data.reviews:
+                # Serialize review attributes to JSON string
+                reviewAttr = dumpAttributesToString(review.attributes)
+                reviewDict = {
+                    "id": review.id,
+                    "Name": review.name,
+                    "Year": review.year,
+                    "Attributes": reviewAttr,
+                    "Final Score": review.finalScore,
+                    "Calculated": review.calculated,
+                }
+                reviews.append(reviewDict)
+            allAttributes["reviews"] = reviews
 
         # Convert to JSON string
         jsonString = json.dumps(allAttributes)
