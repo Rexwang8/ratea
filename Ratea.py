@@ -2389,7 +2389,18 @@ def loadTeasReviews(path):
         idx = i
         if "_index" in teaData:
             idx = teaData["_index"]
-        tea = StashedTea(idx, teaData["Name"], teaData["Year"], teaData["attributes"])
+
+        # Name could be under name or Name
+        name = teaData.get("name", None)
+        if name is None:
+            name = teaData.get("Name", None)
+        
+        # Year could be under year or Year
+        year = teaData.get("year", None)
+        if year is None:
+            year = teaData.get("Year", None)
+
+        tea = StashedTea(idx, name, year, teaData["attributes"])
         dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
         if "dateAdded" in teaData:
             dateAdded = parseStringToDT(teaData["dateAdded"], default=dt.datetime.now(tz=dt.timezone.utc))
@@ -2414,7 +2425,19 @@ def loadTeasReviews(path):
             rating = reviewData.get("rating", None)
             if rating is None:
                 rating = reviewData.get("Final Score", None)
-            review = Review(idx2, reviewData["Name"], reviewData["Year"], reviewData["attributes"], rating)
+
+            # Name could be under name or Name
+            name = reviewData.get("name", None)
+            if name is None:
+                name = reviewData.get("Name", None)
+            
+            # Year could be under year or Year
+            year = reviewData.get("year", None)
+            if year is None:
+                year = reviewData.get("Year", None)
+
+            
+            review = Review(idx2, name, year, reviewData["attributes"], rating)
             review.parentID = tea.id
             tea.addReview(review)
             j += 1
