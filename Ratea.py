@@ -376,13 +376,12 @@ class Review:
     attributes = {}
     calculated = {}
     finalScore = 0
-    def __init__(self, id, name, year, attributes, rating, notes=""):
+    def __init__(self, id, name, year, attributes, rating):
         self.id = id
         self.name = name
         self.year = year
         self.attributes = attributes
         self.rating = rating
-        self.notes = notes
         self.calculated = {}
         self.finalScore = 0
     def calculate(self):
