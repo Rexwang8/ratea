@@ -14,6 +14,15 @@ import yaml
 import threading
 import pyperclip
 
+# Reminders
+'''
+TODO: Make dropdown widgets based on past inputs
+TODO: Restrict categories to only if not already in use
+TODO: Add basic stats and metrics based on remaining tea and reviews
+TODO: Remove Year from teas and reviews, use dateAdded instead
+
+'''
+
 
 #region Helpers
 
