@@ -6,7 +6,6 @@ import dearpypixl as dp
 import dearpygui.dearpygui as dpg
 import dearpygui.demo as demo
 import os
-import pickle
 import re
 from rich.console import Console as RichConsole
 import screeninfo
@@ -20,6 +19,18 @@ TODO: Make dropdown widgets based on past inputs
 TODO: Restrict categories to only if not already in use
 TODO: Add basic stats and metrics based on remaining tea and reviews
 TODO: Remove Year from teas and reviews, use dateAdded instead
+TODO: Calculated fields for teas and reviews
+TODO: Validate that name and other important fields are not empty
+TODO: Fill out or remove review tabs
+TODO: Add ? button to everything
+TODO: Add color themes
+TODO: Update settings menu with new settings
+TODO: Some form of category migration
+TODO: Centralize tooltips and other large texts
+TODO: Write in blog window
+TODO: Add in functionality for flags: isAutoCalculated, isRequiredForTea, isRequiredForAll, isDropdown
+---Done---
+
 
 '''
 
@@ -417,6 +428,9 @@ class TeaCategory:
     # based on its role, would be Not Required if so.
     isAutoCalculated = False
 
+    # Show as dropdown?
+    isDropdown = False
+
 
     def __init__(self, name, categoryType, widthPixels=100):
         self.name = name
@@ -453,6 +467,9 @@ class ReviewCategory:
     # Autocalculated, if it is, it would be hidden in entry window and would rely on a calc step after submission
     # based on its role, would be Not Required if so.
     isAutoCalculated = False
+
+    # Show as dropdown?
+    isDropdown = False
 
     def __init__(self, name, categoryType, widthPixels=100):
         self.name = name
@@ -1841,6 +1858,39 @@ class Window_EditCategories(WindowBase):
             dp.Text("Type of Category")
             catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5)
             addCategoryWindowItems["Type"] = catItem
+
+            # Category role dropdown
+            dp.Text("Category Role")
+            typeCategory = f"{catItem.get_value()}"
+            items = session["validroleCategory"][typeCategory]
+            roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
+            addCategoryWindowItems["role"] = roleItem
+            dp.Separator()
+
+            # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
+            dp.Separator()
+            dp.Text("Additional Flags")
+            # Explanation tooltip
+            dp.Button(label="?")
+            with dpg.tooltip(dpg.last_item()):
+                tooltipTxt = '''Is Required (inc Teaware, fees): If this category is required for all teas, including teaware and fees. Supercedes isRequiredForTea.
+                \nIs Required for Tea only: If this category is required for tea only, not teaware or fees.
+                \nIs Dropdown: Will display a dropdown list of options if applicable. (string only currently, must be less than 50 characters)
+                \nIs Autocalculated: Mark this category as autocalculated, WIP, does not do anything yet'''
+
+                dp.Text(tooltipTxt)
+            isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
+            addCategoryWindowItems["isRequiredForAll"] = isRequiredItem
+
+            isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
+            addCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+
+            isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
+            addCategoryWindowItems["isDropdown"] = isDropdownItem
+
+            isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
+            addCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+
                 
             
             dp.Separator()
@@ -1885,6 +1935,37 @@ class Window_EditCategories(WindowBase):
             dp.Text("Type of Category")
             catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5)
             addReviewCategoryWindowItems["Type"] = catItem
+
+            # Category role dropdown
+            dp.Text("Category Role")
+            typeCategory = f"{catItem.get_value()}"
+            items = session["validroleReviewCategory"][typeCategory]
+            roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
+            addReviewCategoryWindowItems["role"] = roleItem
+
+            # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
+            dp.Separator()
+            dp.Text("Additional Flags")
+            # Explanation tooltip
+            dp.Button(label="?")
+            with dpg.tooltip(dpg.last_item()):
+                tooltipTxt = '''Is Required (inc Teaware, fees): If this category is required for all teas, including teaware and fees. Supercedes isRequiredForTea.
+                \nIs Required for Tea only: If this category is required for tea only, not teaware or fees.
+                \nIs Dropdown: Will display a dropdown list of options if applicable. (string only currently, must be less than 50 characters)
+                \nIs Autocalculated: Mark this category as autocalculated, WIP, does not do anything yet'''
+
+                dp.Text(tooltipTxt)
+            isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
+            addReviewCategoryWindowItems["isRequiredForAll"] = isRequiredItem
+
+            isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
+            addReviewCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+
+            isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
+            addReviewCategoryWindowItems["isDropdown"] = isDropdownItem
+
+            isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
+            addReviewCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
                 
             
             dp.Separator()
@@ -1919,6 +2000,17 @@ class Window_EditCategories(WindowBase):
         if defaultValue != None and defaultValue != "":
             newCategory.defaultValue = defaultValue
 
+        # Add role
+        newCategory.categoryRole = allAttributes["role"]
+        if newCategory.categoryRole not in session["validroleReviewCategory"][newCategory.categoryType]:
+            newCategory.categoryRole = "UNUSED"
+
+        ## Add flags
+        newCategory.isRequiredForAll = allAttributes["isRequiredForAll"]
+        newCategory.isRequiredForTea = allAttributes["isRequiredTea"]
+        newCategory.isDropdown = allAttributes["isDropdown"]
+        newCategory.isAutoCalculated = allAttributes["isAutocalculated"]
+
         
         TeaReviewCategories.append(newCategory)
 
@@ -1936,6 +2028,7 @@ class Window_EditCategories(WindowBase):
         editCategoryWindow = dp.Window(label="Edit Category", width=w, height=h, modal=True, show=True)
         editCategoryWindowItems = dict()
         category = TeaCategories[user_data]
+        category: TeaCategory
 
         with editCategoryWindow:
             dp.Text(f"{category.name}")
@@ -1964,6 +2057,30 @@ class Window_EditCategories(WindowBase):
             
             editCategoryWindowItems["role"] = roleItem
 
+            # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
+            dp.Separator()
+            dp.Text("Additional Flags")
+            # Question mark for tooltip
+            dp.Button(label="?")
+            with dpg.tooltip(dpg.last_item()):
+                tooltipTxt = '''Is Required (inc Teaware, fees): If this category is required for all teas, including teaware and fees. Supercedes isRequiredForTea.
+                \nIs Required for Tea only: If this category is required for tea only, not teaware or fees.
+                \nIs Dropdown: Will display a dropdown list of options if applicable. (string only currently, must be less than 50 characters)
+                \nIs Autocalculated: Mark this category as autocalculated, WIP, does not do anything yet'''
+
+                dp.Text(tooltipTxt)
+            isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
+            editCategoryWindowItems["isRequiredForAll"] = isRequiredItem
+
+            isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
+            editCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+
+            isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
+            editCategoryWindowItems["isDropdown"] = isDropdownItem
+
+            isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
+            editCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+
 
             dp.Separator()
 
@@ -1990,7 +2107,6 @@ class Window_EditCategories(WindowBase):
         dpg.configure_item(roleItem.tag, items=validTypes)
         roleItem.set_value(validTypes[0])
 
-
     def EditCategory(self, sender, app_data, user_data):
         category = user_data[0]
         allAttributes = user_data[1]
@@ -2003,6 +2119,12 @@ class Window_EditCategories(WindowBase):
         category.categoryRole = allAttributes["role"].get_value()
         if category.categoryRole not in session["validroleCategory"][allAttributes["Type"].get_value()]:
             category.categoryRole = "UNUSED"
+
+        # Flags
+        category.isRequiredForAll = allAttributes["isRequiredForAll"].get_value()
+        category.isRequiredTea = allAttributes["isRequiredTea"].get_value()
+        category.isDropdown = allAttributes["isDropdown"].get_value()
+        category.isAutocalculated = allAttributes["isAutocalculated"].get_value()
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
         # close the popup
@@ -2045,6 +2167,33 @@ class Window_EditCategories(WindowBase):
                 roleItem.set_value("ERR: Assume Unused")
             dp.Separator()
 
+            # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
+            dp.Separator()
+            dp.Text("Additional Flags")
+            # Question mark for tooltip
+            dp.Button(label="?")
+            with dpg.tooltip(dpg.last_item()):
+                tooltipTxt = '''Is Required (inc Teaware, fees): If this category is required for all teas, including teaware and fees. Supercedes isRequiredForTea.
+                \nIs Required for Tea only: If this category is required for tea only, not teaware or fees.
+                \nIs Dropdown: Will display a dropdown list of options if applicable. (string only currently, must be less than 50 characters)
+                \nIs Autocalculated: Mark this category as autocalculated, WIP, does not do anything yet'''
+
+                dp.Text(tooltipTxt)
+
+            isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
+            editReviewCategoryWindowItems["isRequiredForAll"] = isRequiredItem
+
+            isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
+            editReviewCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+
+            isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
+            editReviewCategoryWindowItems["isDropdown"] = isDropdownItem
+
+            isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
+            editReviewCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+
+            dp.Separator()
+
             editReviewCategoryWindowItems["Type"].user_data = (editReviewCategoryWindowItems["Type"], roleItem)
 
             with dp.Group(horizontal=True):
@@ -2077,6 +2226,12 @@ class Window_EditCategories(WindowBase):
         category.categoryRole = allAttributes["role"].get_value()
         if category.categoryRole not in session["validroleReviewCategory"][allAttributes["Type"].get_value()]:
             category.categoryRole = "UNUSED"
+
+        # Flags
+        category.isRequiredForAll = allAttributes["isRequiredForAll"].get_value()
+        category.isRequiredTea = allAttributes["isRequiredTea"].get_value()
+        category.isDropdown = allAttributes["isDropdown"].get_value()
+        category.isAutoCalculated = allAttributes["isAutocalculated"].get_value()
 
 
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
@@ -2128,6 +2283,20 @@ class Window_EditCategories(WindowBase):
         # Create a new category
         newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"], int(allAttributes["Width"]))
         newCategory.defaultValue = defaultValue
+
+        # Add in role
+        newCategory.categoryRole = allAttributes["role"].get_value()
+        if newCategory.categoryRole not in session["validroleCategory"][allAttributes["Type"].get_value()]:
+            newCategory.categoryRole = "UNUSED"
+
+        # Add in flags
+        newCategory.isRequiredForAll = allAttributes["isRequiredForAll"].get_value()
+        newCategory.isRequiredForTea = allAttributes["isRequiredTea"].get_value()
+        newCategory.isAutoCalculated = allAttributes["isAutocalculated"].get_value()
+        newCategory.isDropdown = allAttributes["isDropdown"].get_value()
+
+        # Log
+        RichPrintInfo(f"Adding category: {newCategory.name} ({newCategory.categoryType}, Flags: {newCategory.isRequiredForAll}, {newCategory.isRequiredForTea}, {newCategory.isAutoCalculated}, {newCategory.isDropdown})")
 
         # Add the new category to the list
         TeaCategories.append(newCategory)
@@ -2464,7 +2633,11 @@ def saveTeaCategories(categories, path):
             "categoryType": category.categoryType,
             "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
-            "categoryRole": category.categoryRole
+            "categoryRole": category.categoryRole,
+            "isAutoCalculated": category.isAutoCalculated,
+            "isRequiredForTea": category.isRequiredForTea,
+            "isRequiredForAll": category.isRequiredForAll,
+            "isDropdown": category.isDropdown,
         }
         allData.append(categoryData)
 
@@ -2550,7 +2723,11 @@ def saveTeaReviewCategories(categories, path):
             "categoryType": category.categoryType,
             "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
-            "categoryRole": category.categoryRole
+            "categoryRole": category.categoryRole,
+            "isAutoCalculated": category.isAutoCalculated,
+            "isRequiredForTea": category.isRequiredForTea,
+            "isRequiredForAll": category.isRequiredForAll,
+            "isDropdown": category.isDropdown,
         }
         allData.append(categoryData)
 
