@@ -15,23 +15,46 @@ import pyperclip
 
 # Reminders
 '''
-TODO: Make dropdown widgets based on past inputs
-TODO: Restrict categories to only if not already in use
-TODO: Add basic stats and metrics based on remaining tea and reviews
-TODO: Remove Year from teas and reviews, use dateAdded instead
-TODO: Calculated fields for teas and reviews
-TODO: Validate that name and other important fields are not empty
-TODO: Fill out or remove review tabs
-TODO: Add ? button to everything
-TODO: Add color themes
-TODO: Update settings menu with new settings
-TODO: Some form of category migration
-TODO: Centralize tooltips and other large texts
-TODO: Write in blog window
-TODO: Add in functionality for flags: isAutoCalculated, isRequiredForTea, isRequiredForAll, isDropdown
+Need for basic functionality: 
+TODO: Features: Make dropdown widgets based on past inputs
+TODO: Fix: Remove Year from teas and reviews, use dateAdded instead
+TODO: Stats: Add basic stats and metrics based on remaining tea and reviews
+TODO: Features: Add in functionality for flags: isAutoCalculated, isRequiredForTea, isRequiredForAll, isDropdown
+TODO: Features: Calculated fields for teas and reviews
+TODO: Validation: Validate that name and other important fields are not empty
+TODO: Features: Fill out or remove review tabs
+TODO: Menus: Update settings menu with new settings
+TODO: Category: Correction for amount of tea, and amount of tea consumed/marker for finished tea
+TODO: Feature: Import/Export To CSV
+
+
+Nice To Have:
+TODO: Validation: Restrict categories to only if not already in use
+TODO: Documentation: Write in blog window
+TODO: Documentation: Add Image Support to blog window.
+TODO: Documentation: Add ? button to everything
+TODO: Customization: Add color themes
+TODO: Feature: Some form of category migration
+TODO: Code: Centralize tooltips and other large texts
+TODO: Stats: Basic stats for tea and reviews, like average rating, total amount of tea, etc.
+TODO: Visualizeation: Pie chart for consumption of amount and types of tea, split over all, over years
+TODO: Visualization: Solid fill line graph for consumption of types of tea over years
+TODO: Tables: Non-tea items, like teaware, shipping, etc.
+TODO: Category: Write in description for each category role
+
+
+
+
+
+
+
+
+
+
+
 ---Done---
-
-
+(0.5.6): Tables: Dynamic Sizing of columns based on content
+(0.5.6): Tables: Dynamic Sorting of columns based on content
 '''
 
 
@@ -347,6 +370,61 @@ def setValidTypes():
                                 "date": ["UNUSED", "date"],
                                 "datetime": ["UNUSED", "date"]}
     
+
+def _table_sort_callback(sender, sortSpec):
+    # sortSpec is a list of tuples: [(column_index, sort_direction), ...]
+    # sort_direction: 1 = ascending, -1 = descending
+    if not sortSpec or sortSpec[0] is None:
+        RichPrintError("Sort spec is None or empty")
+        return
+    columnID, direction = sortSpec[0]
+    # If column ID is None or cooresponds to (reivews or edit) column, ignore
+    if columnID is None:
+        RichPrintError("Sort spec is None or empty")
+        return
+    
+    # Get column index from user data
+    columnUserData = dpg.get_item_user_data(columnID)
+    if columnUserData is None:
+        RichPrintInfo("Column user data is None, Skipping sort")
+        return
+    
+    # Convert user data to int
+    try:
+        column_index = int(columnUserData)
+    except ValueError:
+        RichPrintError(f"Column user data is not an int: {columnUserData}")
+        return
+    # Print column index for debugging
+    
+    # Determine if ascending or descending
+    ascending = direction > 0
+    # Get all the table rows
+    rows = dpg.get_item_children(sender, 1)
+    if not rows:
+        RichPrintError("No rows to sort")
+        return
+    sortableItems = []
+    for row in rows:
+        if dpg.get_item_type(row) == dp.mvTableRow:
+            rowData = dpg.get_item_children(row, 1)
+            if rowData is not None and len(rowData) > 0:
+                # Get the value from the column index
+                cell = rowData[column_index]
+                cellValue = dpg.get_value(cell)
+                # If value is an number, convert it to float
+                if isinstance(cellValue, str) and cellValue.replace('.', '', 1).isdigit():
+                    cellValue = float(cellValue)
+                sortableItems.append((row, cellValue))
+    # Define sort key
+    def sort_key(item):
+        return item[1]
+    sortableItems.sort(key=sort_key, reverse=not ascending)
+    sorted_rows = [item[0] for item in sortableItems]
+    # Reorder rows
+    dpg.reorder_items(sender, 1, sorted_rows)
+    RichPrintSuccess(f"Sorted table by column {column_index} in {'ascending' if ascending else 'descending'} order")
+
 
 
 #endregion
@@ -1103,14 +1181,22 @@ class Window_Stash_Reviews(WindowBase):
                     dp.Button(label="Add", callback=self.AddReview, user_data=tea)
             dp.Separator()
             # Add a table with reviews
-            reviewsTable = dp.Table(resizable=True, reorderable=True, row_background=True)
+            reviewsTable = dp.Table(header_row=True, no_host_extendX=True,
+                                borders_innerH=True, borders_outerH=True, borders_innerV=True,
+                                borders_outerV=True, row_background=True, hideable=True, reorderable=True,
+                                resizable=True, sortable=True, policy=dpg.mvTable_SizingFixedFit,
+                                scrollX=True, delay_search=True, scrollY=True, callback=_table_sort_callback)
             with reviewsTable:
                 # Add columns
                 # Add ID
-                dp.TableColumn(label="ID", width=50)
+                dp.TableColumn(label="ID", no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                                     width=50, default_sort=True, no_hide=True, user_data="0")
                 for i, cat in enumerate(TeaReviewCategories):
-                    dp.TableColumn(label=cat.name, width=int(cat.widthPixels))
-                dp.TableColumn(label="Edit", width=50)
+                    dp.TableColumn(label=cat.name, no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                                     width=50, default_sort=True, no_hide=True, user_data=f"{i+1}")
+                # Add Edit button
+                dp.TableColumn(label="Edit", no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                                     width=50, default_sort=True, no_hide=True)
                 # Add rows
                 for i, review in enumerate(tea.reviews):
                     tableRow = dp.TableRow()
@@ -1182,7 +1268,7 @@ class Window_Stash_Reviews(WindowBase):
             print("No window to delete")
 
 def Menu_Stash():
-    w = 600 * settings["UI_SCALE"]
+    w = 650 * settings["UI_SCALE"]
     h = 960 * settings["UI_SCALE"]
     stash = Window_Stash("Stash", w, h, exclusive=True)
 
@@ -1199,6 +1285,7 @@ class Window_Stash(WindowBase):
             self.teasWindow = None
         # Invoke base class delete
         super().onDelete()
+
 
     def windowDefintion(self, window):
         self.addTeaList = dict()
@@ -1226,16 +1313,21 @@ class Window_Stash(WindowBase):
             dp.Separator()
 
             # Table with collapsable rows for reviews
-            teasTable = dp.Table()
+            teasTable = dp.Table(header_row=True, no_host_extendX=True,
+                                borders_innerH=True, borders_outerH=True, borders_innerV=True,
+                                borders_outerV=True, row_background=True, hideable=True, reorderable=True,
+                                resizable=True, sortable=True, policy=dpg.mvTable_SizingFixedFit,
+                                scrollX=True, delay_search=True, scrollY=True, callback=_table_sort_callback)
             with teasTable:
                 # Add columns from teaCategories
                 # Add ID
-                dp.TableColumn(label="ID", width=50)
+                dpg.add_table_column(label="ID", no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                                     width=50, default_sort=True, no_hide=True, user_data="0")
                 # Add the categories
                 for i, cat in enumerate(TeaCategories):
-                    dp.TableColumn(label=cat.name, width=int(cat.widthPixels))
-                dp.TableColumn(label="Reviews", width=250)
-                dp.TableColumn(label="Edit", width=50)
+                    dp.TableColumn(label=cat.name, no_resize=False, no_clip=True, user_data=f"{i+1}")
+                dp.TableColumn(label="Reviews", no_resize=False, no_clip=True, width=300, no_hide=True)
+                dp.TableColumn(label="Edit", no_resize=False, no_clip=True, width=50, no_hide=True)
 
                 # Add rows
                 for i, tea in enumerate(TeaStash):
@@ -2360,14 +2452,21 @@ class Window_Summary(WindowBase):
             dp.Text("Tea Types")
             dp.Separator()
             # Table with tea types
-            teasTable = dp.Table(header=["Type", "Grams", "Price", "Price per Gram"], resizable=True, reorderable=True, row_background=True)
-            dpg.configure_item(teasTable, policy=dpg.mvTable_SizingFixedFit)
+            teasTable = dp.Table(header=["Type", "Grams", "Price", "Price per Gram"], header_row=True, no_host_extendX=True,
+                                borders_innerH=True, borders_outerH=True, borders_innerV=True,
+                                borders_outerV=True, row_background=True, hideable=True, reorderable=True,
+                                resizable=True, sortable=True, policy=dpg.mvTable_SizingFixedFit,
+                                scrollX=True, delay_search=True, scrollY=True, callback=_table_sort_callback)
             with teasTable:
                 # Add columns
-                dp.TableColumn(label="Type" , width_stretch=True)
-                dp.TableColumn(label="Grams", width=75)
-                dp.TableColumn(label="Price", width=75)
-                dp.TableColumn(label="Price per Gram", width=75)
+                dp.TableColumn(label="Type" , no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                                     width=50, default_sort=True, no_hide=True, user_data="0")
+                dp.TableColumn(label="Grams", no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                                     width=50, default_sort=True, no_hide=True, user_data="1")
+                dp.TableColumn(label="Price", no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                                     width=50, default_sort=True, no_hide=True, user_data="2")
+                dp.TableColumn(label="Price per Gram", no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                                     width=50, default_sort=True, no_hide=True, user_data="3")
                 # Add rows
                 for i, tea in enumerate(TeaStash):
                     tableRow = dp.TableRow()
@@ -3041,7 +3140,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.5.5", # Updates to most recently loaded
+        "APP_VERSION": "0.5.6", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
