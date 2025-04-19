@@ -17,7 +17,6 @@ import pyperclip
 '''
 Need for basic functionality: 
 TODO: Features: Make dropdown widgets based on past inputs
-TODO: Fix: Remove Year from teas and reviews, use dateAdded instead
 TODO: Stats: Add basic stats and metrics based on remaining tea and reviews
 TODO: Features: Add in functionality for flags: isAutoCalculated, isRequiredForTea, isRequiredForAll, isDropdown
 TODO: Features: Calculated fields for teas and reviews
@@ -53,8 +52,9 @@ TODO: Category: Write in description for each category role
 
 
 ---Done---
-(0.5.6): Tables: Dynamic Sizing of columns based on content
-(0.5.6): Tables: Dynamic Sorting of columns based on content
+Fix(0.5.6): Fix: Remove Year from teas and reviews, use dateAdded instead
+Feat(0.5.6): Tables: Dynamic Sizing of columns based on content
+Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 '''
 
 
@@ -247,9 +247,9 @@ def printTeasAndReviews():
     RichPrintSeparator()
     RichPrintInfo("Teas and Reviews:")
     for i, tea in enumerate(TeaStash):
-        RichPrintInfo(f"Tea {i}: {tea.name} ({tea.year})")
+        RichPrintInfo(f"Tea {i}: {tea.name} ({tea.dateAdded})")
         for j, review in enumerate(tea.reviews):
-            RichPrintInfo(f"\tReview {j}: {review.name} ({review.year})")
+            RichPrintInfo(f"\tReview {j}: {review.name} ({review.dateAdded})")
     RichPrintSeparator()
 
 # Fast print of Categories and Review Categories
@@ -436,15 +436,16 @@ def _table_sort_callback(sender, sortSpec):
 class StashedTea:
     id = 0
     name = ""
-    year = 1900
     dateAdded = None  # Date when the tea was added to the stash
     attributes = {}
     reviews = []
     calculated = {}
-    def __init__(self, id, name, year, attributes):
+    def __init__(self, id, name, dateAdded=None, attributes={}):
         self.id = id
         self.name = name
-        self.year = year
+        if dateAdded is None:
+            dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+        self.dateAdded = dateAdded
         self.attributes = attributes
         self.reviews = []
         self.calculated = {}
@@ -470,14 +471,16 @@ class Review:
     parentID = 0
     id = 0
     name = ""
-    year = 1900
+    dateAdded = None
     attributes = {}
     calculated = {}
     finalScore = 0
-    def __init__(self, id, name, year, attributes, rating):
+    def __init__(self, id, name, dateAdded, attributes, rating):
         self.id = id
         self.name = name
-        self.year = year
+        if dateAdded is None:
+            dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+        self.dateAdded = dateAdded
         self.attributes = attributes
         self.rating = rating
         self.calculated = {}
@@ -951,12 +954,18 @@ class Window_Stash_Reviews(WindowBase):
         # Add a review to the tea
         allAttributes = {}
         teaID = user_data.id
-        for item in self.addReviewList:
-            # If input text
-            if type(item) == dp.InputText:
-                allAttributes[item.label] = item.get_value()
+        for k, v in self.addReviewList.items():
+            if type(v) == dp.DatePicker:
+                allAttributes[k] = DateDictToDT(v.get_value())
+            else:
+                allAttributes[k] = v.get_value()
 
-        newReview = Review(teaID, user_data.name, user_data.year, allAttributes["attributes"], allAttributes["Final Score"])
+        if "dateAdded" not in allAttributes:
+            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc)
+        if "Final Score" not in allAttributes:
+            allAttributes["Final Score"] = 0
+
+        newReview = Review(teaID, user_data.name, allAttributes["dateAdded"], allAttributes["attributes"], allAttributes["Final Score"])
         user_data.addReview(newReview)
 
         # Renumber and Save
@@ -1093,23 +1102,15 @@ class Window_Stash_Reviews(WindowBase):
             RichPrintError("No review name provided and no parent tea found. Cannot save review.")
             return
         
-        # Infer year from allAttributes if avaliable, review or parent else. Fall back on current year if not found
-        reviewYear = allAttributes.get("Year", "").strip()
-        if reviewYear == "" or reviewYear == "0":
-            if review is not None and int(review.year) > 0:
-                reviewYear = review.year
-            elif self.tea is not None and self.tea.year > 0:
-                reviewYear = self.tea.year
-            else:
-                reviewYear = dt.datetime.now(tz=dt.timezone.utc).year
-        else:
-            try:
-                reviewYear = int(reviewYear)
-            except ValueError:
-                RichPrintError("Invalid year provided, falling back to current year.")
-                reviewYear = dt.datetime.now(tz=dt.timezone.utc).year
+        # Get dateAdded from allAttributes or use current time
+        if "dateAdded" not in allAttributes:
+            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc)
+        if "Final Score" not in allAttributes:
+            allAttributes["Final Score"] = 0
 
-        newReview = Review(teaId, reviewName, reviewYear, allAttributes, allAttributes["Final Score"])
+        
+
+        newReview = Review(teaId, reviewName, allAttributes["dateAdded"], allAttributes, allAttributes["Final Score"])
 
         if isEdit:
             # Transfer the reviews
@@ -1403,7 +1404,7 @@ class Window_Stash(WindowBase):
             RichPrintInfo(f"Clipboard data: {clipboardData}")
             # Create a new tea object and add it to the stash
             newId = len(TeaStash)
-            newTea = StashedTea(newId, allAttributes["Name"], allAttributes["Year"], allAttributes)
+            newTea = StashedTea(newId, allAttributes["Name"], allAttributes["dateAdded"], allAttributes)
 
             # Add reviews to the tea object
             newTea.reviews = []  # No reviews for now, just an empty list
@@ -1625,14 +1626,18 @@ class Window_Stash(WindowBase):
         allAttributes = {}
         for k, v in self.addTeaList.items():
             if type(v) == dp.DatePicker:
-                allAttributes[k] = parseStringToDT(v.get_value(), settings["DATE_FORMAT"])
+                allAttributes[k] = DateDictToDT(v.get_value())
             else:
                 allAttributes[k] = v.get_value()
 
         RichPrintInfo(f"Adding tea: {allAttributes}")
 
+        # Check if the dateAdded attribute is present, if not, set it to the current time
+        if "dateAdded" not in allAttributes:
+            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc)
+
         # Create a new tea and add it to the stash
-        newTea = StashedTea(len(TeaStash) + 1, allAttributes["Name"], allAttributes["Year"], allAttributes)
+        newTea = StashedTea(len(TeaStash) + 1, allAttributes["Name"], allAttributes["dateAdded"], allAttributes)
         dateAdded = dt.datetime.now(tz=dt.timezone.utc)
         newTea.dateAdded = dateAdded
         TeaStash.append(newTea)
@@ -1660,14 +1665,14 @@ class Window_Stash(WindowBase):
                 allAttributes[k] = v.get_value()
 
 
-        newTea = StashedTea(tea.id, allAttributes["Name"], allAttributes["Year"], allAttributes)
+        
         dateAdded = None
         if hasattr(tea, 'dateAdded') and tea.dateAdded is not None:
             dateAdded = tea.dateAdded
         # Transfer the dateAdded if it exists, otherwise use the current time
         if dateAdded is None:
             dateAdded = dt.datetime.now(tz=dt.timezone.utc)
-        newTea.dateAdded = dateAdded
+        newTea = StashedTea(tea.id, allAttributes["Name"], dateAdded, allAttributes)
 
         # Transfer the reviews
         newTea.reviews = tea.reviews
@@ -2628,7 +2633,6 @@ def saveTeasReviews(stash, path):
         teaData = {
             "_index": tea.id,
             "Name": tea.name,
-            "Year": tea.year,
             "dateAdded": parseDTToStringWithFallback(tea.dateAdded, fallbackString=nowString),  # Save dateAdded as string, default to now if not specified
             "attributes": tea.attributes,
             "attributesJson": dumpAttributesToString(tea.attributes),  # Save attributes as JSON string for easier parsing
@@ -2641,7 +2645,7 @@ def saveTeasReviews(stash, path):
                 "_reviewindex": review.id,
                 "parentIDX": tea.id,
                 "Name": review.name,
-                "Year": review.year,
+                "dateAdded": parseDTToStringWithFallback(review.dateAdded, fallbackString=nowString),  # Save dateAdded as string, default to now if not specified
                 "attributes": review.attributes,
                 "attributesJson": dumpAttributesToString(review.attributes),  # Save review attributes as JSON string for easier parsing
                 "rating": review.rating,
@@ -2671,13 +2675,13 @@ def loadTeasReviews(path):
         name = teaData.get("name", None)
         if name is None:
             name = teaData.get("Name", None)
-        
-        # Year could be under year or Year
-        year = teaData.get("year", None)
-        if year is None:
-            year = teaData.get("Year", None)
 
-        tea = StashedTea(idx, name, year, teaData["attributes"])
+        # Date added could be under dateAdded or Date Added
+        dateAdded = teaData.get("dateAdded", None)
+        if dateAdded is None:
+            dateAdded = teaData.get("Date Added", None)
+
+        tea = StashedTea(idx, name, dateAdded=dateAdded, attributes=teaData["attributes"])
         dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
         if "dateAdded" in teaData:
             dateAdded = parseStringToDT(teaData["dateAdded"], default=dt.datetime.now(tz=dt.timezone.utc))
@@ -2707,14 +2711,17 @@ def loadTeasReviews(path):
             name = reviewData.get("name", None)
             if name is None:
                 name = reviewData.get("Name", None)
-            
-            # Year could be under year or Year
-            year = reviewData.get("year", None)
-            if year is None:
-                year = reviewData.get("Year", None)
+
+            # dateAdded could be under dateAdded or Date Added
+            dateAdded = reviewData.get("dateAdded", None)
+            if dateAdded is None:
+                dateAdded = reviewData.get("Date Added", None)
+            if dateAdded is None:
+                dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+            dateAdded = parseStringToDT(dateAdded, default=dt.datetime.now(tz=dt.timezone.utc))
 
             
-            review = Review(idx2, name, year, reviewData["attributes"], rating)
+            review = Review(idx2, name, dateAdded, reviewData["attributes"], rating)
             review.parentID = tea.id
             tea.addReview(review)
             j += 1
@@ -3001,7 +3008,7 @@ def dumpReviewToDict(review):
 
 def loadReviewFromDictNewID(reviewData, id, parentId):
     # Create a new review object from the dict generated by the above function
-    review = Review(id, reviewData["Name"], reviewData["Year"], reviewData["attributes"], reviewData["Final Score"])
+    review = Review(id, reviewData["Name"], reviewData["dateAdded"], reviewData["attributes"], reviewData["Final Score"])
     review.parentID = parentId  # Set the parent ID to the tea ID
     if type(reviewData["attributes"]) is str:
         review.attributes = loadAttributesFromString(reviewData["attributes"])
