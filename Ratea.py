@@ -13,14 +13,14 @@ import yaml
 import threading
 import pyperclip
 
-# From local filels
+# From local files
 import RateaTexts
 
 # Reminders
 '''
 Need for basic functionality: 
 TODO: Stats: Add basic stats and metrics based on remaining tea and reviews
-TODO: Features: Add in functionality for flags: isAutoCalculated, isRequiredForTea, isRequiredForAll, isDropdown
+TODO: Features: Add in functionality for flags: isAutoCalculated, isRequiredForTea, isRequiredForAll
 TODO: Features: Calculated fields for teas and reviews
 TODO: Validation: Validate that name and other important fields are not empty
 TODO: Features: Fill out or remove review tabs
@@ -31,7 +31,7 @@ TODO: Feature: Import/Export To CSV
 
 Nice To Have:
 TODO: Validation: Restrict categories to only if not already in use
-TODO: Documentation: Add ? button to everything
+TODO: Documentation: Add ? tooltips to everything
 TODO: Customization: Add color themes
 TODO: Feature: Some form of category migration
 TODO: Code: Centralize tooltips and other large texts
@@ -54,6 +54,7 @@ TODO: Summary: User preference visualization for types of tea, amount of tea, et
 
 
 ---Done---
+Feat(0.5.6): Fix bug with edit category, add some toolltips
 Feat(0.5.6): Make dropdown widgets based on past inputs
 Fix(0.5.6): Fix: Remove Year from teas and reviews, use dateAdded instead
 Feat(0.5.6): Tables: Dynamic Sizing of columns based on content
@@ -2145,13 +2146,26 @@ class Window_EditCategories(WindowBase):
             addCategoryWindowItems["DefaultValue"] = defaultValueItem
             
             validTypes = session["validTypesCategory"]
-            dp.Separator()
-            dp.Text("Type of Category")
-            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5)
+            with dp.Group(horizontal=True):
+                dp.Text("Category Type")
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].strWithWrap()
+                    dp.Text(toolTipText)
+
+            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5, callback=self.updateTypeDuringEdit)
             addCategoryWindowItems["Type"] = catItem
 
             # Category role dropdown
-            dp.Text("Category Role")
+            with dp.Group(horizontal=True):
+                dp.Text("Category Role")
+                # Explanation tooltip
+                dp.Separator()
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
+                    dp.Text(toolTipText)
+
             typeCategory = f"{catItem.get_value()}"
             items = session["validroleCategory"][typeCategory]
             roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
@@ -2161,34 +2175,36 @@ class Window_EditCategories(WindowBase):
             # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
-            # Explanation tooltip
-            dp.Button(label="?")
-            with dpg.tooltip(dpg.last_item()):
-                tooltipTxt = '''Is Required (inc Teaware, fees): If this category is required for all teas, including teaware and fees. Supercedes isRequiredForTea.
-                \nIs Required for Tea only: If this category is required for tea only, not teaware or fees.
-                \nIs Dropdown: Will display a dropdown list of options if applicable. (string only currently, must be less than 50 characters)
-                \nIs Autocalculated: Mark this category as autocalculated, WIP, does not do anything yet'''
 
-                dp.Text(tooltipTxt)
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
             addCategoryWindowItems["isRequiredForAll"] = isRequiredItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
             addCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredTea"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
             addCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
-
                 dp.Text(toolTipTxt)
 
             isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
             addCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isAutocalculated"].strWithWrap()
+                dp.Text(toolTipTxt)
 
                 
             
             dp.Separator()
+
+            addCategoryWindowItems["Type"].user_data = (addCategoryWindowItems["Type"], roleItem)
                     
 
             dp.Button(label="Add", callback=self.AddCategory, user_data=(addCategoryWindowItems, addCategoryWindow))
@@ -2226,13 +2242,27 @@ class Window_EditCategories(WindowBase):
 
             
             validTypes = session["validTypesReviewCategory"]
-            dp.Separator()
-            dp.Text("Type of Category")
-            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5)
+            with dp.Group(horizontal=True):
+                dp.Text("Category Type")
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].strWithWrap()
+                    dp.Text(toolTipText)
+
+            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5, callback=self.updateTypeDuringEditReview)
             addReviewCategoryWindowItems["Type"] = catItem
 
             # Category role dropdown
-            dp.Text("Category Role")
+            with dp.Group(horizontal=True):
+                dp.Text("Category Role")
+                # Explanation tooltip
+                dp.Separator()
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
+                    dp.Text(toolTipText)
+
+
             typeCategory = f"{catItem.get_value()}"
             items = session["validroleReviewCategory"][typeCategory]
             roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
@@ -2241,29 +2271,34 @@ class Window_EditCategories(WindowBase):
             # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
-            # Explanation tooltip
-            dp.Button(label="?")
-            with dpg.tooltip(dpg.last_item()):
-                tooltipTxt = '''Is Required (inc Teaware, fees): If this category is required for all teas, including teaware and fees. Supercedes isRequiredForTea.
-                \nIs Required for Tea only: If this category is required for tea only, not teaware or fees.
-                \nIs Dropdown: Will display a dropdown list of options if applicable. (string only currently, must be less than 50 characters)
-                \nIs Autocalculated: Mark this category as autocalculated, WIP, does not do anything yet'''
-
-                dp.Text(tooltipTxt)
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
             addReviewCategoryWindowItems["isRequiredForAll"] = isRequiredItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
             addReviewCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredTea"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
             addReviewCategoryWindowItems["isDropdown"] = isDropdownItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
             addReviewCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isAutocalculated"].strWithWrap()
+                dp.Text(toolTipTxt)
                 
             
             dp.Separator()
+
+            addReviewCategoryWindowItems["Type"].user_data = (addReviewCategoryWindowItems["Type"], roleItem)
                     
 
             dp.Button(label="Add", callback=self.AddReviewCategory, user_data=(addReviewCategoryWindowItems, addReviewCategoryWindow))
@@ -2330,12 +2365,17 @@ class Window_EditCategories(WindowBase):
             dp.Text(f"Width: {category.widthPixels}")
             editCategoryWindowItems["Width"] = dp.InputInt(label="Width", default_value=category.widthPixels, step=1, min_value=50, max_value=500)
             
-            dp.Text(f"Default Value: {category.defaultValue}")
+            dp.Text(f"Default Value")
             editCategoryWindowItems["DefaultValue"] = dp.InputText(label="Default Value", default_value=category.defaultValue)
             
             validTypes = session["validTypesCategory"]
-            dp.Separator()
-            dp.Text(f"Type of Category")
+            with dp.Group(horizontal=True):
+                dp.Text("Category Type")
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].strWithWrap()
+                    dp.Text(toolTipText)
+
             catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, label="Type", callback=self.updateTypeDuringEdit, num_items=5)
             if category.categoryType not in validTypes:
                 catItem.set_value("ERR: Assume String")
@@ -2343,7 +2383,15 @@ class Window_EditCategories(WindowBase):
             editCategoryWindowItems["Type"] = catItem
 
             # Dropdown for category role
-            dp.Text("Category Role")
+            with dp.Group(horizontal=True):
+                dp.Text("Category Role")
+                # Explanation tooltip
+                dp.Separator()
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
+                    dp.Text(toolTipText)
+
             typeCategory = f"{category.categoryType}"
             items = session["validroleCategory"][typeCategory]
             roleItem = dp.Listbox(items=items, default_value=category.categoryRole, num_items=5)
@@ -2355,26 +2403,29 @@ class Window_EditCategories(WindowBase):
             # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
-            # Question mark for tooltip
-            dp.Button(label="?")
-            with dpg.tooltip(dpg.last_item()):
-                tooltipTxt = '''Is Required (inc Teaware, fees): If this category is required for all teas, including teaware and fees. Supercedes isRequiredForTea.
-                \nIs Required for Tea only: If this category is required for tea only, not teaware or fees.
-                \nIs Dropdown: Will display a dropdown list of options if applicable. (string only currently, must be less than 50 characters)
-                \nIs Autocalculated: Mark this category as autocalculated, WIP, does not do anything yet'''
-
-                dp.Text(tooltipTxt)
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
             editCategoryWindowItems["isRequiredForAll"] = isRequiredItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
             editCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredTea"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
             editCategoryWindowItems["isDropdown"] = isDropdownItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
             editCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isAutocalculated"].strWithWrap()
+                dp.Text(toolTipTxt)
 
 
             dp.Separator()
@@ -2399,6 +2450,15 @@ class Window_EditCategories(WindowBase):
         valueToSet = user_data[0].get_value()
         roleItem = user_data[1]
         validTypes = session["validroleCategory"][valueToSet]
+        dpg.configure_item(roleItem.tag, items=validTypes)
+        roleItem.set_value(validTypes[0])
+
+    def updateTypeDuringEditReview(self, sender, app_data, user_data):
+        # We need to update type during edit to show correct role
+        RichPrintInfo(F"[INFO] Updated Type: {user_data[0].get_value()}")
+        valueToSet = user_data[0].get_value()
+        roleItem = user_data[1]
+        validTypes = session["validroleReviewCategory"][valueToSet]
         dpg.configure_item(roleItem.tag, items=validTypes)
         roleItem.set_value(validTypes[0])
 
@@ -2445,15 +2505,28 @@ class Window_EditCategories(WindowBase):
             editReviewCategoryWindowItems["DefaultValue"] = dp.InputText(label="Default Value", default_value=category.defaultValue)
 
             validTypes = session["validTypesReviewCategory"]
-            dp.Separator()
-            dp.Text(f"Type of Category")
+            with dp.Group(horizontal=True):
+                dp.Text("Category Type")
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].strWithWrap()
+                    dp.Text(toolTipText)
+
             catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, label="Type", num_items=5, callback=self.updateTypeDuringEditReview)
             if category.categoryType not in validTypes:
                 catItem.set_value("ERR: Assume String")
 
             editReviewCategoryWindowItems["Type"] = catItem
 
-            dp.Text("Category role")
+            with dp.Group(horizontal=True):
+                dp.Text("Category Role")
+                # Explanation tooltip
+                dp.Separator()
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
+                    dp.Text(toolTipText)
+
             # Dropdown for category role
             items = session["validroleReviewCategory"][category.categoryType]
             roleItem = dp.Listbox(items=items, default_value=category.categoryRole)
@@ -2465,27 +2538,30 @@ class Window_EditCategories(WindowBase):
             # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
-            # Question mark for tooltip
-            dp.Button(label="?")
-            with dpg.tooltip(dpg.last_item()):
-                tooltipTxt = '''Is Required (inc Teaware, fees): If this category is required for all teas, including teaware and fees. Supercedes isRequiredForTea.
-                \nIs Required for Tea only: If this category is required for tea only, not teaware or fees.
-                \nIs Dropdown: Will display a dropdown list of options if applicable. (string only currently, must be less than 50 characters)
-                \nIs Autocalculated: Mark this category as autocalculated, WIP, does not do anything yet'''
-
-                dp.Text(tooltipTxt)
 
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
             editReviewCategoryWindowItems["isRequiredForAll"] = isRequiredItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
             editReviewCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredTea"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
             editReviewCategoryWindowItems["isDropdown"] = isDropdownItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
             editReviewCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isAutocalculated"].strWithWrap()
+                dp.Text(toolTipTxt)
 
             dp.Separator()
 
