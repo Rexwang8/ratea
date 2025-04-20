@@ -28,6 +28,8 @@ TODO: Menus: Update settings menu with new settings
 TODO: Category: Correction for amount of tea, and amount of tea consumed/marker for finished tea
 TODO: Feature: Import/Export To CSV
 
+TODO: Add in a proper default folder for settings and data
+
 
 Nice To Have:
 TODO: Validation: Restrict categories to only if not already in use
@@ -54,6 +56,7 @@ TODO: Summary: User preference visualization for types of tea, amount of tea, et
 
 
 ---Done---
+Chore(0.5.6): Remove width for categories and review categories
 Feat(0.5.6): Fix bug with edit category, add some toolltips
 Feat(0.5.6): Make dropdown widgets based on past inputs
 Fix(0.5.6): Fix: Remove Year from teas and reviews, use dateAdded instead
@@ -560,7 +563,6 @@ class TeaCategory:
     categoryType = ""
     color = ""
     defaultValue = None
-    widthPixels = 100
     categoryRole = None
 
     # If is required, for when talking about tea, or for all, like teaware and shipping
@@ -575,7 +577,7 @@ class TeaCategory:
     isDropdown = False
 
 
-    def __init__(self, name, categoryType, widthPixels=100):
+    def __init__(self, name, categoryType):
         self.name = name
         self.categoryType = categoryType
         if categoryType == "string":
@@ -589,7 +591,6 @@ class TeaCategory:
         elif categoryType == "date" or categoryType == "datetime":
             # Set the default value to the current date and time
             self.defaultValue = dt.datetime.now(tz=dt.timezone.utc)
-        self.widthPixels = widthPixels
         self.categoryRole = "UNUSED"
 
         self.isRequiredForTea = False
@@ -601,7 +602,6 @@ class TeaCategory:
 class ReviewCategory:
     name = ""
     categoryType = ""
-    widthPixels = 100
     defaultValue = ""
     categoryRole = None
 
@@ -616,10 +616,9 @@ class ReviewCategory:
     # Show as dropdown?
     isDropdown = False
 
-    def __init__(self, name, categoryType, widthPixels=100):
+    def __init__(self, name, categoryType):
         self.name = name
         self.categoryType = categoryType
-        self.widthPixels = widthPixels
         self.categoryRole = self.categoryType
         self.ifisRequiredForTea = False
         self.ifisRequiredForAll = False
@@ -2051,7 +2050,6 @@ class Window_EditCategories(WindowBase):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Default Value: {category.defaultValue}")
                         dp.Text(f"Category Role: {category.categoryRole}")
-                        dp.Text(label=f"Width: {category.widthPixels}")
 
                     scaledWidth = 75 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
@@ -2079,7 +2077,6 @@ class Window_EditCategories(WindowBase):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Default Value: {category.defaultValue}")
                         dp.Text(f"Category Role: {category.categoryRole}")
-                        dp.Text(label=f"Width: {category.widthPixels}")
 
                     scaledWidth = 75 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
@@ -2136,10 +2133,6 @@ class Window_EditCategories(WindowBase):
             dp.Text("Category Name")
             nameItem = dp.InputText(label="Name", default_value="")
             addCategoryWindowItems["Name"] = nameItem
-
-            dp.Text("Width")
-            widthItem = dp.InputInt(label="Width", default_value=100, step=1, min_value=50, max_value=500)
-            addCategoryWindowItems["Width"] = widthItem
 
             dp.Text("Default Value")
             defaultValueItem = dp.InputText(label="Default Value", default_value="")
@@ -2231,10 +2224,6 @@ class Window_EditCategories(WindowBase):
             dp.Text("Category Name")
             nameItem = dp.InputText(label="Name", default_value="")
             addReviewCategoryWindowItems["Name"] = nameItem
-
-            dp.Text("Width")
-            widthItem = dp.InputInt(label="Width", default_value=100, step=1, min_value=50, max_value=500)
-            addReviewCategoryWindowItems["Width"] = widthItem
             
             dp.Text("Default Value")
             defaultValueItem = dp.InputText(label="Default Value", default_value="")
@@ -2325,7 +2314,7 @@ class Window_EditCategories(WindowBase):
             allAttributes["Type"] = "string"
 
         # Create a new category
-        newCategory = ReviewCategory(allAttributes["Name"], allAttributes["Type"], int(float(allAttributes["Width"])))
+        newCategory = ReviewCategory(allAttributes["Name"], allAttributes["Type"])
         defaultValue = allAttributes["DefaultValue"]
         if defaultValue != None and defaultValue != "":
             newCategory.defaultValue = defaultValue
@@ -2362,8 +2351,6 @@ class Window_EditCategories(WindowBase):
 
         with editCategoryWindow:
             dp.Text(f"{category.name}")
-            dp.Text(f"Width: {category.widthPixels}")
-            editCategoryWindowItems["Width"] = dp.InputInt(label="Width", default_value=category.widthPixels, step=1, min_value=50, max_value=500)
             
             dp.Text(f"Default Value")
             editCategoryWindowItems["DefaultValue"] = dp.InputText(label="Default Value", default_value=category.defaultValue)
@@ -2468,7 +2455,6 @@ class Window_EditCategories(WindowBase):
         category.categoryType = allAttributes["Type"].get_value()
         if category.categoryType not in session["validTypesCategory"]:
             category.categoryType = "UNUSED"
-        category.widthPixels = allAttributes["Width"].get_value()
         category.defaultValue = allAttributes["DefaultValue"].get_value()
 
         category.categoryRole = allAttributes["role"].get_value()
@@ -2498,8 +2484,6 @@ class Window_EditCategories(WindowBase):
 
         with editReviewCategoryWindow:
             dp.Text(f"{category.name}")
-            dp.Text(f"Width: {category.widthPixels}")
-            editReviewCategoryWindowItems["Width"] = dp.InputInt(label="Width", default_value=category.widthPixels, step=1, min_value=50, max_value=500)
 
             dp.Text(f"Default Value: {category.defaultValue}")
             editReviewCategoryWindowItems["DefaultValue"] = dp.InputText(label="Default Value", default_value=category.defaultValue)
@@ -2591,7 +2575,6 @@ class Window_EditCategories(WindowBase):
         category.categoryType = allAttributes["Type"].get_value()
         if category.categoryType not in session["validTypesReviewCategory"]:
             category.categoryType = "string"
-        category.widthPixels = allAttributes["Width"].get_value()
         category.defaultValue = allAttributes["DefaultValue"].get_value()
 
         category.categoryRole = allAttributes["role"].get_value()
@@ -2652,7 +2635,7 @@ class Window_EditCategories(WindowBase):
             defaultValue = ""
 
         # Create a new category
-        newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"], int(allAttributes["Width"]))
+        newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"])
         newCategory.defaultValue = defaultValue
 
         # Add in role
@@ -3011,7 +2994,6 @@ def saveTeaCategories(categories, path):
         categoryData = {
             "Name": category.name,
             "categoryType": category.categoryType,
-            "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
             "categoryRole": category.categoryRole,
             "isAutoCalculated": category.isAutoCalculated,
@@ -3033,7 +3015,7 @@ def loadTeaCategories(path):
     allData = ReadYaml(path)
     TeaCategories = []
     for categoryData in allData:
-        category = TeaCategory(categoryData["Name"], categoryData["categoryType"], categoryData["widthPixels"])
+        category = TeaCategory(categoryData["Name"], categoryData["categoryType"])
         category.defaultValue = ""
         if "defaultValue" in categoryData:
             category.defaultValue = categoryData["defaultValue"]
@@ -3075,7 +3057,7 @@ def loadTeaReviewCategories(path):
     allData = ReadYaml(path)
     TeaReviewCategories = []
     for categoryData in allData:
-        category = ReviewCategory(categoryData["Name"], categoryData["categoryType"], categoryData["widthPixels"])
+        category = ReviewCategory(categoryData["Name"], categoryData["categoryType"])
         category.defaultValue = ""
         if "defaultValue" in categoryData:
             category.defaultValue = categoryData["defaultValue"]
@@ -3134,7 +3116,6 @@ def saveTeaReviewCategories(categories, path):
         categoryData = {
             "Name": category.name,
             "categoryType": category.categoryType,
-            "widthPixels": category.widthPixels,
             "defaultValue": category.defaultValue,
             "categoryRole": category.categoryRole,
             "isAutoCalculated": category.isAutoCalculated,
@@ -3471,32 +3452,32 @@ def main():
     global TeaStash
     global TeaCategories
     TeaCategories = []
-    category = TeaCategory("Name", "string", False)
+    category = TeaCategory("Name", "string")
     category.defaultValue = "Tea Name"
     TeaCategories.append(category)
-    category = TeaCategory("Type", "string", False)
+    category = TeaCategory("Type", "string")
     category.defaultValue = "Type"
     TeaCategories.append(category)
-    category = TeaCategory("Year", "int", False)
+    category = TeaCategory("Year", "int")
     category.defaultValue = 2000
     TeaCategories.append(category)
-    category = TeaCategory("Remaining", "float", False)
+    category = TeaCategory("Remaining", "float")
     category.defaultValue = 0.0
     TeaCategories.append(category)
 
 
     global TeaReviewCategories
     TeaReviewCategories = []
-    TeaReviewCategory = ReviewCategory("Name", "string", False)
+    TeaReviewCategory = ReviewCategory("Name", "string")
     TeaReviewCategory.defaultValue = "Tea Name"
     TeaReviewCategories.append(TeaReviewCategory)
-    TeaReviewCategory = ReviewCategory("Date", "string", False)
+    TeaReviewCategory = ReviewCategory("Date", "string")
     TeaReviewCategory.defaultValue = "Date"
     TeaReviewCategories.append(TeaReviewCategory)
-    TeaReviewCategory = ReviewCategory("Rating", "int", True)
+    TeaReviewCategory = ReviewCategory("Rating", "int")
     TeaReviewCategory.defaultValue = 0
     TeaReviewCategories.append(TeaReviewCategory)
-    TeaReviewCategory = ReviewCategory("Notes", "string", True)
+    TeaReviewCategory = ReviewCategory("Notes", "string")
     TeaReviewCategory.defaultValue = "Notes"
     TeaReviewCategories.append(TeaReviewCategory)
 
