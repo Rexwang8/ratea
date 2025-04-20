@@ -1,6 +1,8 @@
+import csv
 import datetime as dt
 import json
 import time
+import pandas as pd
 import uuid
 import dearpypixl as dp
 import dearpygui.dearpygui as dpg
@@ -26,8 +28,6 @@ TODO: Validation: Validate that name and other important fields are not empty
 TODO: Features: Fill out or remove review tabs
 TODO: Menus: Update settings menu with new settings
 TODO: Category: Correction for amount of tea, and amount of tea consumed/marker for finished tea
-TODO: Feature: Import/Export To CSV
-
 TODO: Add in a proper default folder for settings and data
 
 
@@ -51,11 +51,13 @@ TODO: Documentation: Add Image Support to blog window.
 TODO: Visualizeation: Pie chart for consumption of amount and types of tea, split over all, over years
 TODO: Visualization: Solid fill line graph for consumption of types of tea over years
 TODO: Summary: User preference visualization for types of tea, amount of tea, etc.
+TODO: File: Import from CSV: Add in functionality to import from CSV
 
 
 
 
 ---Done---
+Feat(0.5.6): Export To CSV
 Chore(0.5.6): Remove width for categories and review categories
 Feat(0.5.6): Fix bug with edit category, add some toolltips
 Feat(0.5.6): Make dropdown widgets based on past inputs
@@ -3234,8 +3236,21 @@ def LoadAll():
 
 # Attributes to string, json, with special datetime handling
 def dumpAttributesToString(attributes):
+    returnDict = dumpAttributesToDict(attributes)
+    # Convert dict to JSON string
+    returnString = json.dumps(returnDict)  # Convert datetime objects to string
+    
+    # Replace escaped double quotes with double quotes
+    returnString = returnString.replace('\\"', '"')
+    return returnString
+    
+
+def dumpAttributesToDict(attributes):
     returnDict = {}
     parseDict = json.loads(json.dumps(attributes, default=str))  # Convert datetime objects to string
+    # for strings, remove the HH:MM:SS part
+    if isinstance(parseDict, str):
+        parseDict = parseDict.replace("00:00:00", "")  # Remove HH:MM:SS part
     if not isinstance(parseDict, dict):
         try:
             parseDict = json.loads(parseDict)  # Try to parse it again if it's not a dict
@@ -3249,10 +3264,16 @@ def dumpAttributesToString(attributes):
     # Ensure all datetime objects are converted to strings
     for key, value in parseDict.items():
         if isinstance(value, dt.datetime):
-            returnDict[key] = parseDTToString(value)
+            datetimeString = parseDTToString(value)
+            dateString = datetimeString.split(" ")[0]
+            #timeString = datetimeString.split(" ")[1]
+            returnDict[key] = dateString
         else:
-            returnDict[key] = value
-    return json.dumps(returnDict)  # Ensure JSON is properly formatted with non-ASCII characters
+            keyvalue = value
+            if isinstance(value, str):
+                keyvalue = keyvalue.replace("00:00:00", "")  # Remove HH:MM:SS part
+            returnDict[key] = keyvalue
+    return returnDict
 
 # Return Attributes dict from a JSON string, handling datetime parsing
 def loadAttributesFromString(json_string):
@@ -3286,12 +3307,46 @@ def dumpReviewToDict(review):
     # Declare an empty dict then handle each attribute seperately, datetime needs to be converted to string
     for key, value in review.__dict__.items():
         if isinstance(value, dt.datetime):
-            returnDict[key] = parseDTToString(value)
+            datetimeString = parseDTToString(value)
+            dateString = datetimeString.split(" ")[0]
+            #timeString = datetimeString.split(" ")[1]
+            returnDict[key] = dateString
         elif isinstance(value, dict):
             # Recursive handling
-            returnDict[key] = dumpAttributesToString(value)
+            returnDict[key] = dumpAttributesToDict(value)
         else:
             returnDict[key] = value
+    return returnDict
+
+def dumpTeaToDict(tea):
+    returnDict = {}
+    # Declare an empty dict then handle each attribute seperately, datetime needs to be converted to string
+    for key, value in tea.__dict__.items():
+        if isinstance(value, dt.datetime):
+            datetimeString = parseDTToString(value)
+            dateString = datetimeString.split(" ")[0]
+            #timeString = datetimeString.split(" ")[1]
+            returnDict[key] = dateString
+    
+        elif isinstance(value, dict):
+            # Recursive handling
+            returnDict[key] = dumpAttributesToDict
+        else:
+            returnDict[key] = value
+    
+    returnDict["attributes"] = dumpAttributesToDict(tea.attributes)  # Save attributes as JSON string for easier parsing
+    
+    returnDict["calculated"] = tea.calculated  # Save calculated values
+    returnDict["reviews"] = []  # Add empty list for reviews
+
+    # Add in reviews from the tea object
+    # Reviews is a list of Review objects, convert to dicts first
+    reviews = []
+    for review in tea.reviews:
+        reviews.append(dumpReviewToDict(review))
+    returnDict["reviews"] = reviews
+
+
     return returnDict
 
 def loadReviewFromDictNewID(reviewData, id, parentId):
@@ -3325,6 +3380,100 @@ def loadReviewFromDictNewID(reviewData, id, parentId):
 
     return review
 
+def teaStashToCSV():
+    # Piggyback on exisitng json support to convert to CSV
+    # For exporting every tea in TeaStash to a CSV file
+    RichPrintInfo("Exporting TeaStash to CSV")
+    rawData = TeaStash
+    # For each tea, convert to dict
+    allData = []
+    for tea in rawData:
+        teaData = dumpTeaToDict(tea)
+        allData.append(teaData)
+        
+    # Seperate reviews from the tea data
+    allReviews = []
+    for tea in allData:
+        if len(tea["reviews"]) > 0:
+            for review in tea["reviews"]:
+                allReviews.append(review)
+    
+    # Flatten attributes and calculated values
+    for tea in allData:
+        for key, value in tea["attributes"].items():
+            if key not in tea:
+                tea[key] = value
+        for key, value in tea["calculated"].items():
+            if key not in tea:
+                tea[key] = value
+
+    for review in allReviews:
+        for key, value in review["attributes"].items():
+            if key not in review:
+                review[key] = value
+        for key, value in review["calculated"].items():
+            if key not in review:
+                review[key] = value
+
+    # Remove reviews from the tea data
+    for tea in allData:
+        tea.pop("reviews", None)
+        tea.pop("calculated", None)
+        tea.pop("attributes", None)
+    
+    # Remove attributes from the review data
+    for review in allReviews:
+        review.pop("attributes", None)
+        review.pop("calculated", None)
+    
+
+    # Swap datetime to string for all datetime objects
+    for tea in allData:
+        for key, value in tea.items():
+            if isinstance(value, dt.datetime):
+                datetimeString = parseDTToString(value)
+                dateString = datetimeString.split(" ")[0]
+                #timeString = datetimeString.split(" ")[1]
+                tea[key] = dateString
+    
+    for review in allReviews:
+        for key, value in review.items():
+            if isinstance(value, dt.datetime):
+                datetimeString = parseDTToString(value)
+                dateString = datetimeString.split(" ")[0]
+                #timeString = datetimeString.split(" ")[1]
+                review[key] = dateString
+
+    # Add headers for both by iterating over all keys in both lists
+    headers = []
+    for tea in allData:
+        for key in tea.keys():
+            if key not in headers:
+                headers.append(key)
+    headersReviews = []
+    for review in allReviews:
+        for key in review.keys():
+            if key not in headersReviews:
+                headersReviews.append(key)
+
+
+
+    # Create two CSV files, one for teas and one for reviews
+    with open(settings["CSV_OUTPUT_TEA_PATH"], "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
+        writer.writeheader()
+        for tea in allData:
+            writer.writerow(tea)
+        RichPrintSuccess(f"Exported {len(allData)} teas to {settings["CSV_OUTPUT_TEA_PATH"]}")
+
+    with open(settings["CSV_OUTPUT_REVIEW_PATH"], "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headersReviews)
+        writer.writeheader()
+        for review in allReviews:
+            writer.writerow(review)
+        RichPrintSuccess(f"Exported {len(allReviews)} reviews to {settings["CSV_OUTPUT_REVIEW_PATH"]}")
+    return allData, allReviews
+
 
 #endregion
 
@@ -3332,23 +3481,24 @@ def UI_CreateViewPort_MenuBar():
     with dp.ViewportMenuBar():
         with dp.Menu(label="Session"):
             dp.MenuItem(label="Log", callback=Menu_Stash)
-            dp.MenuItem(label="Summary", callback=Menu_Summary)
+            dp.MenuItem(label="Summary(TODO)", callback=Menu_Summary)
             dp.Button(label="Settings", callback=Menu_Settings)
         with dp.Menu(label="Stash"):
-            dp.MenuItem(label="Reviews", callback=Menu_ReviewsTable)
-            dp.MenuItem(label="Stats", callback=Menu_Stats)
+            dp.MenuItem(label="Reviews(TODO)", callback=Menu_ReviewsTable)
+            dp.MenuItem(label="Stats(TODO)", callback=Menu_Stats)
             dp.MenuItem(label="Edit Categories", callback=Menu_EditCategories)
         with dp.Menu(label="Tools"):
             dp.MenuItem(label="Timer", callback=Menu_Timer)
             dp.MenuItem(label="Notepad", callback=Menu_Notepad)
+            dp.Button(label="Export Stash to CSV", callback=teaStashToCSV)
         with dp.Menu(label="Visualize"):
-            dp.MenuItem(label="Graph 1", callback=print_me)
-            dp.MenuItem(label="Graph 2", callback=print_me)
-        with dp.Menu(label="Settings"):
+            dp.MenuItem(label="Graph 1(TODO)", callback=print_me)
+            dp.MenuItem(label="Graph 2(TODO)", callback=print_me)
+        with dp.Menu(label="Settings(TODO)"):
             dp.MenuItem(label="Setting 1", callback=print_me, check=True)
             dp.MenuItem(label="Setting 2", callback=print_me)
         dp.MenuItem(label="Help", callback=print_me)
-        with dp.Menu(label="Library"):
+        with dp.Menu(label="Library(TODO)"):
             dp.Checkbox(label="Pick Me", callback=print_me)
             dp.Button(label="Press Me", callback=print_me)
             dp.ColorPicker(label="Color Me", callback=print_me)
@@ -3370,6 +3520,7 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Print role Cat", callback=debugGetcategoryRole)
             dp.Button(label="Print role Rev Cat", callback=debugGetReviewcategoryRole)
             dp.Button(label="Renumber data", callback=renumberTeasAndReviews)
+            
             
 
 def printSettings():
@@ -3426,6 +3577,8 @@ def main():
         "SETTINGS_FILENAME": "ratea-data/user_settings.yml", # do not change
         "TEA_CATEGORIES_PATH": f"ratea-data/tea_categories.yml",
         "TEA_REVIEW_CATEGORIES_PATH": f"ratea-data/tea_review_categories.yml",
+        "CSV_OUTPUT_TEA_PATH": f"ratea-data/tea_stash.csv",
+        "CSV_OUTPUT_REVIEW_PATH": f"ratea-data/tea_review.csv",
         "USERNAME": "John Puerh",
         "DIRECTORY": "ratea-data",
         "DATE_FORMAT": "%Y-%m-%d",
