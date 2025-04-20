@@ -13,10 +13,12 @@ import yaml
 import threading
 import pyperclip
 
+# From local filels
+import RateaTexts
+
 # Reminders
 '''
 Need for basic functionality: 
-TODO: Features: Make dropdown widgets based on past inputs
 TODO: Stats: Add basic stats and metrics based on remaining tea and reviews
 TODO: Features: Add in functionality for flags: isAutoCalculated, isRequiredForTea, isRequiredForAll, isDropdown
 TODO: Features: Calculated fields for teas and reviews
@@ -29,29 +31,30 @@ TODO: Feature: Import/Export To CSV
 
 Nice To Have:
 TODO: Validation: Restrict categories to only if not already in use
-TODO: Documentation: Write in blog window
-TODO: Documentation: Add Image Support to blog window.
 TODO: Documentation: Add ? button to everything
 TODO: Customization: Add color themes
 TODO: Feature: Some form of category migration
 TODO: Code: Centralize tooltips and other large texts
 TODO: Stats: Basic stats for tea and reviews, like average rating, total amount of tea, etc.
-TODO: Visualizeation: Pie chart for consumption of amount and types of tea, split over all, over years
-TODO: Visualization: Solid fill line graph for consumption of types of tea over years
 TODO: Tables: Non-tea items, like teaware, shipping, etc.
 TODO: Category: Write in description for each category role
 
 
 
-
-
-
-
+Looking Forward:
+TODO: Visualization: Single-review reports
+TODO: Visualization: Single-tea reports
+TODO: Documentation: Write in blog window
+TODO: Documentation: Add Image Support to blog window.
+TODO: Visualizeation: Pie chart for consumption of amount and types of tea, split over all, over years
+TODO: Visualization: Solid fill line graph for consumption of types of tea over years
+TODO: Summary: User preference visualization for types of tea, amount of tea, etc.
 
 
 
 
 ---Done---
+Feat(0.5.6): Make dropdown widgets based on past inputs
 Fix(0.5.6): Fix: Remove Year from teas and reviews, use dateAdded instead
 Feat(0.5.6): Tables: Dynamic Sizing of columns based on content
 Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
@@ -426,6 +429,46 @@ def _table_sort_callback(sender, sortSpec):
     RichPrintSuccess(f"Sorted table by column {column_index} in {'ascending' if ascending else 'descending'} order")
 
 
+# We want to search our entire list of teas or reviews for a list of previous answers, then return the top X results by frequency
+def searchPreviousAnswers(categoryName, data="Tea", topX=5):
+    # data must be either "Tea" or "Review"
+    if data not in ["Tea", "Review"]:
+        RichPrintError("Data must be either Tea or Review")
+        return []
+    
+    # If data less than top X return all data
+    if len(TeaStash) < topX:
+        topX = len(TeaStash)
+    
+    answersDict = {}
+    if data == "Tea":
+        for tea in TeaStash:
+            if categoryName in tea.attributes:
+                if tea.attributes[categoryName] in answersDict:
+                    answersDict[tea.attributes[categoryName]] += 1
+                else:
+                    answersDict[tea.attributes[categoryName]] = 1
+
+    elif data == "Review":
+        for tea in TeaStash:
+            for review in tea.reviews:
+                if categoryName in review.attributes:
+                    if review.attributes[categoryName] in answersDict:
+                        answersDict[review.attributes[categoryName]] += 1
+                    else:
+                        answersDict[review.attributes[categoryName]] = 1
+
+    # Get the top X results by frequency, then sort and return them
+    sortedAnswers = sorted(answersDict.items(), key=lambda x: x[1], reverse=True)
+    topAnswers = sortedAnswers[:topX]
+    # Remove time from any datetime objects
+    for i, answer in enumerate(topAnswers):
+        if isinstance(answer[0], dt.datetime):
+            topAnswers[i] = (answer[0].strftime(settings["DATE_FORMAT"]), answer[1])
+    topAnswersList = [answer[0] for answer in topAnswers]
+    RichPrintSuccess(f"Top {topX} answers for {categoryName} in {data}: {topAnswers}")
+    return topAnswers, topAnswersList
+
 
 #endregion
 
@@ -475,6 +518,17 @@ class Review:
     attributes = {}
     calculated = {}
     finalScore = 0
+
+    # If is required, for when talking about tea, or for all, like teaware and shipping
+    isRequiredForTea = False
+    isRequiredForAll = False
+
+    # Autocalculated, if it is, it would be hidden in entry window and would rely on a calc step after submission
+    # based on its role, would be Not Required if so.
+    isAutoCalculated = False
+
+    # Show as dropdown?
+    isDropdown = False
     def __init__(self, id, name, dateAdded, attributes, rating):
         self.id = id
         self.name = name
@@ -485,6 +539,13 @@ class Review:
         self.rating = rating
         self.calculated = {}
         self.finalScore = 0
+
+        self.isRequiredForTea = False
+        self.isRequiredForAll = False
+        self.isAutoCalculated = False
+        self.isDropdown = False
+
+
     def calculate(self):
         # call all the calculate functions
         self.calculateFinalScore()
@@ -532,6 +593,8 @@ class TeaCategory:
 
         self.isRequiredForTea = False
         self.isRequiredForAll = False
+        self.isAutoCalculated = False
+        self.isDropdown = False
 
 
 class ReviewCategory:
@@ -1020,6 +1083,7 @@ class Window_Stash_Reviews(WindowBase):
             
         with self.editReviewWindow:
             for cat in TeaReviewCategories:
+                cat: ReviewCategory
                 # Add it to the window
                 dp.Text(cat.name)
                 defaultValue = None
@@ -1029,28 +1093,44 @@ class Window_Stash_Reviews(WindowBase):
                 except:
                     # also try to get from nameReview if review is None
                     defaultValue = f"{cat.defaultValue}"
+
+                # Get the past answers for the category for dropdowns
+                pastAnswers, pastAnswersList = searchPreviousAnswers(cat.categoryRole, data="Review", topX=5)
+                shouldShowDropdown = True if len(pastAnswers) > 0 and cat.isDropdown else False
+                pastAnswersTextList = [f"({x[1]}) - ({x[0]})" for x in pastAnswers]
+
+                catItem = None
                 
                 # If the category is a string, int, float, or bool, add the appropriate input type
                 if cat.categoryType == "string":
                     if cat.categoryRole == "Name":
                         # For the name, use a single line input text
-                        editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=str(nameReview), width=300)
+                        catItem = dp.InputText(label=cat.name, default_value=str(nameReview), width=300)
                     elif cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
                         # For notes, allow multiline input
-                        editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
+                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
                     else:
                         # For other strings, single line input
-                        editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=defaultValue)
+                        catItem = dp.InputText(label=cat.name, default_value=defaultValue)
+                        if shouldShowDropdown:
+                            # Add a dropdown for the past answers
+                            dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
                 elif cat.categoryType == "int":
-                    editReviewWindowItems[cat.categoryRole] = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                    catItem = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                    if shouldShowDropdown:
+                        # Add a dropdown for the past answers
+                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
                 elif cat.categoryType == "float":
-                    editReviewWindowItems[cat.categoryRole] = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                    catItem = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                    if shouldShowDropdown:
+                        # Add a dropdown for the past answers
+                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
                 elif cat.categoryType == "bool":
                     if defaultValue == "True" or defaultValue == True:
                         defaultValue = True
                     else:
                         defaultValue = False
-                    editReviewWindowItems[cat.categoryRole] = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
+                    catItem = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     # Date picker widget
                     try:
@@ -1059,13 +1139,63 @@ class Window_Stash_Reviews(WindowBase):
                     except:
                         defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
                     # If supported, display as date
-                    editReviewWindowItems[cat.categoryRole] =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
+                    catItem =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
+                    if shouldShowDropdown:
+                        # Add a dropdown for the past answers
+                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "date"))
                 else:
-                    editReviewWindowItems[cat.categoryRole] = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    catItem = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    if shouldShowDropdown:
+                        # Add a dropdown for the past answers
+                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
+
+            if catItem is not None:
+                editReviewWindowItems[cat.categoryRole] = catItem
                     
             # Final Score input
             dp.Button(label="Save", callback=self.EditAddReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
             dp.Button(label="Cancel", callback=self.deleteEditReviewWindow)
+
+    def UpdateInputWithDropdownSelelction(self, sender, app_data, user_data):
+        # Update the input with the new value
+        typeOfValue = user_data[2]
+        # Exclude default value "Past Answers"
+        if app_data == "Past Answers":
+            RichPrintWarning("Warning: \"Past Answers\" is not a valid selection.")
+            return
+        
+        # Get the input item and the past answers
+        if user_data[0]:
+            print(f"Updating {user_data} with new value: {app_data}")
+            newSelectedValue = app_data.split(" - ")[1].strip()
+            newSelectedValue = newSelectedValue[1:-1]
+
+            # If typeOfValue is int or float, attempt to convert
+            if typeOfValue == "int":
+                try:
+                    newSelectedValue = int(newSelectedValue)
+                except ValueError:
+                    RichPrintError(f"Error: {newSelectedValue} is not a valid integer.")
+                    return
+            elif typeOfValue == "float":
+                try:
+                    newSelectedValue = float(newSelectedValue)
+                except ValueError:
+                    RichPrintError(f"Error: {newSelectedValue} is not a valid float.")
+                    return
+            elif typeOfValue == "date" or typeOfValue == "datetime":
+                # Convert string date to datetime object
+                try:
+                    newSelectedValue = parseStringToDT(newSelectedValue)
+                    # Then to date dict
+                    newSelectedValue = DTToDateDict(newSelectedValue)
+                except ValueError:
+                    RichPrintError(f"Error: {newSelectedValue} is not a valid date.")
+                    return
+            # Set the value of the input item to the new value
+            user_data[0].set_value(newSelectedValue)
+        else:
+            RichPrintError(f"Error: {user_data} not found in addTeaList.")
 
 
     def EditAddReview(self, sender, app_data, user_data):
@@ -1346,6 +1476,7 @@ class Window_Stash(WindowBase):
                                 displayValue = tea.name
                             else:
                                 if type(tea.attributes) == str:
+                                    pass  # Add appropriate logic here or remove this placeholder
                                     try:
                                         attrJson = loadAttributesFromString(tea.attributes)
                                         if cat.categoryRole in attrJson:
@@ -1456,6 +1587,7 @@ class Window_Stash(WindowBase):
             dp.Text("Teas")
 
             for cat in TeaCategories:
+                cat: TeaCategory
                 # Add it to the window
                 dp.Text(cat.name)
                 defaultValue = None
@@ -1466,16 +1598,31 @@ class Window_Stash(WindowBase):
 
                 # If the category is a string, int, float, or bool, add the appropriate input type
                 catItem = None
+                # Get past values for dropdown
+                pastAnswers, pastAnswersList = searchPreviousAnswers(cat.categoryRole, "Tea", 5)
+                shouldShowDropdown = True if len(pastAnswers) > 0 and cat.isDropdown else False
+                pastAnswersTextList = [f"({x[1]}) - ({x[0]})" for x in pastAnswers]
+
                 if cat.categoryType == "string":
                     # For notes, allow multiline input if it's a note
                     if cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
                         catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
                     else:
+                        
                         catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=False)
+                        if shouldShowDropdown:
+                            # Create a dropdown with the past answers
+                            catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
                 elif cat.categoryType == "int":
                     catItem = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                    if shouldShowDropdown:
+                        # Create a dropdown with the past answers
+                        catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
                 elif cat.categoryType == "float":
                     catItem = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                    if shouldShowDropdown:
+                        # Create a dropdown with the past answers
+                        catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
                 elif cat.categoryType == "bool":
                     if defaultValue == "True" or defaultValue == True:
                         defaultValue = True
@@ -1495,8 +1642,14 @@ class Window_Stash(WindowBase):
                         #defaultValue = dt.datetime.now(tz=dt.timezone.utc).date()  # Fallback to now if parsing fails
                     # If supported, display as date
                     catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
+                    if shouldShowDropdown:
+                        # Create a dropdown with the past answers
+                        catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "date"))
                 else:
                     catItem = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    if shouldShowDropdown:
+                        # Create a dropdown with the past answers
+                        catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
 
                 # Add it to the list
                 if catItem != None:
@@ -1513,6 +1666,47 @@ class Window_Stash(WindowBase):
                 dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
                 dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
+
+    def UpdateInputWithDropdownSelelction(self, sender, app_data, user_data):
+        # Update the input with the new value
+        typeOfValue = user_data[2]
+        # Exclude default value "Past Answers"
+        if app_data == "Past Answers":
+            RichPrintWarning("Warning: \"Past Answers\" is not a valid selection.")
+            return
+        
+        # Get the input item and the past answers
+        if user_data[0]:
+            print(f"Updating {user_data} with new value: {app_data}")
+            newSelectedValue = app_data.split(" - ")[1].strip()
+            newSelectedValue = newSelectedValue[1:-1]
+
+            # If typeOfValue is int or float, attempt to convert
+            if typeOfValue == "int":
+                try:
+                    newSelectedValue = int(newSelectedValue)
+                except ValueError:
+                    RichPrintError(f"Error: {newSelectedValue} is not a valid integer.")
+                    return
+            elif typeOfValue == "float":
+                try:
+                    newSelectedValue = float(newSelectedValue)
+                except ValueError:
+                    RichPrintError(f"Error: {newSelectedValue} is not a valid float.")
+                    return
+            elif typeOfValue == "date" or typeOfValue == "datetime":
+                # Convert string date to datetime object
+                try:
+                    newSelectedValue = parseStringToDT(newSelectedValue)
+                    # Then to date dict
+                    newSelectedValue = DTToDateDict(newSelectedValue)
+                except ValueError:
+                    RichPrintError(f"Error: {newSelectedValue} is not a valid date.")
+                    return
+            # Set the value of the input item to the new value
+            user_data[0].set_value(newSelectedValue)
+        else:
+            RichPrintError(f"Error: {user_data} not found in addTeaList.")
 
 
     def copyTeaValues(self, sender, app_data, user_data):
@@ -1984,6 +2178,10 @@ class Window_EditCategories(WindowBase):
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
             addCategoryWindowItems["isDropdown"] = isDropdownItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
+
+                dp.Text(toolTipTxt)
 
             isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
             addCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
@@ -2773,6 +2971,22 @@ def loadTeaCategories(path):
         else:
             category.categoryRole = category.categoryType
         TeaCategories.append(category)
+
+        # Add flags
+        if "isRequiredForAll" in categoryData:
+            category.isRequiredForAll = categoryData["isRequiredForAll"]
+        else:
+            category.isRequiredForAll = False
+
+        if "isRequiredForTea" in categoryData:
+            category.isRequiredForTea = categoryData["isRequiredForTea"]
+
+        if "isDropdown" in categoryData:
+            category.isDropdown = categoryData["isDropdown"]
+
+        if "isAutocalculated" in categoryData:
+            category.isAutoCalculated = categoryData["isAutocalculated"]
+
     return TeaCategories
 
 def loadTeaReviewCategories(path):
@@ -2799,6 +3013,23 @@ def loadTeaReviewCategories(path):
             category.categoryRole = categoryData["categoryRole"]
         else:
             category.categoryRole = category.categoryType
+
+        # Add flags
+        if "isRequiredForAll" in categoryData:
+            category.isRequiredForAll = categoryData["isRequiredForAll"]
+        else:
+            category.isRequiredForAll = False
+
+        if "isRequiredForTea" in categoryData:
+            category.isRequiredForTea = categoryData["isRequiredForTea"]
+
+        if "isDropdown" in categoryData:
+            category.isDropdown = categoryData["isDropdown"]
+
+        if "isAutocalculated" in categoryData:
+            category.isAutoCalculated = categoryData["isAutocalculated"]
+
+
     return TeaReviewCategories
 
 def verifyCategoriesReviewCategories():
