@@ -282,6 +282,24 @@ def getCategoryIDByrole(role):
         
     return noneFoundValue
 
+def getAlLCategoryEntriesByID(categoryID, review=False):
+    # Get the values of all entries of a category by ID, returning the list of values
+    returnList = []
+
+    catName = TeaCategories[categoryID].name
+    print(f"Getting all entries of category {catName} by ID: {categoryID}")
+    if review:
+        for tea in TeaStash:
+            for review in tea.reviews:
+                if catName in review.attributes:
+                    returnList.append(review.attributes[catName])
+    else:
+        for tea in TeaStash:
+            if catName in tea.attributes:
+                returnList.append(tea.attributes[catName])
+
+    return returnList
+
 def debugGetcategoryRole():
     allroleCategories = []
     for k, v in session["validroleCategory"].items():
@@ -299,7 +317,18 @@ def debugGetcategoryRole():
         if hasCoorespondingCategory == -1:
             print(f"Category {cat} does not have a cooresponding category")
         else:
+            # Get info on category
+            numEntriesInCategory = 0
+            for tea in TeaStash:
+                if cat in tea.attributes:
+                    numEntriesInCategory += 1
+
+            # Get the values of all entries of a category by ID, then truncate to 10
+            returnList = getAlLCategoryEntriesByID(hasCoorespondingCategory, review=False)
+            if len(returnList) > 10:
+                returnList = returnList[:10]
             print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaCategories[hasCoorespondingCategory].name}")
+            print(f"Category {cat} has {numEntriesInCategory} entries with values: {returnList}")
 
 # Iterate through ReviewCategories and return the first category id that matches the role
 def getReviewCategoryIDByrole(role):
@@ -326,7 +355,20 @@ def debugGetReviewcategoryRole():
         if hasCoorespondingCategory == -1:
             print(f"Category {cat} does not have a cooresponding category")
         else:
-            print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaReviewCategories[hasCoorespondingCategory].name}")
+            # Get info on category
+            numEntriesInCategory = 0
+            for tea in TeaStash:
+                for review in tea.reviews:
+                    if cat in review.attributes:
+                        numEntriesInCategory += 1
+
+            # Get the values of all entries of a category by ID, then truncate to 10
+            returnList = getAlLCategoryEntriesByID(hasCoorespondingCategory, review=True)
+            if len(returnList) > 10:
+                returnList = returnList[:10]
+            
+            print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaReviewCategories[hasCoorespondingCategory].name} with {numEntriesInCategory} entries")
+            print(f"Category {cat} has {numEntriesInCategory} entries with values: {returnList}")
 
 # Renumbers the IDs of all teas and reviews in the stash
 def renumberTeasAndReviews(save=True):
