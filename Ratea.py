@@ -287,18 +287,83 @@ def getAlLCategoryEntriesByID(categoryID, review=False):
     returnList = []
 
     catName = TeaCategories[categoryID].name
-    print(f"Getting all entries of category {catName} by ID: {categoryID}")
+    catRole = TeaCategories[categoryID].categoryRole
+    if review == True:
+        catName = TeaReviewCategories[categoryID].name
+        catRole = TeaReviewCategories[categoryID].categoryRole
+    #RichPrintInfo(f"Getting all entries of category {catName} by ID: {categoryID}, review={review}")
+    
     if review:
         for tea in TeaStash:
             for review in tea.reviews:
                 if catName in review.attributes:
                     returnList.append(review.attributes[catName])
+                elif catRole in review.attributes:
+                    returnList.append(review.attributes[catRole])
     else:
         for tea in TeaStash:
             if catName in tea.attributes:
                 returnList.append(tea.attributes[catName])
+            elif catRole in tea.attributes:
+                returnList.append(tea.attributes[catRole])
 
+
+    #RichPrintSuccess(f"Found {len(returnList)} entries for category {catName} by ID: {categoryID}, name={catName}, role={catRole}, review={review}")
     return returnList
+
+# Get all entries and uses function provided on the category to get the value
+def aggregateCategoryEntriesByID(categoryID, review=False, func=None):
+    if func is None:
+        # Average by default
+        func = lambda x: sum(x) / len(x)
+
+    returnList = getAlLCategoryEntriesByID(categoryID, review=review)
+    if len(returnList) == 0:
+        RichPrintWarning(f"No entries found for category {categoryID} {TeaCategories[categoryID].name}, returning 0")
+
+    returnValue = func(returnList)
+
+    return returnValue
+
+# Average category entries by ID
+def averageCategoryEntriesByID(categoryID, review=False):
+    # Average function, only if the category is a number
+    def averageFunc(x):
+        if len(x) == 0:
+            return 0
+        if isinstance(x[0], str):
+            return -1
+        elif isinstance(x[0], dt.datetime):
+            return -1
+        return sum(x) / len(x)
+    return aggregateCategoryEntriesByID(categoryID, review=review, func=averageFunc)
+
+# Sum category entries by ID
+def sumCategoryEntriesByID(categoryID, review=False):
+    # Sum function, only if the category is a number
+    def sumFunc(x):
+        if len(x) == 0:
+            return 0
+        if isinstance(x[0], str):
+            return -1
+        elif isinstance(x[0], dt.datetime):
+            return -1
+        return sum(x)
+    return aggregateCategoryEntriesByID(categoryID, review=review, func=sumFunc)
+
+# Count category entries by ID
+def countCategoryEntriesByID(categoryID, review=False):
+    # Count function
+    def countFunc(x):
+        return len(x)
+    return aggregateCategoryEntriesByID(categoryID, review=review, func=countFunc)
+
+# Unique category entries by ID
+def uniqueCategoryEntriesByID(categoryID, review=False):
+    # Unique function
+    def uniqueFunc(x):
+        return list(set(x))
+    return aggregateCategoryEntriesByID(categoryID, review=review, func=uniqueFunc)
 
 def debugGetcategoryRole():
     allroleCategories = []
@@ -310,12 +375,18 @@ def debugGetcategoryRole():
     allroleCategories = list(set(allroleCategories))
     allroleCategories.remove("UNUSED")
 
+    # Print a tea dict for debugging
+    RichPrintInfo(f"TeaStash: {TeaStash[0].__dict__}")
 
-    print(f"All role Categories: {allroleCategories}")
+    validCatgories = []
     for i, cat in enumerate(allroleCategories):
+        if cat == "ID":
+            continue
+
         hasCoorespondingCategory = getCategoryIDByrole(cat)
         if hasCoorespondingCategory == -1:
-            print(f"Category {cat} does not have a cooresponding category")
+            RichPrintWarning(f"Category {cat} does not have a cooresponding category")
+            continue
         else:
             # Get info on category
             numEntriesInCategory = 0
@@ -324,11 +395,19 @@ def debugGetcategoryRole():
                     numEntriesInCategory += 1
 
             # Get the values of all entries of a category by ID, then truncate to 10
-            returnList = getAlLCategoryEntriesByID(hasCoorespondingCategory, review=False)
-            if len(returnList) > 10:
-                returnList = returnList[:10]
-            print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaCategories[hasCoorespondingCategory].name}")
-            print(f"Category {cat} has {numEntriesInCategory} entries with values: {returnList}")
+            dataAverage = averageCategoryEntriesByID(hasCoorespondingCategory, review=False)
+            dataUnique = uniqueCategoryEntriesByID(hasCoorespondingCategory, review=False)
+            dataSum = sumCategoryEntriesByID(hasCoorespondingCategory, review=False)
+            dataCount = countCategoryEntriesByID(hasCoorespondingCategory, review=False)
+
+
+            RichPrintInfo(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaCategories[hasCoorespondingCategory].name}")
+            RichPrintInfo(f"Category {cat} has average {dataAverage}, unique {dataUnique}, sum {dataSum}, count {dataCount}")
+
+            if dataCount > 0:
+                validCatgories.append(cat)
+    RichPrintSuccess(f"Valid categories: {validCatgories}")
+    
 
 # Iterate through ReviewCategories and return the first category id that matches the role
 def getReviewCategoryIDByrole(role):
@@ -348,12 +427,19 @@ def debugGetReviewcategoryRole():
     # Dedup and remove UNUSED
     allroleCategories = list(set(allroleCategories))
     allroleCategories.remove("UNUSED")
+
+    # Print a tea dict for debugging
+    RichPrintInfo(f"TeaStash: {TeaStash[1].__dict__}")
     
-    print(f"All role Categories: {allroleCategories}")
+    validCatgories = []
     for i, cat in enumerate(allroleCategories):
+        if cat == "ID":
+            continue
+
         hasCoorespondingCategory = getReviewCategoryIDByrole(cat)
         if hasCoorespondingCategory == -1:
-            print(f"Category {cat} does not have a cooresponding category")
+            RichPrintWarning(f"Category {cat} does not have a cooresponding category")
+            continue
         else:
             # Get info on category
             numEntriesInCategory = 0
@@ -363,12 +449,18 @@ def debugGetReviewcategoryRole():
                         numEntriesInCategory += 1
 
             # Get the values of all entries of a category by ID, then truncate to 10
-            returnList = getAlLCategoryEntriesByID(hasCoorespondingCategory, review=True)
-            if len(returnList) > 10:
-                returnList = returnList[:10]
+            dataAverage = averageCategoryEntriesByID(hasCoorespondingCategory, review=True)
+            dataUnique = uniqueCategoryEntriesByID(hasCoorespondingCategory, review=True)
+            dataSum = sumCategoryEntriesByID(hasCoorespondingCategory, review=True)
+            dataCount = countCategoryEntriesByID(hasCoorespondingCategory, review=True)
             
-            print(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaReviewCategories[hasCoorespondingCategory].name} with {numEntriesInCategory} entries")
-            print(f"Category {cat} has {numEntriesInCategory} entries with values: {returnList}")
+            
+            RichPrintInfo(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaReviewCategories[hasCoorespondingCategory].name}")
+            RichPrintInfo(f"Category {cat} has average {dataAverage}, unique {dataUnique}, sum {dataSum}, count {dataCount}")
+            if dataCount > 0:
+                validCatgories.append(cat)
+
+    RichPrintSuccess(f"Valid categories: {validCatgories}")
 
 # Renumbers the IDs of all teas and reviews in the stash
 def renumberTeasAndReviews(save=True):
@@ -2923,14 +3015,13 @@ def generateBackup():
     backupPath = f"{settings['BACKUP_PATH']}/{parseDTToStringWithHoursMinutes(dt.datetime.now(tz=dt.timezone.utc))}"
     os.makedirs(backupPath, exist_ok=True)
     SaveAll(backupPath)
-    print(f"Backup generated at {backupPath}")
+    RichPrintSuccess(f"Backup generated at {backupPath}")
 
 def saveTeasReviews(stash, path):
     # Save as one file in yml format
     allData = []
     nowString = parseDTToString(dt.datetime.now(tz=dt.timezone.utc))  # Get current time as string for default dateAdded
     for tea in stash:
-        print(tea.__dict__)  # Debugging line to see the tea object
         teaData = {
             "_index": tea.id,
             "Name": tea.name,
@@ -2939,9 +3030,7 @@ def saveTeasReviews(stash, path):
             "attributesJson": dumpAttributesToString(tea.attributes),  # Save attributes as JSON string for easier parsing
             "reviews": []
         }
-        print(teaData["attributesJson"])
         for review in tea.reviews:
-            print( review.__dict__)  # Debugging line to see the review object
             reviewData = {
                 "_reviewindex": review.id,
                 "parentIDX": tea.id,
@@ -2959,7 +3048,7 @@ def saveTeasReviews(stash, path):
 def loadTeasReviews(path):
     # If not exists, create the directory, return false
     if not os.path.exists(path):
-        print(f"Directory {path} created")
+        RichPrintInfo(f"Directory {path} created")
         return []
     
     # Load from one file in yml format
@@ -3052,7 +3141,7 @@ def saveTeaCategories(categories, path):
 def loadTeaCategories(path):
     # If not exists, create the directory, return false
     if not os.path.exists(path):
-        print(f"Directory {path} created")
+        RichPrintInfo(f"Directory {path} created")
         return []
     
     # Load from one file in yml format
@@ -3094,7 +3183,7 @@ def loadTeaCategories(path):
 def loadTeaReviewCategories(path):
     # If not exists, create the directory, return false
     if not os.path.exists(path):
-        print(f"Directory {path} created")
+        RichPrintInfo(f"Directory {path} created")
         return []
     
     # Load from one file in yml format
@@ -3147,8 +3236,8 @@ def verifyCategoriesReviewCategories():
         if category.categoryRole not in session["validroleReviewCategory"]:
             category.categoryRole = "UNUSED"
 
-    print(f"Number of Tea Categories: {len(TeaCategories)}")
-    print(f"Number of Review Categories: {len(TeaReviewCategories)}")
+    RichPrintInfo(f"Number of Tea Categories: {len(TeaCategories)}")
+    RichPrintInfo(f"Number of Review Categories: {len(TeaReviewCategories)}")
 
     # Save the categories again
     SaveAll()
@@ -3180,7 +3269,7 @@ def SaveAll(altPath=None):
         saveTeaReviewCategories(TeaReviewCategories, f"{newBaseDirectory}/tea_review_categories.yml")
         WriteYaml(f"{newBaseDirectory}/user_settings.yml", settings)
         windowManager.exportPersistantWindows(f"{newBaseDirectory}/persistant_windows.yml")
-        print(f"All data saved to {newBaseDirectory}")
+        RichPrintSuccess(f"All data saved to {newBaseDirectory}")
         return
     saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
     saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
