@@ -407,6 +407,95 @@ def debugGetcategoryRole():
             if dataCount > 0:
                 validCatgories.append(cat)
     RichPrintSuccess(f"Valid categories: {validCatgories}")
+
+def getValidCategoryRolesList():
+    # Get all valid category roles from the session
+    allroleCategories = []
+    for k, v in session["validroleCategory"].items():
+        for i, cat in enumerate(v):
+            allroleCategories.append(cat)
+
+    # Dedup and remove UNUSED
+    allroleCategories = list(set(allroleCategories))
+    allroleCategories.remove("UNUSED")
+
+    validCategoryRoles = []
+    for i, cat in enumerate(allroleCategories):
+        if cat == "ID":
+            continue
+
+        hasCoorespondingCategory = getCategoryIDByrole(cat)
+        if hasCoorespondingCategory == -1:
+            RichPrintWarning(f"Category {cat} does not have a cooresponding category")
+            continue
+        else:
+            # Get info on category
+            numEntriesInCategory = 0
+            for tea in TeaStash:
+                if cat in tea.attributes:
+                    numEntriesInCategory += 1
+
+            # Get the values of all entries of a category by ID, then truncate to 10
+            #dataAverage = averageCategoryEntriesByID(hasCoorespondingCategory, review=False)
+            #dataUnique = uniqueCategoryEntriesByID(hasCoorespondingCategory, review=False)
+            #dataSum = sumCategoryEntriesByID(hasCoorespondingCategory, review=False)
+            dataCount = countCategoryEntriesByID(hasCoorespondingCategory, review=False)
+
+            if dataCount > 0:
+                validCategoryRoles.append(cat)
+
+    return validCategoryRoles, allroleCategories
+
+def getValidReviewCategoryRolesList():
+    # Get all valid category roles from the session
+    allroleCategories = []
+    for k, v in session["validroleReviewCategory"].items():
+        for i, cat in enumerate(v):
+            allroleCategories.append(cat)
+
+    # Dedup and remove UNUSED
+    allroleCategories = list(set(allroleCategories))
+    allroleCategories.remove("UNUSED")
+
+    validCategoryRoles = []
+    for i, cat in enumerate(allroleCategories):
+        if cat == "ID":
+            continue
+
+        hasCoorespondingCategory = getReviewCategoryIDByrole(cat)
+        if hasCoorespondingCategory == -1:
+            RichPrintWarning(f"Category {cat} does not have a cooresponding category")
+            continue
+        else:
+            # Get info on category
+            numEntriesInCategory = 0
+            for tea in TeaStash:
+                for review in tea.reviews:
+                    if cat in review.attributes:
+                        numEntriesInCategory += 1
+
+            # Get the values of all entries of a category by ID, then truncate to 10
+            #dataAverage = averageCategoryEntriesByID(hasCoorespondingCategory, review=True)
+            #dataUnique = uniqueCategoryEntriesByID(hasCoorespondingCategory, review=True)
+            #dataSum = sumCategoryEntriesByID(hasCoorespondingCategory, review=True)
+            dataCount = countCategoryEntriesByID(hasCoorespondingCategory, review=True)
+
+            if dataCount > 0:
+                validCategoryRoles.append(cat)
+
+    return validCategoryRoles, allroleCategories
+
+def getStatsOnCategoryByRole(role, review=False):
+    if review:
+        # Get all review categories
+        id = getReviewCategoryIDByrole(role)
+        sum, avrg, count, unique = sumCategoryEntriesByID(id, review=True), averageCategoryEntriesByID(id, review=True), countCategoryEntriesByID(id, review=True), uniqueCategoryEntriesByID(id, review=True)
+        return sum, avrg, count, unique
+    else:
+        # Get all categories
+        id = getCategoryIDByrole(role)
+        sum, avrg, count, unique = sumCategoryEntriesByID(id, review=False), averageCategoryEntriesByID(id, review=False), countCategoryEntriesByID(id, review=False), uniqueCategoryEntriesByID(id, review=False)
+        return sum, avrg, count, unique
     
 
 # Iterate through ReviewCategories and return the first category id that matches the role
@@ -2138,6 +2227,93 @@ class Window_Stats(WindowBase):
         with window:
             dp.Text("Stats")
             dp.Text("Stats go here")
+
+            # Divider
+            dp.Separator()
+            # Tea Stats
+            dp.Text("Tea Stats")
+            numTeas = len(TeaStash)
+            dp.Text(f"Number of Teas: {numTeas}")
+            numReviews = 0
+            for tea in TeaStash:
+                numReviews += len(tea.reviews)
+            dp.Text(f"Number of Reviews: {numReviews}")
+            dp.Separator()
+
+            # All stats should only be displayed if the coorsponding category is enabled
+            AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
+            allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
+
+
+            # Display enabled categories
+            dp.Text("Tea Categories:")
+            for cat in AllTypesCategoryRole:
+                if cat in AllTypesCategoryRoleValid:
+                    dp.Text(f"{cat}")
+                else:
+                    dp.Text(f"{cat} - Not Enabled")
+
+            dp.Separator()
+            dp.Text("Review Categories:")
+            for cat in allTypesCategoryRoleReviews:
+                if cat in allTypesCategoryRoleReviewsValid:
+                    dp.Text(f"{cat}")
+                else:
+                    dp.Text(f"{cat} - Not Enabled")
+
+            dp.Separator()
+
+
+            if "Type" in AllTypesCategoryRoleValid:
+                # Tea Type Stats
+                dp.Text("Tea Type Stats")
+                teaTypeStats = {}
+                for tea in TeaStash:
+                    if "Type" in tea.attributes:
+                        teaType = tea.attributes["Type"]
+                        if teaType not in teaTypeStats:
+                            teaTypeStats[teaType] = 0
+                        teaTypeStats[teaType] += 1
+                for teaType, count in teaTypeStats.items():
+                    dp.Text(f"{teaType}: {count}")
+            else:
+                dp.Text("Required Category 'Type' for Tea is not enabled.")
+            dp.Separator()
+
+            dp.Text("Review Type Stats")
+            if "Type" in allTypesCategoryRoleReviewsValid:
+                # Tea Type Stats
+                teaTypeStats = {}
+                for tea in TeaStash:
+                    if "Type" in tea.attributes:
+                        teaType = tea.attributes["Type"]
+                        if teaType not in teaTypeStats:
+                            teaTypeStats[teaType] = 0
+                        teaTypeStats[teaType] += 1
+                for teaType, count in teaTypeStats.items():
+                    dp.Text(f"{teaType}: {count}")
+            else:
+                dp.Text("Required Category 'Type' for Review is not enabled.")
+            dp.Separator()
+
+            # Total volume of remaining tea (Tea-remaining-sum, average)
+            dp.Text("Total Volume of Remaining Tea")
+            if "Remaining" in AllTypesCategoryRoleValid:
+                sum, avrg, count, unique = getStatsOnCategoryByRole("Remaining", False)
+                dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
+            else:
+                dp.Text("Required Category 'Amount' for Tea is not enabled.")
+            dp.Separator()
+
+            # Total volume of consumed tea (Review-remaining-stats)
+            dp.Text("Total Volume of Consumed Tea")
+            if "Amount" in allTypesCategoryRoleReviewsValid:
+                sum, avrg, count, unique = getStatsOnCategoryByRole("Amount", True)
+                dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
+            else:
+                dp.Text("Required Category 'Amount' for Review is not enabled.")
+            dp.Separator()
+
 
 
         
