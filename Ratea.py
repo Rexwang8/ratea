@@ -335,7 +335,7 @@ def averageCategoryEntriesByID(categoryID, review=False):
             return -1
         elif isinstance(x[0], dt.datetime):
             return -1
-        return sum(x) / len(x)
+        return round(sum(x) / len(x), 3)
     return aggregateCategoryEntriesByID(categoryID, review=review, func=averageFunc)
 
 # Sum category entries by ID
@@ -348,7 +348,7 @@ def sumCategoryEntriesByID(categoryID, review=False):
             return -1
         elif isinstance(x[0], dt.datetime):
             return -1
-        return sum(x)
+        return round(sum(x), 3)
     return aggregateCategoryEntriesByID(categoryID, review=review, func=sumFunc)
 
 # Count category entries by ID
@@ -1246,7 +1246,11 @@ class Window_Stash_Reviews(WindowBase):
             if type(v) == dp.DatePicker:
                 allAttributes[k] = DateDictToDT(v.get_value())
             else:
-                allAttributes[k] = v.get_value()
+                val = v.get_value()
+                # If float, round to 3 decimal places
+                if type(val) == float:
+                    val = round(val, 3)
+                allAttributes[k] = val
 
         if "dateAdded" not in allAttributes:
             allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc)
@@ -1374,8 +1378,8 @@ class Window_Stash_Reviews(WindowBase):
                         # Add a dropdown for the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
 
-            if catItem is not None:
-                editReviewWindowItems[cat.categoryRole] = catItem
+                if catItem is not None:
+                    editReviewWindowItems[cat.categoryRole] = catItem
                     
             # Final Score input
             dp.Button(label="Save", callback=self.EditAddReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
@@ -1443,7 +1447,11 @@ class Window_Stash_Reviews(WindowBase):
             if type(v) == dp.DatePicker:
                 allAttributes[k] = DateDictToDT(v.get_value())
             else:
-                allAttributes[k] = v.get_value()
+                val = v.get_value()
+                # If float, round to 3 decimal places
+                if type(val) == float:
+                    val = round(val, 3)
+                allAttributes[k] = val
 
         # Infer name from allAttributes if avaliable, review or parent else
         reviewName = ""
@@ -1466,7 +1474,6 @@ class Window_Stash_Reviews(WindowBase):
         
 
         newReview = Review(teaId, reviewName, allAttributes["dateAdded"], allAttributes, allAttributes["Final Score"])
-
         if isEdit:
             # Transfer the reviews
             for i, tea in enumerate(TeaStash):
@@ -1483,6 +1490,8 @@ class Window_Stash_Reviews(WindowBase):
                     TeaStash[i].addReview(newReview)
                     print(f"Teastash I is now {TeaStash[i]}, added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
                     break
+
+        RichPrintSuccess(f"Added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
 
         # Save to file
         saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
@@ -1946,7 +1955,11 @@ class Window_Stash(WindowBase):
             if type(v) == dp.DatePicker:
                 allAttributes[k] = parseDTToString(DateDictToDT(v.get_value()))
             else:
-                allAttributes[k] = v.get_value()
+                val = v.get_value()
+                # If float, round to 3 decimal places
+                if type(val) == float:
+                    val = round(val, 3)
+                allAttributes[k] = val
 
         # Add in recursive attributes field
         allAttributes["attributes"] = {}
@@ -2047,7 +2060,11 @@ class Window_Stash(WindowBase):
             if type(v) == dp.DatePicker:
                 allAttributes[k] = DateDictToDT(v.get_value())
             else:
-                allAttributes[k] = v.get_value()
+                val = v.get_value()
+                # If float, round to 3 decimal places
+                if type(val) == float:
+                    val = round(val, 3)
+                allAttributes[k] = val
 
         RichPrintInfo(f"Adding tea: {allAttributes}")
 
@@ -2081,7 +2098,11 @@ class Window_Stash(WindowBase):
             if type(v) == dp.DatePicker:
                 allAttributes[k] = DateDictToDT(v.get_value())
             else:
-                allAttributes[k] = v.get_value()
+                val = v.get_value()
+                # If float, round to 3 decimal places
+                if type(val) == float:
+                    val = round(val, 3)
+                allAttributes[k] = val
 
 
         
