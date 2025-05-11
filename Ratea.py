@@ -32,12 +32,10 @@ TODO: Add in a proper default folder for settings and data
 
 
 Nice To Have:
-TODO: Validation: Restrict categories to only if not already in use
 TODO: Documentation: Add ? tooltips to everything
 TODO: Customization: Add color themes
 TODO: Feature: Some form of category migration
 TODO: Code: Centralize tooltips and other large texts
-TODO: Stats: Basic stats for tea and reviews, like average rating, total amount of tea, etc.
 TODO: Tables: Non-tea items, like teaware, shipping, etc.
 TODO: Category: Write in description for each category role
 
@@ -57,7 +55,11 @@ TODO: File: Import from CSV: Add in functionality to import from CSV
 
 
 ---Done---
-Feat(0.5.6): Export To CSV
+Feat(0.5.6): Validation: Restrict categories to only if not already in use
+Feat(0.5.6): Add some metrics relating to steeps and amount of tea
+Feat(0.5.6): Code: Centralize tooltips and other large texts
+Feat(0.5.6): Stats: Basic stats for tea and reviews, like average rating, total amount of tea, etc.
+Feat(0.5.6): Files: Export To CSV
 Chore(0.5.6): Remove width for categories and review categories
 Feat(0.5.6): Fix bug with edit category, add some toolltips
 Feat(0.5.6): Make dropdown widgets based on past inputs
@@ -2387,6 +2389,8 @@ class Window_EditCategories(WindowBase):
     teaCategoryGroup = None
     teaReviewGroup = None
     reviewCategories = []
+    hideUsedCategoriesBool = True
+    editCatWindow = None
     def windowDefintion(self, window):
         with window:
             # vertical half half split, one for tea, one for review
@@ -2413,6 +2417,21 @@ class Window_EditCategories(WindowBase):
                         dp.Separator()
                         self.teaReviewGroup = dp.Group(horizontal=False)
                         self.generateReviewCategoriesList()
+    
+    def hideUsedCategories(self, sender, app_data, user_data):
+        # switch variable and refresh the window
+        self.hideUsedCategoriesBool = app_data
+        win = user_data[1]
+        print(f"Hide used categories: {self.hideUsedCategoriesBool}")
+        if user_data[0] == "EDIT_CATEGORY":
+            print("Edit Category")
+        elif user_data[0] == "ADD_CATEGORY":
+            print("Add Category")
+        elif user_data[0] == "EDIT_REVIEW_CATEGORY":
+            print("Edit Review Category")
+        elif user_data[0] == "ADD_REVIEW_CATEGORY":
+            print("Add Review Category")
+        win.delete()
 
 
     def generateTeaCategoriesList(self, window):
@@ -2534,8 +2553,20 @@ class Window_EditCategories(WindowBase):
                     toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
                     dp.Text(toolTipText)
 
+            # Add hide used categories option
+            with dp.Group(horizontal=True):
+                dp.Text("Hide Used Categories")
+                hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("ADD_CATEGORY",))
+
             typeCategory = f"{catItem.get_value()}"
             items = session["validroleCategory"][typeCategory]
+            alreadyUsedItems = []
+            for cat in TeaCategories:
+                if cat.categoryType == typeCategory:
+                    alreadyUsedItems.append(cat.categoryRole)
+            if self.hideUsedCategoriesBool:
+                items = [item for item in items if item not in alreadyUsedItems]
+
             roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
             addCategoryWindowItems["role"] = roleItem
             dp.Separator()
@@ -2626,9 +2657,21 @@ class Window_EditCategories(WindowBase):
                     toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
                     dp.Text(toolTipText)
 
+            # Add hide used categories option
+            with dp.Group(horizontal=True):
+                dp.Text("Hide Used Categories")
+                hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("ADD_REVIEW_CATEGORY",addReviewCategoryWindow))
+
 
             typeCategory = f"{catItem.get_value()}"
             items = session["validroleReviewCategory"][typeCategory]
+            alreadyUsedItems = []
+            for cat in TeaReviewCategories:
+                if cat.categoryType == typeCategory:
+                    alreadyUsedItems.append(cat.categoryRole)
+            if self.hideUsedCategoriesBool:
+                print(f"hiding? {self.hideUsedCategoriesBool}")
+                items = [item for item in items if item not in alreadyUsedItems]
             roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
             addReviewCategoryWindowItems["role"] = roleItem
 
@@ -2720,6 +2763,7 @@ class Window_EditCategories(WindowBase):
         h = 500 * settings["UI_SCALE"]
         # Create a new window
         editCategoryWindow = dp.Window(label="Edit Category", width=w, height=h, modal=True, show=True)
+        self.editCatWindow = editCategoryWindow
         editCategoryWindowItems = dict()
         category = TeaCategories[user_data]
         category: TeaCategory
@@ -2747,6 +2791,7 @@ class Window_EditCategories(WindowBase):
             # Dropdown for category role
             with dp.Group(horizontal=True):
                 dp.Text("Category Role")
+                dp.Text(f"")
                 # Explanation tooltip
                 dp.Separator()
                 dp.Button(label="?")
@@ -2754,8 +2799,23 @@ class Window_EditCategories(WindowBase):
                     toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
                     dp.Text(toolTipText)
 
+            # Add hide used categories option
+            with dp.Group(horizontal=True):
+                dp.Text("Hide Used Categories")
+                hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("EDIT_CATEGORY", editCategoryWindow))
+
             typeCategory = f"{category.categoryType}"
             items = session["validroleCategory"][typeCategory]
+            alreadyUsedItems = []
+            for cat in TeaCategories:
+                if cat.categoryType == typeCategory and cat.categoryRole != category.categoryRole:
+                    alreadyUsedItems.append(cat.categoryRole)
+            if self.hideUsedCategoriesBool:
+                print(f"hiding? {self.hideUsedCategoriesBool}")
+                items = [item for item in items if item not in alreadyUsedItems]
+            if category.categoryRole not in items:
+                items.append(category.categoryRole)
+
             roleItem = dp.Listbox(items=items, default_value=category.categoryRole, num_items=5)
             if category.categoryRole not in items:
                 roleItem.set_value("ERR: Assume Unused")
@@ -2885,9 +2945,24 @@ class Window_EditCategories(WindowBase):
                 with dpg.tooltip(dpg.last_item()):
                     toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
                     dp.Text(toolTipText)
+            # Add hide used categories option
+            with dp.Group(horizontal=True):
+                dp.Text("Hide Used Categories")
+                hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("EDIT_REVIEW_CATEGORY", editReviewCategoryWindow))
 
             # Dropdown for category role
             items = session["validroleReviewCategory"][category.categoryType]
+            alreadyUsedItems = []
+            for cat in TeaReviewCategories:
+                if cat.categoryType == category.categoryType and cat.categoryRole != category.categoryRole:
+                    alreadyUsedItems.append(cat.categoryRole)
+            if self.hideUsedCategoriesBool:
+                print(f"hiding? {self.hideUsedCategoriesBool}")
+                items = [item for item in items if item not in alreadyUsedItems]
+            # Add in the current category role
+            if category.categoryRole not in items:
+                items.append(category.categoryRole)
+
             roleItem = dp.Listbox(items=items, default_value=category.categoryRole)
             editReviewCategoryWindowItems["role"] = roleItem
             if category.categoryRole not in items:
