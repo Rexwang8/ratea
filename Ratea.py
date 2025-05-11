@@ -596,7 +596,7 @@ def setValidTypes():
                                 "datetime": ["UNUSED", "date"]}
     
     session["validroleReviewCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
-                                "int": ["UNUSED", "Score", "Final Score", "Year", "Amount"],
+                                "int": ["UNUSED", "Score", "Final Score", "Year", "Amount", "Steeps", "Vessel size"],
                                 "float": ["UNUSED", "Score", "Final Score", "Amount"],
                                 "bool": ["UNUSED", "bool"],
                                 "date": ["UNUSED", "date"],
@@ -2240,7 +2240,7 @@ class Window_Notepad(WindowBase):
 
 def Menu_Stats():
     w = 480 * settings["UI_SCALE"]
-    h = 600 * settings["UI_SCALE"]
+    h = 720 * settings["UI_SCALE"]
     stats = Window_Stats("Stats", w, h, exclusive=True)
 
 class Window_Stats(WindowBase):
@@ -2340,7 +2340,7 @@ class Window_Stats(WindowBase):
         
 def Menu_EditCategories():
     w = 720 * settings["UI_SCALE"]
-    h = 480 * settings["UI_SCALE"]
+    h = 600 * settings["UI_SCALE"]
     editCategories = Window_EditCategories("Edit Categories", w, h, exclusive=True)
 
 class Window_EditCategories(WindowBase):
@@ -2357,7 +2357,8 @@ class Window_EditCategories(WindowBase):
                 with dp.Group(horizontal=False):
                     dp.Text("Tea Categories")
                     dp.Button(label="Add Stash Category", callback=self.showAddCategory)
-                    with dpg.child_window(label="Tea Categories", width=scaledWidth, height=600):
+                    scaledHeight = 480 * settings["UI_SCALE"]
+                    with dpg.child_window(label="Tea Categories", width=scaledWidth, height=scaledHeight):
                         self.teaCategoryGroup = dp.Group(horizontal=False)
                         dp.Separator()
                         self.generateTeaCategoriesList(self.teaCategoryGroup)
@@ -2367,7 +2368,8 @@ class Window_EditCategories(WindowBase):
                 with dp.Group(horizontal=False):
                     dp.Text("Review Categories")
                     dp.Button(label="Add Review Category", callback=self.shouldAddReviewCategory)
-                    with dpg.child_window(label="Review Categories", width=scaledWidth, height=600):
+                    scaledHeight = 480 * settings["UI_SCALE"]
+                    with dpg.child_window(label="Review Categories", width=scaledWidth, height=scaledHeight):
                         dp.Separator()
                         self.teaReviewGroup = dp.Group(horizontal=False)
                         self.generateReviewCategoriesList()
@@ -2378,7 +2380,7 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 150 * settings["UI_SCALE"]
+                    scaledHeight = 125 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Default Value: {category.defaultValue}")
@@ -2405,7 +2407,7 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaReviewCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 150 * settings["UI_SCALE"]
+                    scaledHeight = 125 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
                         dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
                         dp.Text(f"Default Value: {category.defaultValue}")
