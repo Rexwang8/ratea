@@ -285,12 +285,16 @@ def getCategoryIDByrole(role):
 def getAlLCategoryEntriesByID(categoryID, review=False):
     # Get the values of all entries of a category by ID, returning the list of values
     returnList = []
+    catName = ""
+    catRole = ""
 
-    catName = TeaCategories[categoryID].name
-    catRole = TeaCategories[categoryID].categoryRole
+    
     if review == True:
         catName = TeaReviewCategories[categoryID].name
         catRole = TeaReviewCategories[categoryID].categoryRole
+    else:
+        catName = TeaCategories[categoryID].name
+        catRole = TeaCategories[categoryID].categoryRole
     #RichPrintInfo(f"Getting all entries of category {catName} by ID: {categoryID}, review={review}")
     
     if review:
@@ -365,6 +369,13 @@ def uniqueCategoryEntriesByID(categoryID, review=False):
         return list(set(x))
     return aggregateCategoryEntriesByID(categoryID, review=review, func=uniqueFunc)
 
+# UniqueEntries with count by ID
+def uniqueEntriesWithCountByID(categoryID, review=False):
+    # Unique function with count
+    def uniqueFunc(x):
+        return {i: x.count(i) for i in set(x)}
+    return aggregateCategoryEntriesByID(categoryID, review=review, func=uniqueFunc)
+
 def debugGetcategoryRole():
     allroleCategories = []
     for k, v in session["validroleCategory"].items():
@@ -399,10 +410,11 @@ def debugGetcategoryRole():
             dataUnique = uniqueCategoryEntriesByID(hasCoorespondingCategory, review=False)
             dataSum = sumCategoryEntriesByID(hasCoorespondingCategory, review=False)
             dataCount = countCategoryEntriesByID(hasCoorespondingCategory, review=False)
+            dataUniqueCount = uniqueEntriesWithCountByID(hasCoorespondingCategory, review=False)
 
 
             RichPrintInfo(f"Category {cat} has a cooresponding category {hasCoorespondingCategory} of name {TeaCategories[hasCoorespondingCategory].name}")
-            RichPrintInfo(f"Category {cat} has average {dataAverage}, unique {dataUnique}, sum {dataSum}, count {dataCount}")
+            RichPrintInfo(f"Category {cat} has average {dataAverage}, unique {dataUnique}, sum {dataSum}, count {dataCount}, uniqueCount {dataUniqueCount}")
 
             if dataCount > 0:
                 validCatgories.append(cat)
@@ -490,12 +502,14 @@ def getStatsOnCategoryByRole(role, review=False):
         # Get all review categories
         id = getReviewCategoryIDByrole(role)
         sum, avrg, count, unique = sumCategoryEntriesByID(id, review=True), averageCategoryEntriesByID(id, review=True), countCategoryEntriesByID(id, review=True), uniqueCategoryEntriesByID(id, review=True)
-        return sum, avrg, count, unique
+        uniqueCount = uniqueEntriesWithCountByID(id, review=True)
+        return sum, avrg, count, unique, uniqueCount
     else:
         # Get all categories
         id = getCategoryIDByrole(role)
         sum, avrg, count, unique = sumCategoryEntriesByID(id, review=False), averageCategoryEntriesByID(id, review=False), countCategoryEntriesByID(id, review=False), uniqueCategoryEntriesByID(id, review=False)
-        return sum, avrg, count, unique
+        uniqueCount = uniqueEntriesWithCountByID(id, review=False)
+        return sum, avrg, count, unique, uniqueCount
     
 
 # Iterate through ReviewCategories and return the first category id that matches the role
@@ -1490,11 +1504,14 @@ class Window_Stash_Reviews(WindowBase):
                     TeaStash[i].addReview(newReview)
                     print(f"Teastash I is now {TeaStash[i]}, added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
                     break
-
+        
+        # Renumber and Save
+        
         RichPrintSuccess(f"Added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
 
         # Save to file
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        renumberTeasAndReviews(save=True)  # Renumber teas and reviews to keep IDs consistent
+        #saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
 
         # hide the popup
         dpg.configure_item(self.reviewsWindow.tag, show=False)
@@ -2298,7 +2315,7 @@ class Window_Stats(WindowBase):
                 for teaType, count in teaTypeStats.items():
                     dp.Text(f"{teaType}: {count}")
             else:
-                dp.Text("Required Category 'Type' for Tea is not enabled.")
+                dp.Text("Required Category role 'Type' for Tea is not enabled.")
             dp.Separator()
 
             dp.Text("Review Type Stats")
@@ -2314,25 +2331,48 @@ class Window_Stats(WindowBase):
                 for teaType, count in teaTypeStats.items():
                     dp.Text(f"{teaType}: {count}")
             else:
-                dp.Text("Required Category 'Type' for Review is not enabled.")
+                dp.Text("Required Category role 'Type' for Review is not enabled.")
             dp.Separator()
 
             # Total volume of remaining tea (Tea-remaining-sum, average)
             dp.Text("Total Volume of Remaining Tea")
             if "Remaining" in AllTypesCategoryRoleValid:
-                sum, avrg, count, unique = getStatsOnCategoryByRole("Remaining", False)
+                sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Remaining", False)
                 dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
             else:
-                dp.Text("Required Category 'Amount' for Tea is not enabled.")
+                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
             dp.Separator()
 
             # Total volume of consumed tea (Review-remaining-stats)
             dp.Text("Total Volume of Consumed Tea")
             if "Amount" in allTypesCategoryRoleReviewsValid:
-                sum, avrg, count, unique = getStatsOnCategoryByRole("Amount", True)
+                sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Amount", True)
                 dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
             else:
-                dp.Text("Required Category 'Amount' for Review is not enabled.")
+                dp.Text("Required Category role 'Amount' for Review is not enabled.")
+            dp.Separator()
+
+            # Total steeps (Review-steep-count-stats)
+            dp.Text("Total Steeps")
+            if "Steeps" in allTypesCategoryRoleReviewsValid:
+                sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Steeps", True)
+                dp.Text(f"Sum: {sum} steeps, Average: {avrg} steeps, Count: {count}")
+            else:
+                dp.Text("Required Category role 'Steeps' for Review is not enabled.")
+            dp.Separator()
+
+            # Teaware size (Reviews-Vessel Size-stats)
+            dp.Text("Teaware Size by Review")
+            if "Vessel size" in allTypesCategoryRoleReviewsValid:
+                sum, avrg, count, unique, uniqueDict = getStatsOnCategoryByRole("Vessel size", True)
+                dp.Text(f"Sum: {sum}ml, Average: {avrg}ml, Count: {count}")
+
+                dp.Text("Unique Sizes by Review:")
+                for size, count in uniqueDict.items():
+                    dp.Text(f"{size}: {count}")
+
+            else:
+                dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
             dp.Separator()
 
 
