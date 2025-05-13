@@ -1398,8 +1398,66 @@ class Window_Stash_Reviews(WindowBase):
                     editReviewWindowItems[cat.categoryRole] = catItem
                     
             # Final Score input
-            dp.Button(label="Save", callback=self.EditAddReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
+            dp.Button(label="Save", callback=self.validateAddEditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
             dp.Button(label="Cancel", callback=self.deleteEditReviewWindow)
+    
+    def validateAddEditReview(self, sender, app_data, user_data):
+        review = user_data[0]
+        editReviewWindowItems = user_data[1]
+        isEdit = user_data[3]  # Check if it's an edit or add operation
+
+        isValid = True
+
+        # Null check
+        if review is None and editReviewWindowItems is None:
+            RichPrintError("No review or editReviewWindowItems provided.")
+            return False
+
+        # Validate name
+        if review is not None:
+            if review.name == "" or review.name is None:
+                # Review name can be empty but it should instead be set to the tea name
+                if self.tea is not None:
+                    review.name = self.tea.name.strip()
+                    RichPrintWarning("Review name is empty. Setting to tea name.")
+                else:
+                    RichPrintError("Review name cannot be empty.")
+                    isValid = False
+        
+        if editReviewWindowItems is not None:
+            for k, v in editReviewWindowItems.items():
+                if type(v) == dp.DatePicker:
+                    # Check if date is valid
+                    if v.get_value() is None:
+                        RichPrintError(f"{k} cannot be empty.")
+                        isValid = False
+                else:
+                    val = v.get_value()
+                    # If float, round to 3 decimal places
+                    if type(val) == float:
+                        val = round(val, 3)
+                    if val is None or val == "":
+                        RichPrintError(f"{k} cannot be empty.")
+                        isValid = False
+        
+        # Check based on required fields
+        for cat in TeaReviewCategories:
+            cat: ReviewCategory
+            if cat.isRequiredForTea and cat.categoryRole not in editReviewWindowItems:
+                RichPrintError(f"{cat.name} is required for tea.")
+                isValid = False
+            if cat.isRequiredForAll and cat.categoryRole not in editReviewWindowItems:
+                RichPrintError(f"{cat.name} is required for all.")
+                isValid = False
+
+        # Act on the result
+        if isValid:
+            RichPrintSuccess("Review edit/add passed validation.")
+            self.EditAddReview(sender, app_data, user_data)
+        else:
+            RichPrintError("Review is not valid. Please check the fields.")
+            return False
+        
 
     def UpdateInputWithDropdownSelelction(self, sender, app_data, user_data):
         # Update the input with the new value
@@ -1865,17 +1923,17 @@ class Window_Stash(WindowBase):
                         catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=False)
                         if shouldShowDropdown:
                             # Create a dropdown with the past answers
-                            catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
+                            dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
                 elif cat.categoryType == "int":
                     catItem = dp.InputInt(label=cat.name, default_value=int(defaultValue))
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
-                        catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
+                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
                 elif cat.categoryType == "float":
                     catItem = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
-                        catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
+                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
                 elif cat.categoryType == "bool":
                     if defaultValue == "True" or defaultValue == True:
                         defaultValue = True
@@ -1892,17 +1950,16 @@ class Window_Stash(WindowBase):
                         defaultValue = DTToDateDict(defaultValue)
                     except:
                         defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
-                        #defaultValue = dt.datetime.now(tz=dt.timezone.utc).date()  # Fallback to now if parsing fails
                     # If supported, display as date
                     catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
-                        catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "date"))
+                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "date"))
                 else:
                     catItem = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
-                        catItem = dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
+                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
 
                 # Add it to the list
                 if catItem != None:
@@ -1912,14 +1969,55 @@ class Window_Stash(WindowBase):
 
             # Add buttons
             if user_data[1] == "add":
-                dp.Button(label="Add New Tea", callback=self.AddTea, user_data=teasData)
+                dp.Button(label="Add New Tea", callback=self.validateAddEditTea, user_data=(teasData, "ADD"))
             elif user_data[1] == "edit":
-                dp.Button(label="Confirm Edit", callback=self.EditTea, user_data=teasData)
+                dp.Button(label="Confirm Edit", callback=self.validateAddEditTea, user_data=(teasData, "EDIT"))
                 # Copy Values to string (json) for the edit window, use function
                 dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
                 dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
 
+    def validateAddEditTea(self, sender, app_data, user_data):
+        # Function to validate the input values
+        isValid = True
+        isTea = True # Placeholder for later 
+        teasData = user_data[0]
+        isAdd = False
+        if user_data[1] == "ADD":
+            isAdd = True
+        # Name must always be present
+        if "Name" not in self.addTeaList or self.addTeaList["Name"].get_value() == "":
+            RichPrintError("Error: Name is required.")
+            isValid = False
+
+        # Some fields are marked required for tea or for all, check them here
+        
+        # Iterate through categories and validate
+        for cat in TeaCategories:
+            cat: TeaCategory
+            if cat.categoryRole in self.addTeaList:
+                # Check if the category is required and validate accordingly
+                if cat.isRequiredForTea and self.addTeaList[cat.categoryRole].get_value() == "":
+                    RichPrintError(f"Error: {cat.name} is required for a Tea entry.")
+                    isValid = False
+                
+                if cat.isRequiredForAll and self.addTeaList[cat.categoryRole].get_value() == "":
+                    RichPrintError(f"Error: {cat.name} is required for all entries.")
+                    isValid = False
+        
+        if isValid:
+            RichPrintInfo("Validation passed. Proceeding to add/edit tea.")
+            if isAdd:
+                # If validation passes, proceed to add the tea
+                self.AddTea(sender, app_data, teasData)
+            else:
+                # If validation passes, proceed to edit the tea
+                self.EditTea(sender, app_data, teasData)
+        else:
+            # If validation fails, show an error message and do not proceed
+            RichPrintError("Error: Validation failed. Please check the input values.")
+            return
+        
     def UpdateInputWithDropdownSelelction(self, sender, app_data, user_data):
         # Update the input with the new value
         typeOfValue = user_data[2]
