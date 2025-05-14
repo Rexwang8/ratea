@@ -120,9 +120,11 @@ def parseDTToStringWithFallback(stringOrDT, fallbackString):
     output = None
     try:
         output = parseDTToString(stringOrDT)
-    except:
+        #if output is not None:
+    except Exception as e:
+        RichPrintError(f"Failed to parse date string: {stringOrDT}. Error: {e}")
         # If it fails, return the fallback string
-        output = fallbackString
+        output = fallbackString.strip()
     return output
 
 
@@ -167,6 +169,10 @@ def parseDTToStringWithHoursMinutes(stringOrDT):
     return returnedString
 
 def parseStringToDT(string, default=None, format=None):
+    if type(string) is dt.datetime:
+        # If it's already a datetime object, return it directly
+        return string
+    string: str = string.strip()
     fallbackFormats = [
         "%Y-%m-%d",  # YYYY-MM-DD
         "%m-%d-%Y",  # MM-DD-YYYY
@@ -208,6 +214,9 @@ def parseStringToDT(string, default=None, format=None):
             return dt.datetime.strptime(default, format)
         else:
             raise ValueError("Default value must be a datetime object or a string in the correct format.")
+    else:
+        # If no valid date found and no default provided, return None
+        RichPrintError(f"Failed to parse date string: {string}. No valid date found and no default provided.")
     return False  # Return False if no valid date found and no default provided
     
 
@@ -1684,7 +1693,7 @@ class Window_Stash_Reviews(WindowBase):
                                     displayValue = True
                                 else:
                                     displayValue = False
-                                dp.Checkbox(label=cat.name, default_value=True, enabled=False)
+                                dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
                             elif cat.categoryRole == "date" or cat.categoryRole == "datetime":
                                 # Date picker widget
                                 displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
