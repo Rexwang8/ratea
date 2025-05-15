@@ -3703,6 +3703,7 @@ def saveTeaReviewCategories(categories, path):
 def SaveAll(altPath=None):
     # Save all data
     if altPath is not None:
+        # This is a backup path, so save to the backup path
         newBaseDirectory = altPath
         saveTeasReviews(TeaStash, f"{newBaseDirectory}/tea_reviews.yml")
         saveTeaCategories(TeaCategories, f"{newBaseDirectory}/tea_categories.yml")
@@ -3710,12 +3711,18 @@ def SaveAll(altPath=None):
         WriteYaml(f"{newBaseDirectory}/user_settings.yml", settings)
         windowManager.exportPersistantWindows(f"{newBaseDirectory}/persistant_windows.yml")
         RichPrintSuccess(f"All data saved to {newBaseDirectory}")
+
+        # CSVs
+        teaStashToCSV(f"{newBaseDirectory}/tea.csv", f"{newBaseDirectory}/review.csv")
         return
     saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
     saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
     saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
     WriteYaml(session["settingsPath"], settings)
     windowManager.exportPersistantWindows(settings["PERSISTANT_WINDOWS_PATH"])
+
+    # CSVs
+    teaStashToCSV(settings["CSV_OUTPUT_TEA_PATH"], settings["CSV_OUTPUT_REVIEW_PATH"])
 
 
 # Start Backup Thread
@@ -3951,7 +3958,12 @@ def loadReviewFromDictNewID(reviewData, id, parentId):
 
     return review
 
-def teaStashToCSV():
+def teaStashToCSV(csvPath=None, csvPathReviews=None):
+    # If no path is given, use the default path
+    if csvPath is None:
+        csvPath = settings["CSV_OUTPUT_TEA_PATH"]
+    if csvPathReviews is None:
+        csvPathReviews = settings["CSV_OUTPUT_REVIEW_PATH"]
     # Piggyback on exisitng json support to convert to CSV
     # For exporting every tea in TeaStash to a CSV file
     RichPrintInfo("Exporting TeaStash to CSV")
@@ -4030,19 +4042,19 @@ def teaStashToCSV():
 
 
     # Create two CSV files, one for teas and one for reviews
-    with open(settings["CSV_OUTPUT_TEA_PATH"], "w", newline="") as csvfile:
+    with open(csvPath, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=headers)
         writer.writeheader()
         for tea in allData:
             writer.writerow(tea)
-        RichPrintSuccess(f"Exported {len(allData)} teas to {settings["CSV_OUTPUT_TEA_PATH"]}")
+        RichPrintSuccess(f"Exported {len(allData)} teas to {csvPath}")
 
-    with open(settings["CSV_OUTPUT_REVIEW_PATH"], "w", newline="") as csvfile:
+    with open(csvPathReviews, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=headersReviews)
         writer.writeheader()
         for review in allReviews:
             writer.writerow(review)
-        RichPrintSuccess(f"Exported {len(allReviews)} reviews to {settings["CSV_OUTPUT_REVIEW_PATH"]}")
+        RichPrintSuccess(f"Exported {len(allReviews)} reviews to {csvPathReviews}")
     return allData, allReviews
 
 
