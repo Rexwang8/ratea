@@ -1662,6 +1662,13 @@ class Window_Stash_Reviews(WindowBase):
             hbarActionGroup = dp.Group(horizontal=True)
             with hbarActionGroup:
                 dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=tea)
+                
+                # Tooltip
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    tooltipText = RateaTexts.ListTextHelpMenu["menuTeaReviews"].strWithWrap()
+                    dp.Text(tooltipText)
+                # Add a button to open the reviews window
                 # Add review popup
                 w = 900 * settings["UI_SCALE"]
                 h = 500 * settings["UI_SCALE"]
