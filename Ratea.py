@@ -614,14 +614,14 @@ def setValidTypes():
     session["validTypesReviewCategory"] = ["string", "int", "float", "bool", "datetime"]
     
     session["validroleCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
-                                "int": ["UNUSED", "Total Score", "Year", "Amount", "Remaining"],
+                                "int": ["UNUSED","Year"],
                                 "float": ["UNUSED", "Total Score", "Amount", "Remaining"],
                                 "bool": ["UNUSED", "bool"],
                                 "date": ["UNUSED", "date"],
                                 "datetime": ["UNUSED", "date"]}
     
     session["validroleReviewCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
-                                "int": ["UNUSED", "Score", "Final Score", "Year", "Amount", "Steeps", "Vessel size"],
+                                "int": ["UNUSED", "Year", "Amount", "Steeps", "Vessel size"],
                                 "float": ["UNUSED", "Score", "Final Score", "Amount"],
                                 "bool": ["UNUSED", "bool"],
                                 "date": ["UNUSED", "date"],
@@ -2663,7 +2663,7 @@ class Window_EditCategories(WindowBase):
             # Add hide used categories option
             with dp.Group(horizontal=True):
                 dp.Text("Hide Used Categories")
-                hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("ADD_CATEGORY",))
+                hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("ADD_CATEGORY", addCategoryWindow))
 
             typeCategory = f"{catItem.get_value()}"
             items = session["validroleCategory"][typeCategory]
@@ -2767,7 +2767,7 @@ class Window_EditCategories(WindowBase):
             # Add hide used categories option
             with dp.Group(horizontal=True):
                 dp.Text("Hide Used Categories")
-                hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("ADD_REVIEW_CATEGORY",addReviewCategoryWindow))
+                hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("ADD_REVIEW_CATEGORY", addReviewCategoryWindow))
 
 
             typeCategory = f"{catItem.get_value()}"
@@ -2979,6 +2979,17 @@ class Window_EditCategories(WindowBase):
         valueToSet = user_data[0].get_value()
         roleItem = user_data[1]
         validTypes = session["validroleCategory"][valueToSet]
+        # Account for already used categories
+        alreadyUsedItems = []
+        if self.hideUsedCategoriesBool:
+            for cat in TeaCategories:
+                if cat.categoryType == valueToSet and cat.categoryRole != roleItem.get_value():
+                    alreadyUsedItems.append(cat.categoryRole)
+            print(f"Already used items: {alreadyUsedItems}")
+            validTypes = [item for item in validTypes if item not in alreadyUsedItems]
+            # Add in the current category role if it is not already in the list
+            if roleItem.get_value() not in validTypes:
+                validTypes.append(roleItem.get_value())
         dpg.configure_item(roleItem.tag, items=validTypes)
         roleItem.set_value(validTypes[0])
 
@@ -2988,6 +2999,16 @@ class Window_EditCategories(WindowBase):
         valueToSet = user_data[0].get_value()
         roleItem = user_data[1]
         validTypes = session["validroleReviewCategory"][valueToSet]
+        # Account for already used categories
+        alreadyUsedItems = []
+        if self.hideUsedCategoriesBool:
+            for cat in TeaReviewCategories:
+                if cat.categoryType == valueToSet and cat.categoryRole != roleItem.get_value():
+                    alreadyUsedItems.append(cat.categoryRole)
+            validTypes = [item for item in validTypes if item not in alreadyUsedItems]
+            # Add in the current category role if it is not already in the list
+            if roleItem.get_value() not in validTypes:
+                validTypes.append(roleItem.get_value())
         dpg.configure_item(roleItem.tag, items=validTypes)
         roleItem.set_value(validTypes[0])
 
@@ -3196,15 +3217,15 @@ class Window_EditCategories(WindowBase):
         newCategory.defaultValue = defaultValue
 
         # Add in role
-        newCategory.categoryRole = allAttributes["role"].get_value()
-        if newCategory.categoryRole not in session["validroleCategory"][allAttributes["Type"].get_value()]:
+        newCategory.categoryRole = allAttributes["role"]
+        if newCategory.categoryRole not in session["validroleCategory"][allAttributes["Type"]]:
             newCategory.categoryRole = "UNUSED"
 
         # Add in flags
-        newCategory.isRequiredForAll = allAttributes["isRequiredForAll"].get_value()
-        newCategory.isRequiredForTea = allAttributes["isRequiredTea"].get_value()
-        newCategory.isAutoCalculated = allAttributes["isAutocalculated"].get_value()
-        newCategory.isDropdown = allAttributes["isDropdown"].get_value()
+        newCategory.isRequiredForAll = allAttributes["isRequiredForAll"]
+        newCategory.isRequiredForTea = allAttributes["isRequiredTea"]
+        newCategory.isAutoCalculated = allAttributes["isAutocalculated"]
+        newCategory.isDropdown = allAttributes["isDropdown"]
 
         # Log
         RichPrintInfo(f"Adding category: {newCategory.name} ({newCategory.categoryType}, Flags: {newCategory.isRequiredForAll}, {newCategory.isRequiredForTea}, {newCategory.isAutoCalculated}, {newCategory.isDropdown})")
