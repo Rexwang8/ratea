@@ -28,7 +28,6 @@ TODO: Validation: Validate that name and other important fields are not empty
 TODO: Features: Fill out or remove review tabs
 TODO: Menus: Update settings menu with new settings
 TODO: Category: Correction for amount of tea, and amount of tea consumed/marker for finished tea
-TODO: Add in a proper default folder for settings and data
 
 
 Nice To Have:
@@ -55,6 +54,7 @@ TODO: File: Import from CSV: Add in functionality to import from CSV
 
 
 ---Done---
+Feat(0.5.6): Validation: Add in a proper default folder for settings and data
 Feat(0.5.6): Validation: Restrict categories to only if not already in use
 Feat(0.5.6): Add some metrics relating to steeps and amount of tea
 Feat(0.5.6): Code: Centralize tooltips and other large texts
@@ -67,6 +67,15 @@ Fix(0.5.6): Fix: Remove Year from teas and reviews, use dateAdded instead
 Feat(0.5.6): Tables: Dynamic Sizing of columns based on content
 Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 '''
+
+
+#region Constants
+
+# light green
+COLOR_AUTOCALCULATED_TABLE_CELL = (0, 100, 0, 100)
+COLOR_INVALID_EMPTY_TABLE_CELL = (100, 0, 0, 100)
+
+#endregion
 
 
 #region Helpers
@@ -849,6 +858,44 @@ class TeaCategory:
         self.isAutoCalculated = False
         self.isDropdown = False
 
+    def autocalculate(self, data):
+        # role - Remaining
+        print("Autocalculating")
+        if self.categoryRole == "Remaining":
+            # Requires: Amount to be set, Amount in reviews to be set
+            validReviewsCategories, _ = getValidReviewCategoryRolesList()
+            validCategories, _ = getValidCategoryRolesList()
+            print(f"Valid Categories: {validCategories}")
+            print(f"Valid Reviews Categories: {validReviewsCategories}")
+            if "Amount" in validCategories and "Amount" in validReviewsCategories and "Amount" in data.attributes:
+                print("Calculating remaining")
+                # Sum of all review Amounts in the tea (data)
+                reviewAmount = 0
+                for review in data.reviews:
+                    if "Amount" in review.attributes:
+                        reviewAmount += review.attributes["Amount"]
+                print(data.attributes)
+                originalAmount = data.attributes["Amount"]
+                # Remaining = Original Amount - Sum of all review Amounts
+                remaining = originalAmount - reviewAmount
+                return remaining
+            else:
+                RichPrintError("Amount not found in categories, cannot calculate remaining")
+                return None
+        
+
+# Themes for coloring
+def create_cell_theme(color_rgba):
+    with dpg.theme() as theme_id:
+        with dpg.theme_component(dpg.mvText):
+            dpg.add_theme_color(dpg.mvThemeCol_Header, color_rgba, category=dpg.mvThemeCat_Core)
+            dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 5, 5)
+    return theme_id
+
+
+#green_theme = create_cell_theme((100, 255, 100, 255))
+#yellow_theme = create_cell_theme((255, 255, 100, 255))
+
 
 class ReviewCategory:
     name = ""
@@ -1293,6 +1340,20 @@ class Window_Stash_Reviews(WindowBase):
         dpg.configure_item(self.reviewsWindow.tag, show=False)
         self.refresh()
 
+    # Resize the window to fit the table by getting the table width
+    # and setting the window width to the table width + padding
+    def resizeWidthToTable(self, window):
+        # Resize the window to fit the table
+        padding = 20 * settings["UI_SCALE"]
+        time.sleep(0.05)  # Wait for the table to be drawn
+        if window is not None:
+            # Get the width of the table
+            tableWidth = dpg.get_item_rect_size(window.tag)
+            print(f"Table Width: {tableWidth}")
+            # Set the width of the window to the width of the table
+            dpg.set_item_width(window.tag, tableWidth[1] + padding)
+            self.dpgWindow.width = tableWidth[1] + padding
+
     def GenerateEditReviewWindow(self, sender, app_data, user_data):
         # Create a new window for editing the review
         w = 600 * settings["UI_SCALE"]
@@ -1424,35 +1485,30 @@ class Window_Stash_Reviews(WindowBase):
             return False
 
         # Validate name
+        parentTea = None
+        for i, tea in enumerate(TeaStash):
+            print(tea.id, review.parentID)
+            if tea.id == review.parentID:
+                parentTea = tea
+                print("Found parent tea")
+                print(parentTea.name)
+                break
         if review is not None:
             if review.name == "" or review.name is None:
                 # Review name can be empty but it should instead be set to the tea name
-                if self.tea is not None:
-                    review.name = self.tea.name.strip()
+                if parentTea is not None:
+                    review.name = parentTea.name.strip()
                     RichPrintWarning("Review name is empty. Setting to tea name.")
                 else:
                     RichPrintError("Review name cannot be empty.")
                     isValid = False
         
-        if editReviewWindowItems is not None:
-            for k, v in editReviewWindowItems.items():
-                if type(v) == dp.DatePicker:
-                    # Check if date is valid
-                    if v.get_value() is None:
-                        RichPrintError(f"{k} cannot be empty.")
-                        isValid = False
-                else:
-                    val = v.get_value()
-                    # If float, round to 3 decimal places
-                    if type(val) == float:
-                        val = round(val, 3)
-                    if val is None or val == "":
-                        RichPrintError(f"{k} cannot be empty.")
-                        isValid = False
-        
         # Check based on required fields
         for cat in TeaReviewCategories:
             cat: ReviewCategory
+            if cat.categoryRole == "Name":
+                # Name is handled above
+                continue
             if cat.isRequiredForTea and cat.categoryRole not in editReviewWindowItems:
                 RichPrintError(f"{cat.name} is required for tea.")
                 isValid = False
@@ -1603,12 +1659,6 @@ class Window_Stash_Reviews(WindowBase):
         tea = self.tea
         # create a new window for the reviews
         with window:
-            hbarinfoGroup = dp.Group(horizontal=True)
-            numReviews = len(tea.reviews)
-            with hbarinfoGroup:
-                # Num reviews, average rating, etc
-                dp.Text(f"Num Reviews: {numReviews}")
-                dp.Text(f"Average Rating: X TODO")
             hbarActionGroup = dp.Group(horizontal=True)
             with hbarActionGroup:
                 dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=tea)
@@ -1661,7 +1711,8 @@ class Window_Stash_Reviews(WindowBase):
                         # Add the review attributes
 
                         cat: TeaCategory
-                        for i, cat in enumerate(TeaReviewCategories):
+                        for j, cat in enumerate(TeaReviewCategories):
+                            cellInvalidEmpty = False
                             # Convert attribbutes to json
                             displayValue = "N/A"
                             if cat.name == "Name":
@@ -1675,40 +1726,55 @@ class Window_Stash_Reviews(WindowBase):
                                     except json.JSONDecodeError:
                                         # If there's an error in decoding, set to N/A
                                         displayValue = "Err (JSON Decode Error)"
+                                        cellInvalidEmpty = True
                                     except KeyError:
                                         # If the key doesn't exist, set to N/A
                                         displayValue = "N/A"
+                                        cellInvalidEmpty = True
                                     except Exception as e:
                                         RichPrintError(f"Error loading attributes: {e}")
                                         # If it fails, just set to N/A
                                         displayValue = f"Err (Exception {e})"
+                                        cellInvalidEmpty = True
                                 else:
                                     if cat.categoryRole in review.attributes:
                                         displayValue = review.attributes[cat.categoryRole]
 
+                            # If the value is None or empty, set to N/A
+                            if displayValue == None or displayValue == "" or displayValue == "N/A":
+                                displayValue = "N/A"
+                                cellInvalidEmpty = True
 
-                            if cat.categoryRole == "string" or cat.categoryRole == "float" or cat.categoryRole == "int":
+                            if cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int":
                                 dp.Text(label=displayValue, default_value=displayValue)
-                            elif cat.categoryRole == "bool":
+                            elif cat.categoryType == "bool":
                                 if displayValue == "True" or displayValue == True:
                                     displayValue = True
                                 else:
                                     displayValue = False
                                 dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
-                            elif cat.categoryRole == "date" or cat.categoryRole == "datetime":
+                            elif cat.categoryType == "date" or cat.categoryType == "datetime":
                                 # Date picker widget
                                 displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
                                 displayValue = parseDTToStringWithFallback(displayValue, "None")
+                                if displayValue == "None":
+                                    cellInvalidEmpty = True
                                 # If supported, display as date
                                 dp.Text(label=displayValue, default_value=displayValue)
                             else:
                                 # If not supported, just display as string
                                 displayValue = str(displayValue)
                                 dp.Text(label=displayValue, default_value=displayValue)
+                            
+                            if cellInvalidEmpty:
+                                # If the cell is invalid or empty, set the background color to red
+                                dpg.highlight_table_cell(reviewsTable, i, j+1, COLOR_INVALID_EMPTY_TABLE_CELL)
                         
 
                         # button that opens a modal with reviews
                         dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
+                # Resize the window to fit the table
+                self.resizeWidthToTable(window)
 
     def deleteEditReviewWindow(self):
         # If window is open, close it first
@@ -1747,7 +1813,6 @@ class Window_Stash(WindowBase):
         if window is not None:
             # Get the width of the table
             tableWidth = dpg.get_item_rect_size(window.tag)
-            print(f"Table width: {tableWidth}")
             # Set the width of the window to the width of the table
             dpg.set_item_width(window.tag, tableWidth[1] + padding)
             self.dpgWindow.width = tableWidth[1] + padding
@@ -1802,7 +1867,8 @@ class Window_Stash(WindowBase):
                         # Add the tea attributes
 
                         cat: TeaCategory
-                        for i, cat in enumerate(TeaCategories):
+                        for j, cat in enumerate(TeaCategories):
+                            cellInvalidOrEmpty = False
                             # Convert attributes to json
                             displayValue = "N/A"
                             if cat.name == "Name":
@@ -1817,37 +1883,59 @@ class Window_Stash(WindowBase):
                                     except json.JSONDecodeError:
                                         # If there's an error in decoding, set to N/A
                                         displayValue = "Err (JSON Decode Error)"
+                                        cellInvalidOrEmpty = True
                                     except KeyError:
                                         # If the key doesn't exist, set to N/A
                                         displayValue = "N/A"
+                                        cellInvalidOrEmpty = True
                                     except Exception as e:
                                         RichPrintError(f"Error loading attributes: {e}")
                                         # If it fails, just set to N/A
                                         displayValue = "Err (Exception)"
+                                        cellInvalidOrEmpty = True
                                 else:
                                     if cat.categoryRole in tea.attributes:
                                         displayValue = tea.attributes[cat.categoryRole]
                                     else:
                                         displayValue = "N/A"
+                                        cellInvalidOrEmpty = True
+                            if displayValue == None or displayValue == "" or displayValue == "N/A":
+                                displayValue = "N/A"
+                                cellInvalidOrEmpty = True
+                            # If category is autocalculatable and the autocalculated value is not None, use that
+                            usingAutocalculatedValue = False
+                            if cat.isAutoCalculated:
+                                val = cat.autocalculate(tea)
+                                if val is not None:
+                                    displayValue = val
+                                    usingAutocalculatedValue = True
 
-                            if cat.categoryRole == "string" or cat.categoryRole == "float" or cat.categoryRole == "int":
+                            if cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int":
                                 dp.Text(label=displayValue, default_value=displayValue)
-                            elif cat.categoryRole == "bool":
+                                
+                            elif cat.categoryType == "bool":
                                 if displayValue == "True" or displayValue == True:
                                     displayValue = True
                                 else:
                                     displayValue = False
                                 dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
-                            elif cat.categoryRole == "date" or cat.categoryRole == "datetime":
+                            elif cat.categoryType == "date" or cat.categoryType == "datetime":
                                 # Date picker widget
                                 displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
                                 displayValue = parseDTToStringWithFallback(displayValue, "None")
+                                if displayValue == "None":
+                                    cellInvalidOrEmpty = True
                                 # If supported, display as date
                                 dp.Text(label=displayValue, default_value=displayValue)
                             else:
                                 # If not supported, just display as string
                                 displayValue = str(displayValue)
                                 dp.Text(label=displayValue, default_value=displayValue)
+
+                            if usingAutocalculatedValue:
+                                    dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_AUTOCALCULATED_TABLE_CELL)
+                            if cellInvalidOrEmpty:
+                                dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_INVALID_EMPTY_TABLE_CELL)
 
                         # button that opens a modal with reviews
                         numReviews = len(tea.reviews)
@@ -2000,7 +2088,7 @@ class Window_Stash(WindowBase):
                 dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
     
-        self.resizeWidthToTable(self.teasWindow)
+        #self.resizeWidthToTable(self.teasWindow)
 
     def validateAddEditTea(self, sender, app_data, user_data):
         # Function to validate the input values
@@ -2694,7 +2782,7 @@ class Window_EditCategories(WindowBase):
             addCategoryWindowItems["role"] = roleItem
             dp.Separator()
 
-            # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
+            # Additional flags: isRequired, isrequiredForAll, isAutoCalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
 
@@ -2716,10 +2804,10 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
                 dp.Text(toolTipTxt)
 
-            isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
-            addCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+            isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
+            addCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isAutocalculated"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].strWithWrap()
                 dp.Text(toolTipTxt)
 
                 
@@ -2798,7 +2886,7 @@ class Window_EditCategories(WindowBase):
             roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
             addReviewCategoryWindowItems["role"] = roleItem
 
-            # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
+            # Additional flags: isRequired, isrequiredForAll, isAutoCalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
@@ -2819,10 +2907,10 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
                 dp.Text(toolTipTxt)
 
-            isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
-            addReviewCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+            isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
+            addReviewCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isAutocalculated"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].strWithWrap()
                 dp.Text(toolTipTxt)
                 
             
@@ -2869,7 +2957,7 @@ class Window_EditCategories(WindowBase):
         newCategory.isRequiredForAll = allAttributes["isRequiredForAll"]
         newCategory.isRequiredForTea = allAttributes["isRequiredTea"]
         newCategory.isDropdown = allAttributes["isDropdown"]
-        newCategory.isAutoCalculated = allAttributes["isAutocalculated"]
+        newCategory.isAutoCalculated = allAttributes["isAutoCalculated"]
 
         
         TeaReviewCategories.append(newCategory)
@@ -2945,7 +3033,7 @@ class Window_EditCategories(WindowBase):
             
             editCategoryWindowItems["role"] = roleItem
 
-            # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
+            # Additional flags: isRequired, isrequiredForAll, isAutoCalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
@@ -2966,10 +3054,10 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
                 dp.Text(toolTipTxt)
 
-            isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
-            editCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+            isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
+            editCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isAutocalculated"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].strWithWrap()
                 dp.Text(toolTipTxt)
 
 
@@ -3044,7 +3132,8 @@ class Window_EditCategories(WindowBase):
         category.isRequiredForAll = allAttributes["isRequiredForAll"].get_value()
         category.isRequiredTea = allAttributes["isRequiredTea"].get_value()
         category.isDropdown = allAttributes["isDropdown"].get_value()
-        category.isAutocalculated = allAttributes["isAutocalculated"].get_value()
+        isAutoCalculated = allAttributes["isAutoCalculated"].get_value()
+        category.isAutoCalculated = isAutoCalculated
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
         # close the popup
@@ -3113,7 +3202,7 @@ class Window_EditCategories(WindowBase):
                 roleItem.set_value("ERR: Assume Unused")
             dp.Separator()
 
-            # Additional flags: isRequired, isrequiredForAll, isAutocalculated, isDropdown
+            # Additional flags: isRequired, isrequiredForAll, isAutoCalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
 
@@ -3135,10 +3224,10 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
                 dp.Text(toolTipTxt)
 
-            isAutocalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
-            editReviewCategoryWindowItems["isAutocalculated"] = isAutocalculatedItem
+            isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
+            editReviewCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isAutocalculated"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].strWithWrap()
                 dp.Text(toolTipTxt)
 
             dp.Separator()
@@ -3179,7 +3268,7 @@ class Window_EditCategories(WindowBase):
         category.isRequiredForAll = allAttributes["isRequiredForAll"].get_value()
         category.isRequiredTea = allAttributes["isRequiredTea"].get_value()
         category.isDropdown = allAttributes["isDropdown"].get_value()
-        category.isAutoCalculated = allAttributes["isAutocalculated"].get_value()
+        category.isAutoCalculated = allAttributes["isAutoCalculated"].get_value()
 
 
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
@@ -3240,7 +3329,7 @@ class Window_EditCategories(WindowBase):
         # Add in flags
         newCategory.isRequiredForAll = allAttributes["isRequiredForAll"]
         newCategory.isRequiredForTea = allAttributes["isRequiredTea"]
-        newCategory.isAutoCalculated = allAttributes["isAutocalculated"]
+        newCategory.isAutoCalculated = allAttributes["isAutoCalculated"]
         newCategory.isDropdown = allAttributes["isDropdown"]
 
         # Log
@@ -3633,8 +3722,8 @@ def loadTeaCategories(path):
         if "isDropdown" in categoryData:
             category.isDropdown = categoryData["isDropdown"]
 
-        if "isAutocalculated" in categoryData:
-            category.isAutoCalculated = categoryData["isAutocalculated"]
+        if "isAutoCalculated" in categoryData:
+            category.isAutoCalculated = categoryData["isAutoCalculated"]
 
     return TeaCategories
 
@@ -3675,8 +3764,8 @@ def loadTeaReviewCategories(path):
         if "isDropdown" in categoryData:
             category.isDropdown = categoryData["isDropdown"]
 
-        if "isAutocalculated" in categoryData:
-            category.isAutoCalculated = categoryData["isAutocalculated"]
+        if "isAutoCalculated" in categoryData:
+            category.isAutoCalculated = categoryData["isAutoCalculated"]
 
 
     return TeaReviewCategories

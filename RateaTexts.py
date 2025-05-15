@@ -92,7 +92,7 @@ ListTextCategory = dict()
 
 ListTextCategory["isDropdown"] = Text("If this category is a valid target for dropdowns, it will be displayed in the dropdown menu. If not, it will be displayed as a normal category.")
 
-ListTextCategory["isAutocalculated"] = Text("If an autocalculation is avaliable, it will be used as the default value for this category. If not, the user will have to enter a value manually.")
+ListTextCategory["isAutoCalculated"] = Text("If an autocalculation is avaliable, it will be used as the default value for this category. If not, the user will have to enter a value manually.")
 
 ListTextCategory["isRequiredTea"] = Text("If this category is required to be filled out for tea specifically. If not, it will be optional. This is a validation step for better information.")
 
@@ -104,4 +104,4 @@ ListTextCategory["CategoryRole"] = Text("The role of the category. This is used 
 
 # Text used for the menu/Window help text
 ListTextHelpMenu = dict()
-ListTextHelpMenu["menuTeaStash"] = Text("This is one of the primary windows of the app. It shows a list of all the teas in your stash. You can add, edit, and delete teas from this window. You can also filter the list of teas by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n")
+ListTextHelpMenu["menuTeaStash"] = Text("This is one of the primary windows of the app. It shows a list of all the teas in your stash. You can add, edit, and delete teas from this window. You can also filter the list of teas by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n\n Green - Autocalculated \n Red - Invalid/Empty\n")
