@@ -101,3 +101,7 @@ ListTextCategory["isRequiredForAll"] = Text("If this category is required to be 
 ListTextCategory["CategoryType"] = Text("The type of category. This is used to determine how the category data is displayed and how it is used in the app.\n string - Text \n int - Whole number \n float - Decimal number \n bool - True/False \n datetime - Date")
 
 ListTextCategory["CategoryRole"] = Text("The role of the category. This is used to determine how the category data is used for stats and visualizations. To ignore this category, select 'UNUSED'.\n")
+
+# Text used for the menu/Window help text
+ListTextHelpMenu = dict()
+ListTextHelpMenu["menuTeaStash"] = Text("This is one of the primary windows of the app. It shows a list of all the teas in your stash. You can add, edit, and delete teas from this window. You can also filter the list of teas by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n")

@@ -1719,7 +1719,7 @@ class Window_Stash_Reviews(WindowBase):
             print("No window to delete")
 
 def Menu_Stash():
-    w = 650 * settings["UI_SCALE"]
+    w = 780 * settings["UI_SCALE"]
     h = 960 * settings["UI_SCALE"]
     stash = Window_Stash("Stash", w, h, exclusive=True)
 
@@ -1742,16 +1742,6 @@ class Window_Stash(WindowBase):
         self.addTeaList = dict()
         self.addReviewList = dict()
         with window:
-            dp.Text("Stash")
-            dp.Text("Teas")
-            hgroupStats1 = dp.Group(horizontal=True)
-            with hgroupStats1:
-                # dummy stats
-                dp.Text("Num Teas: 2 (TODO)")
-                dp.Text("Num Reviews: 5(TODO)")
-                dp.Text("Average Rating: X(TODO)")
-            dp.Text(f"Last Tea Added: Tea 2 at {parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}(TODO)")
-            dp.Text(f"Last Review Added: Tea 2 at {parseDTToString(dt.datetime.now(tz=dt.timezone.utc))}(TODO)")
             dp.Separator()
             hgroupButtons = dp.Group(horizontal=True)
             with hgroupButtons:
@@ -1761,6 +1751,14 @@ class Window_Stash(WindowBase):
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Refresh (TODO)", callback=self.DummyCallback)
+                
+
+                # Tooltip for the buttons
+                dp.Button(label="?")
+                with dp.Tooltip(dpg.last_item()):
+                    toolTipText = RateaTexts.ListTextHelpMenu["menuTeaStash"].strWithWrap()
+                    dp.Text(toolTipText)
+
             dp.Separator()
 
             # Table with collapsable rows for reviews
