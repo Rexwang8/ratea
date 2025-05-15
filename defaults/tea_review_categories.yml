@@ -1,0 +1,64 @@
+- Name: Name
+  categoryRole: Name
+  categoryType: string
+  defaultValue: ''
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: false
+- Name: Date
+  categoryRole: date
+  categoryType: datetime
+  defaultValue: ''
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: false
+- Name: Vessel Size (ml)
+  categoryRole: Vessel size
+  categoryType: int
+  defaultValue: '100'
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: true
+- Name: Amount (g)
+  categoryRole: Amount
+  categoryType: float
+  defaultValue: '0'
+  isAutoCalculated: false
+  isDropdown: false
+  isRequiredForAll: false
+  isRequiredForTea: true
+- Name: Rating
+  categoryRole: Final Score
+  categoryType: float
+  defaultValue: '5'
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: false
+- Name: Steeps
+  categoryRole: Steeps
+  categoryType: int
+  defaultValue: '1'
+  isAutoCalculated: false
+  isDropdown: false
+  isRequiredForAll: false
+  isRequiredForTea: true
+- Name: Notes
+  categoryRole: Notes (Long)
+  categoryType: string
+  defaultValue: ''
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: false
+- Name: Adjustments
+  categoryRole: Notes (short)
+  categoryType: string
+  defaultValue: None Needed
+  isAutoCalculated: false
+  isDropdown: false
+  isRequiredForAll: false
+  isRequiredForTea: false

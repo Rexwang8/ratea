@@ -1,0 +1,9 @@
+id,name,dateAdded,Name,Year,Type,Remaining,Vendor,bool,date,Amount
+0,Tea 12,2025-04-05,Tea 12,2011,Raw Puerh,3.0,N/A,False,1985-07-18 ,
+1,SAd vasdcasdfa,2025-04-05,SAd vasdcasdfa,2000,Hong,23123.0,N/A,True,2025-05-06 ,
+2,reviews,2025-04-05,reviews,2000,Hong,123123.0,N/A,True,2025-05-06 ,
+3,231354353,2025-04-05,231354353,2000,Hong,999.0,houde222,True,2025-05-06 ,
+4,Teasdased,2025-04-05,Teasdased,2000,Red,999.0,LP,False,2020-01-07 ,
+5,Teasdased,2025-04-07,231354353,2000,Hong,999.0,houde222,True,2025-05-06 ,
+6,231354353,2025-04-07,231354353,2011,Hong,999.0,LP,False,2025-06-13 ,
+7,Maojian No 2,2025-05-15,Maojian No 2,2024,Green,25.0,White2Tea,False,2024-04-01 ,25.0
