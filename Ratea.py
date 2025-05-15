@@ -1720,7 +1720,7 @@ class Window_Stash_Reviews(WindowBase):
             print("No window to delete")
 
 def Menu_Stash():
-    w = 780 * settings["UI_SCALE"]
+    w = 500 * settings["UI_SCALE"]
     h = 960 * settings["UI_SCALE"]
     stash = Window_Stash("Stash", w, h, exclusive=True)
 
@@ -1737,6 +1737,20 @@ class Window_Stash(WindowBase):
             self.teasWindow = None
         # Invoke base class delete
         super().onDelete()
+
+    # Resize the window to fit the table by getting the table width
+    # and setting the window width to the table width + padding
+    def resizeWidthToTable(self, window):
+        # Resize the window to fit the table
+        padding = 20 * settings["UI_SCALE"]
+        time.sleep(0.05)  # Wait for the table to be drawn
+        if window is not None:
+            # Get the width of the table
+            tableWidth = dpg.get_item_rect_size(window.tag)
+            print(f"Table width: {tableWidth}")
+            # Set the width of the window to the width of the table
+            dpg.set_item_width(window.tag, tableWidth[1] + padding)
+            self.dpgWindow.width = tableWidth[1] + padding
 
 
     def windowDefintion(self, window):
@@ -1842,6 +1856,7 @@ class Window_Stash(WindowBase):
 
             # Add seperator and import/export buttons
             dp.Separator()
+        self.resizeWidthToTable(window)
 
     def importOneTeaFromClipboard(self, sender, app_data, user_data):
         # Import a tea from the clipboard
@@ -1984,6 +1999,8 @@ class Window_Stash(WindowBase):
                 dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
                 dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
+    
+        self.resizeWidthToTable(self.teasWindow)
 
     def validateAddEditTea(self, sender, app_data, user_data):
         # Function to validate the input values
@@ -4230,23 +4247,8 @@ def main():
         MakeFilePath(dataPath)
         RichPrintInfo(f"Made {settings["DIRECTORY"]} at full path {os.path.abspath(settings["DIRECTORY"])}")
 
-    #global TeaStash
-    #TeaStash = loadTeasReviews(settings["TEA_REVIEWS_PATH"])
     if len(TeaStash) == 0:
         RichPrintError("No teas found in stash! Potentially issue with loading teas. ")
-        '''
-        Tea1 = StashedTea(1, "Tea 1", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"})
-        Tea1.dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
-        Tea1.addReview(Review(1, "Tea 1", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 90, "Good tea"))
-        Tea1.addReview(Review(1, "Tea 1", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 70, "Okay tea"))
-        Tea1.addReview(Review(1, "Tea 1", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 60, "Bad tea"))
-        Tea2 = StashedTea(2, "Tea 2", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"})
-        Tea2.addReview(Review(2, "Tea 2", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 80, "Good tea"))
-        Tea2.addReview(Review(2, "Tea 2", 2021, {"Type": "Raw Puerh", "Region": "Yunnan"}, 75, "Okay tea"))
-        Tea2.dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
-        TeaStash.append(Tea1)
-        TeaStash.append(Tea2)
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])'''
     
     UI_CreateViewPort_MenuBar()
 
