@@ -168,7 +168,7 @@ def parseDTToStringWithHoursMinutes(stringOrDT):
     returnedString = re.sub(r' ', '', returnedString)
     return returnedString
 
-def parseStringToDT(string, default=None, format=None):
+def parseStringToDT(string, default=None, format=None, silent=False):
     if type(string) is dt.datetime:
         # If it's already a datetime object, return it directly
         return string
@@ -216,7 +216,8 @@ def parseStringToDT(string, default=None, format=None):
             raise ValueError("Default value must be a datetime object or a string in the correct format.")
     else:
         # If no valid date found and no default provided, return None
-        RichPrintError(f"Failed to parse date string: {string}. No valid date found and no default provided.")
+        if not silent:
+            RichPrintError(f"Failed to parse date string: {string}. No valid date found and no default provided.")
     return False  # Return False if no valid date found and no default provided
     
 
@@ -3784,10 +3785,19 @@ def LoadSettings(path=None):
     print(f"Loaded settings from {path}")
     return settings
 
-def LoadAll():
+def hasLoadableFiles():
+    # Checks if the DIRECTORY exists and if the files exist
+    # else, checks if backup or autobackup path exists
+    mainFilesExist = os.path.exists(settings["TEA_REVIEWS_PATH"]) and os.path.exists(settings["TEA_CATEGORIES_PATH"]) and os.path.exists(settings["TEA_REVIEW_CATEGORIES_PATH"])
+    backupFilesExist = os.path.exists(settings["AUTO_SAVE_PATH"]) and os.path.exists(settings["BACKUP_PATH"])
+    return mainFilesExist, backupFilesExist
+
+def LoadAll(baseDir=None):
+    if baseDir is None:
+        baseDir = os.path.dirname(os.path.abspath(__file__))
     # Load all data
     global settings
-    baseDir = os.path.dirname(os.path.abspath(__file__))
+    #baseDir = os.path.dirname(os.path.abspath(__file__))
     settingsPath = f"{baseDir}/{default_settings['SETTINGS_FILENAME']}"
     session["settingsPath"] = settingsPath
     settings = LoadSettings(session["settingsPath"])
@@ -3864,7 +3874,9 @@ def loadAttributesFromString(json_string):
             if isinstance(value, str):
                 try:
                     # Attempt to parse as datetime
-                    parsed_date = parseStringToDT(value)
+                    parsed_date = parseStringToDT(value, silent=True)
+                    if parsed_date is None or parsed_date == "" or parsed_date == False:
+                        raise ValueError("Invalid datetime string")
                     if type(parsed_date) is dt.datetime:
                         attributes[key] = parsed_date
                     else:
@@ -4130,7 +4142,6 @@ def main():
     globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
     # get monitor resolution
     monitor = screeninfo.get_monitors()[0]
-    print(monitor)
     WindowSize = (1920, 1600)
     Monitor_Scale = 1
     if monitor.width >= 3840:
@@ -4162,6 +4173,7 @@ def main():
         "TEA_REVIEW_CATEGORIES_PATH": f"ratea-data/tea_review_categories.yml",
         "CSV_OUTPUT_TEA_PATH": f"ratea-data/tea_stash.csv",
         "CSV_OUTPUT_REVIEW_PATH": f"ratea-data/tea_review.csv",
+        "FALLBACK_DEFAULT_PATH": f"defaults",
         "USERNAME": "John Puerh",
         "DIRECTORY": "ratea-data",
         "DATE_FORMAT": "%Y-%m-%d",
@@ -4177,7 +4189,6 @@ def main():
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
         "DEFAULT_FONT": "OpenSansRegular",
     }
-    numSettings = len(default_settings)
     global settings
     settings = default_settings
     global session
@@ -4188,85 +4199,24 @@ def main():
     global TeaStash
     global TeaCategories
     TeaCategories = []
-    category = TeaCategory("Name", "string")
-    category.defaultValue = "Tea Name"
-    TeaCategories.append(category)
-    category = TeaCategory("Type", "string")
-    category.defaultValue = "Type"
-    TeaCategories.append(category)
-    category = TeaCategory("Year", "int")
-    category.defaultValue = 2000
-    TeaCategories.append(category)
-    category = TeaCategory("Remaining", "float")
-    category.defaultValue = 0.0
-    TeaCategories.append(category)
 
 
     global TeaReviewCategories
     TeaReviewCategories = []
-    TeaReviewCategory = ReviewCategory("Name", "string")
-    TeaReviewCategory.defaultValue = "Tea Name"
-    TeaReviewCategories.append(TeaReviewCategory)
-    TeaReviewCategory = ReviewCategory("Date", "string")
-    TeaReviewCategory.defaultValue = "Date"
-    TeaReviewCategories.append(TeaReviewCategory)
-    TeaReviewCategory = ReviewCategory("Rating", "int")
-    TeaReviewCategory.defaultValue = 0
-    TeaReviewCategories.append(TeaReviewCategory)
-    TeaReviewCategory = ReviewCategory("Notes", "string")
-    TeaReviewCategory.defaultValue = "Notes"
-    TeaReviewCategories.append(TeaReviewCategory)
 
 
-    '''
 
-    settingsPath = f"{baseDir}/{default_settings['SETTINGS_FILENAME']}"
-    session["settingsPath"] = settingsPath
-    hasSettingsFile = os.path.exists(settingsPath)
-    if hasSettingsFile and not DEBUG_ALWAYSNEWJSON:
-        RichPrintSuccess(f"Found {default_settings["SETTINGS_FILENAME"]} at full path {settingsPath}")
-        # Load the settings from json
-        settings = ReadYaml(settingsPath)
-        if len(settings) != numSettings:
-            RichPrintError(f"Settings file {default_settings["SETTINGS_FILENAME"]} has {len(settings)} settings, expected {numSettings}")
-            settings = default_settings
+    mainfilesExist, backupFilesExist = hasLoadableFiles()
+    if mainfilesExist and not DEBUG_ALWAYSNEWJSON:
+        RichPrintSuccess("Main files found, loading main files")
+        LoadAll()  # Load all data including settings, teas, categories, reviews, etc
+    elif backupFilesExist and not DEBUG_ALWAYSNEWJSON:
+        RichPrintError("Main files not found, loading backup files")
+        LoadAll(settings["BACKUP_PATH"])  # Load all data including settings, teas, categories, reviews, etc
     else:
-        RichPrintError(f"Could not find {default_settings["SETTINGS_FILENAME"]} at full path {settingsPath}")
-        # Create the settings file and write the default settings
-        WriteYaml(settingsPath, default_settings)
-    for key, value in settings.items():
-        print(f"Setting {key} is {value}")'
-    
+        RichPrintError("No files found. Please copy the files to the correct directory. Exiting.")
+        exit(1)
 
-    
-
-
-    
-    categoriesPath = f"{baseDir}/{settings["TEA_CATEGORIES_PATH"]}"
-    hasCategoriesFile = os.path.exists(categoriesPath)
-    if hasCategoriesFile and not DEBUG_ALWAYSNEWJSON:
-        RichPrintSuccess(f"Found tea_categories.yml at full path {categoriesPath}")
-        # Load the settings from json
-        TeaCategories = loadTeaCategories(categoriesPath)
-    else:
-        RichPrintError(f"Could not find tea_categories.yml at full path {categoriesPath}")
-        # Create the settings file and write the default settings
-        saveTeaCategories(TeaCategories, categoriesPath)
-
-    teaReviewCategoriesPath = f"{baseDir}/{settings["TEA_REVIEW_CATEGORIES_PATH"]}"
-    hasTeaReviewCategoriesFile = os.path.exists(teaReviewCategoriesPath)
-    if hasTeaReviewCategoriesFile and not DEBUG_ALWAYSNEWJSON:
-        RichPrintSuccess(f"Found tea_review_categories.yml at full path {teaReviewCategoriesPath}")
-        # Load the settings from json
-        TeaReviewCategories = loadTeaReviewCategories(teaReviewCategoriesPath)
-    else:
-        RichPrintError(f"Could not find tea_review_categories.yml at full path {teaReviewCategoriesPath}")
-        # Create the settings file and write the default settings
-        saveTeaReviewCategories(TeaReviewCategories, teaReviewCategoriesPath)
-
-    '''
-
-    LoadAll()  # Load all data including settings, teas, categories, reviews, etc
 
 
 
