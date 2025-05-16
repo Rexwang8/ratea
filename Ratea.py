@@ -2129,6 +2129,7 @@ class Window_Stash(WindowBase):
                 # Copy Values to string (json) for the edit window, use function
                 dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
                 dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
+                dp.Button(label="Delete Tea", callback=self.DeleteTea, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
     
         #self.resizeWidthToTable(self.teasWindow)
