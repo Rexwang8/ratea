@@ -125,6 +125,16 @@ def timezoneToOffset(timezone, daylightSaving=False):
     return offset
 
 
+# Function yields the name of the current font and size
+def getFontName(size=1):
+    # Get the current font name and size
+    fontName = settings["DEFAULT_FONT"]
+    if size == 1:
+        return fontName
+    else:
+        return f"{fontName}{size}"
+
+
 def parseDTToStringWithFallback(stringOrDT, fallbackString):
     output = None
     try:
@@ -2475,6 +2485,20 @@ class Window_Notepad(WindowBase):
         self.dpgWindow.height = self.height
 
 
+
+# Stats functions
+
+def statsNumTeas():
+    # Get the number of teas in the stash
+    numTeas = len(TeaStash)
+    return numTeas
+def statsNumReviews():
+    # Get the number of reviews in the stash
+    numReviews = 0
+    for tea in TeaStash:
+        numReviews += len(tea.reviews)
+    return numReviews
+
 def Menu_Stats():
     w = 480 * settings["UI_SCALE"]
     h = 720 * settings["UI_SCALE"]
@@ -2484,17 +2508,14 @@ class Window_Stats(WindowBase):
     def windowDefintion(self, window):
         with window:
             dp.Text("Stats")
-            dp.Text("Stats go here")
 
             # Divider
             dp.Separator()
             # Tea Stats
             dp.Text("Tea Stats")
-            numTeas = len(TeaStash)
+            numTeas = statsNumTeas()
             dp.Text(f"Number of Teas: {numTeas}")
-            numReviews = 0
-            for tea in TeaStash:
-                numReviews += len(tea.reviews)
+            numReviews = statsNumReviews()
             dp.Text(f"Number of Reviews: {numReviews}")
             dp.Separator()
 
@@ -3431,7 +3452,7 @@ class Window_Summary(WindowBase):
 
 def Menu_Welcome(sender, app_data, user_data):
     w = 640 * settings["UI_SCALE"]
-    h = 140 * settings["UI_SCALE"]
+    h = 200 * settings["UI_SCALE"]
     welcome = Window_Welcome("Welcome", w, h, exclusive=True)
 class Window_Welcome(WindowBase):
     def windowDefintion(self, window):
@@ -3447,11 +3468,20 @@ class Window_Welcome(WindowBase):
 
         with window:
             dp.Text(f"Welcome {settings['USERNAME']}!")
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
+            numTeas = statsNumTeas()
+            numReviews = statsNumReviews()
+            
+            
+            
+            dp.Text(f"You have {numTeas} teas and {numReviews} reviews in your stash.")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text(f"This is a simple tea stash manager (V{settings["APP_VERSION"]}) to keep track of your teas and reviews.")
             dp.Text("This is a In-Progress demo, so expect bugs and missing features. - Rex")
             dp.Text("Head over to the settings then to the categories window to get started, "
             "\nOnce you have added some teas, you can add reviews to them and view your stats!")
             dp.Separator()
+            
             dp.Button(label="OK", callback=window.delete)
 
 
@@ -4355,13 +4385,24 @@ def main():
     # Load fonts
     with dpg.font_registry():
         dpg.add_font("assets/fonts/Roboto-Regular.ttf", 16, tag="RobotoRegular")
+        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 20, tag="RobotoRegular2")
+        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 24, tag="RobotoRegular3")
+
         dpg.add_font("assets/fonts/Roboto-Bold.ttf", 16, tag="RobotoBold")
+        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 20, tag="RobotoBold2")
+        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 24, tag="RobotoBold3")
         # Merriweather 24pt regular
         dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 16, tag="MerriweatherRegular")
+        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 20, tag="MerriweatherRegular2")
+        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 24, tag="MerriweatherRegular3")
         # Montserrat-regular
         dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 16, tag="MontserratRegular")
+        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 20, tag="MontserratRegular2")
+        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 24, tag="MontserratRegular3")
         # Opensans regular
         dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 18, tag="OpenSansRegular")
+        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 20, tag="OpenSansRegular2")
+        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 24, tag="OpenSansRegular3")
 
         # Test
         if settings["DEFAULT_FONT"] in session["validFonts"]:
