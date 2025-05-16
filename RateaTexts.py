@@ -94,7 +94,7 @@ ListTextCategory["isDropdown"] = Text("If this category is a valid target for dr
 
 ListTextCategory["isAutoCalculated"] = Text("If an autocalculation is avaliable, it will be used as the default value for this category. If not, the user will have to enter a value manually.")
 
-ListTextCategory["isRequiredTea"] = Text("If this category is required to be filled out for tea specifically. If not, it will be optional. This is a validation step for better information.")
+ListTextCategory["isRequiredForTea"] = Text("If this category is required to be filled out for tea specifically. If not, it will be optional. This is a validation step for better information.")
 
 ListTextCategory["isRequiredForAll"] = Text("If this category is required to be filled out for entries, including shipping, and teaware. Supercedes isRequiredForTea. if not, it will be optional. This is a validation step for better information.")
 

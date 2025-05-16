@@ -51,7 +51,9 @@ TODO: Summary: User preference visualization for types of tea, amount of tea, et
 TODO: File: Import from CSV: Add in functionality to import from CSV
 TODO: 2d array of stats by divisor (vendor, type, etc.)
 TODO: Optional Override of autocalculated fields
-TODO: Adjustments of quantities
+TODO: Adjustments of quantities including sells and purchases and 'Done' status
+TODO: Highlight when '0' flags are set
+TODO: Highlight color customization
 
 
 ---Done---
@@ -1425,7 +1427,12 @@ class Window_Stash_Reviews(WindowBase):
             for cat in TeaReviewCategories:
                 cat: ReviewCategory
                 # Add it to the window
-                dp.Text(cat.name)
+                catName = cat.name
+                if cat.isAutoCalculated:
+                    catName += f" (Auto)"
+                if cat.isRequiredForTea:
+                    catName += f" [required]"
+                dp.Text(catName)
                 defaultValue = None
 
                 try:
@@ -2042,7 +2049,12 @@ class Window_Stash(WindowBase):
             for cat in TeaCategories:
                 cat: TeaCategory
                 # Add it to the window
-                dp.Text(cat.name)
+                catName = cat.name
+                if cat.isAutoCalculated:
+                    catName += f" (Auto)"
+                if cat.isRequiredForTea:
+                    catName += f" [required]"
+                dp.Text(catName)
                 defaultValue = None
                 try:
                     defaultValue = teasData.attributes[cat.categoryRole]
@@ -2834,10 +2846,10 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
                 dp.Text(toolTipTxt)
 
-            isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
-            addCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+            isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
+            addCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredTea"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].strWithWrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
@@ -2937,10 +2949,10 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
                 dp.Text(toolTipTxt)
 
-            isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
-            addReviewCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+            isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
+            addReviewCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredTea"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].strWithWrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
@@ -2997,7 +3009,7 @@ class Window_EditCategories(WindowBase):
 
         ## Add flags
         newCategory.isRequiredForAll = allAttributes["isRequiredForAll"]
-        newCategory.isRequiredForTea = allAttributes["isRequiredTea"]
+        newCategory.isRequiredForTea = allAttributes["isRequiredForTea"]
         newCategory.isDropdown = allAttributes["isDropdown"]
         newCategory.isAutoCalculated = allAttributes["isAutoCalculated"]
 
@@ -3084,10 +3096,10 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
                 dp.Text(toolTipTxt)
 
-            isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
-            editCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+            isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
+            editCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredTea"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].strWithWrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
@@ -3172,10 +3184,11 @@ class Window_EditCategories(WindowBase):
 
         # Flags
         category.isRequiredForAll = allAttributes["isRequiredForAll"].get_value()
-        category.isRequiredTea = allAttributes["isRequiredTea"].get_value()
+        category.isRequiredForTea = allAttributes["isRequiredForTea"].get_value()
         category.isDropdown = allAttributes["isDropdown"].get_value()
         isAutoCalculated = allAttributes["isAutoCalculated"].get_value()
         category.isAutoCalculated = isAutoCalculated
+        print(f"{category.__dict__}")
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
         # close the popup
@@ -3254,10 +3267,10 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
                 dp.Text(toolTipTxt)
 
-            isRequiredTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
-            editReviewCategoryWindowItems["isRequiredTea"] = isRequiredTeaItem
+            isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
+            editReviewCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredTea"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].strWithWrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
@@ -3308,7 +3321,7 @@ class Window_EditCategories(WindowBase):
 
         # Flags
         category.isRequiredForAll = allAttributes["isRequiredForAll"].get_value()
-        category.isRequiredTea = allAttributes["isRequiredTea"].get_value()
+        category.isRequiredForTea = allAttributes["isRequiredForTea"].get_value()
         category.isDropdown = allAttributes["isDropdown"].get_value()
         category.isAutoCalculated = allAttributes["isAutoCalculated"].get_value()
 
@@ -3370,7 +3383,7 @@ class Window_EditCategories(WindowBase):
 
         # Add in flags
         newCategory.isRequiredForAll = allAttributes["isRequiredForAll"]
-        newCategory.isRequiredForTea = allAttributes["isRequiredTea"]
+        newCategory.isRequiredForTea = allAttributes["isRequiredForTea"]
         newCategory.isAutoCalculated = allAttributes["isAutoCalculated"]
         newCategory.isDropdown = allAttributes["isDropdown"]
 
