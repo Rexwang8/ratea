@@ -28,7 +28,8 @@ TODO: Validation: Validate that name and other important fields are not empty
 TODO: Features: Fill out or remove review tabs
 TODO: Menus: Update settings menu with new settings
 TODO: Category: Correction for amount of tea, and amount of tea consumed/marker for finished tea
-
+TODO: Files: Persistant windows in settings
+TODO: Adjustment window for tea.
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -3591,6 +3592,20 @@ class Manager_Windows:
         for key, value in self.windows.items():
             print(f"Window: {key}, {value}")
 
+    def exportPersistantWindowWrapper(self, sender, app_data, user_data):
+        # default to path defined in settings, error otherwise
+        filePath = settings["PERSISTANT_WINDOWS_PATH"]
+        if not os.path.exists(filePath):
+            RichPrintWarning(f"Path {filePath} does not exist, please create it")
+            os.makedirs(filePath, exist_ok=True)
+            RichPrintSuccess(f"Path {filePath} created")
+        if not os.path.isfile(filePath):
+            RichPrintWarning(f"Path {filePath} is not a file, please create it")
+            return
+        
+        self.exportPersistantWindows(filePath)
+        RichPrintSuccess(f"Exported all windows to {filePath}")
+
     def exportPersistantWindows(self, filePath):
         # Export all windows to a file
         allData = []
@@ -3601,8 +3616,20 @@ class Manager_Windows:
                 allData.append({title: yml})
 
         WriteYaml(filePath, allData)
-        print(allData)
         return allData
+    
+    def importPersistantWindowWrapper(self, sender, app_data, user_data):
+        # default to path defined in settings, error otherwise
+        filePath = settings["PERSISTANT_WINDOWS_PATH"]
+        if not os.path.exists(filePath):
+            RichPrintError(f"Path {filePath} does not exist, please create it")
+            return
+        if not os.path.isfile(filePath):
+            RichPrintError(f"Path {filePath} is not a file, please create it")
+            return
+        
+        self.importPersistantWindows(filePath)
+        RichPrintSuccess(f"Imported all windows from {filePath}")
     
     def importPersistantWindows(self, filePath):
         # Import all windows from a file
@@ -3988,7 +4015,6 @@ def LoadAll(baseDir=None):
     # Renumber the teas and reviews if needed
     renumberTeasAndReviews()  # Ensure all teas and reviews have unique IDs after loading
 
-    #windowManager.importPersistantWindows(settings["PERSISTANT_WINDOWS_PATH"])
     print(f"Loaded settings from {session['settingsPath']}")
     
     print(f"Loaded {len(TeaStash)} teas and {len(TeaCategories)} categories")
@@ -4257,6 +4283,8 @@ def UI_CreateViewPort_MenuBar():
             dp.MenuItem(label="Timer", callback=Menu_Timer)
             dp.MenuItem(label="Notepad", callback=Menu_Notepad)
             dp.Button(label="Export Stash to CSV", callback=teaStashToCSV)
+            dp.Button(label="Import Persistant Windows", callback=windowManager.importPersistantWindowWrapper)
+            dp.Button(label="Export Persistant Windows", callback=windowManager.exportPersistantWindowWrapper)
         with dp.Menu(label="Visualize"):
             dp.MenuItem(label="Graph 1(TODO)", callback=print_me)
             dp.MenuItem(label="Graph 2(TODO)", callback=print_me)
