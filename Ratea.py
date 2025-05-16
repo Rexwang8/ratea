@@ -49,8 +49,9 @@ TODO: Visualizeation: Pie chart for consumption of amount and types of tea, spli
 TODO: Visualization: Solid fill line graph for consumption of types of tea over years
 TODO: Summary: User preference visualization for types of tea, amount of tea, etc.
 TODO: File: Import from CSV: Add in functionality to import from CSV
-
-
+TODO: 2d array of stats by divisor (vendor, type, etc.)
+TODO: Optional Override of autocalculated fields
+TODO: Adjustments of quantities
 
 
 ---Done---
@@ -696,8 +697,21 @@ def _table_sort_callback(sender, sortSpec):
     # Define sort key
     def sort_key(item):
         return item[1]
-    sortableItems.sort(key=sort_key, reverse=not ascending)
-    sorted_rows = [item[0] for item in sortableItems]
+    unsortableItems = []
+    cleanSortableItems = []
+    # Remove N/A from the list
+    if len(sortableItems) > 1:
+        for i, item in enumerate(sortableItems):
+            if item[1] == "N/A":
+                unsortableItems.append(item)
+            else:
+                cleanSortableItems.append(item)
+    cleanSortableItems.sort(key=sort_key, reverse=not ascending)
+    RichPrintInfo(f"Found {len(cleanSortableItems)} sortable items and {len(unsortableItems)} unsortable items")
+    # Re-add the unsortable items to the end of the list
+    for item in unsortableItems:
+        cleanSortableItems.append(item)
+    sorted_rows = [item[0] for item in cleanSortableItems]
     # Reorder rows
     dpg.reorder_items(sender, 1, sorted_rows)
     RichPrintSuccess(f"Sorted table by column {column_index} in {'ascending' if ascending else 'descending'} order")
@@ -1496,13 +1510,13 @@ class Window_Stash_Reviews(WindowBase):
 
         # Validate name
         parentTea = None
-        for i, tea in enumerate(TeaStash):
-            print(tea.id, review.parentID)
-            if tea.id == review.parentID:
-                parentTea = tea
-                print("Found parent tea")
-                print(parentTea.name)
-                break
+        if review is not None and review.parentID is not None:
+            for i, tea in enumerate(TeaStash):
+                if tea.id == review.parentID:
+                    parentTea = tea
+                    print("Found parent tea")
+                    print(parentTea.name)
+                    break
         if review is not None:
             if review.name == "" or review.name is None:
                 # Review name can be empty but it should instead be set to the tea name
