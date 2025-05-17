@@ -655,7 +655,7 @@ def setValidTypes():
     
     session["validroleCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
                                 "int": ["UNUSED","Year"],
-                                "float": ["UNUSED", "Total Score", "Amount", "Remaining"],
+                                "float": ["UNUSED", "Total Score", "Amount", "Remaining", "Cost", "Cost per Gram"],
                                 "bool": ["UNUSED", "bool"],
                                 "date": ["UNUSED", "date"],
                                 "datetime": ["UNUSED", "date"]}
@@ -1724,7 +1724,7 @@ class Window_Stash_Reviews(WindowBase):
                 # Tooltip
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    tooltipText = RateaTexts.ListTextHelpMenu["menuTeaReviews"].strWithWrap()
+                    tooltipText = RateaTexts.ListTextHelpMenu["menuTeaReviews"].wrap()
                     dp.Text(tooltipText)
                 # Add a button to open the reviews window
                 # Add review popup
@@ -1901,7 +1901,7 @@ class Window_Stash(WindowBase):
                 # Tooltip for the buttons
                 dp.Button(label="?")
                 with dp.Tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextHelpMenu["menuTeaStash"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextHelpMenu["menuTeaStash"].wrap()
                     dp.Text(toolTipText)
 
             dp.Separator()
@@ -2891,7 +2891,7 @@ class Window_EditCategories(WindowBase):
                 dp.Text("Category Type")
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].wrap()
                     dp.Text(toolTipText)
 
             catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5, callback=self.updateTypeDuringEdit)
@@ -2904,7 +2904,7 @@ class Window_EditCategories(WindowBase):
                 dp.Separator()
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].wrap()
                     dp.Text(toolTipText)
 
             # Add hide used categories option
@@ -2932,25 +2932,25 @@ class Window_EditCategories(WindowBase):
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
             addCategoryWindowItems["isRequiredForAll"] = isRequiredItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].wrap()
                 dp.Text(toolTipTxt)
 
             isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
             addCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].wrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
             addCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].wrap()
                 dp.Text(toolTipTxt)
 
             isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
             addCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
                 dp.Text(toolTipTxt)
 
                 
@@ -2995,7 +2995,7 @@ class Window_EditCategories(WindowBase):
                 dp.Text("Category Type")
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].wrap()
                     dp.Text(toolTipText)
 
             catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5, callback=self.updateTypeDuringEditReview)
@@ -3008,7 +3008,7 @@ class Window_EditCategories(WindowBase):
                 dp.Separator()
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].wrap()
                     dp.Text(toolTipText)
 
             # Add hide used categories option
@@ -3035,25 +3035,25 @@ class Window_EditCategories(WindowBase):
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
             addReviewCategoryWindowItems["isRequiredForAll"] = isRequiredItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].wrap()
                 dp.Text(toolTipTxt)
 
             isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
             addReviewCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].wrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
             addReviewCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].wrap()
                 dp.Text(toolTipTxt)
 
             isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
             addReviewCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
                 dp.Text(toolTipTxt)
                 
             
@@ -3133,7 +3133,7 @@ class Window_EditCategories(WindowBase):
                 dp.Text("Category Type")
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].wrap()
                     dp.Text(toolTipText)
 
             catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, label="Type", callback=self.updateTypeDuringEdit, num_items=5)
@@ -3150,7 +3150,7 @@ class Window_EditCategories(WindowBase):
                 dp.Separator()
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].wrap()
                     dp.Text(toolTipText)
 
             # Add hide used categories option
@@ -3182,25 +3182,25 @@ class Window_EditCategories(WindowBase):
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
             editCategoryWindowItems["isRequiredForAll"] = isRequiredItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].wrap()
                 dp.Text(toolTipTxt)
 
             isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
             editCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].wrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
             editCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].wrap()
                 dp.Text(toolTipTxt)
 
             isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
             editCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
                 dp.Text(toolTipTxt)
 
 
@@ -3305,7 +3305,7 @@ class Window_EditCategories(WindowBase):
                 dp.Text("Category Type")
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextCategory["CategoryType"].wrap()
                     dp.Text(toolTipText)
 
             catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, label="Type", num_items=5, callback=self.updateTypeDuringEditReview)
@@ -3320,7 +3320,7 @@ class Window_EditCategories(WindowBase):
                 dp.Separator()
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].strWithWrap()
+                    toolTipText = RateaTexts.ListTextCategory["CategoryRole"].wrap()
                     dp.Text(toolTipText)
             # Add hide used categories option
             with dp.Group(horizontal=True):
@@ -3353,25 +3353,25 @@ class Window_EditCategories(WindowBase):
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
             editReviewCategoryWindowItems["isRequiredForAll"] = isRequiredItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].wrap()
                 dp.Text(toolTipTxt)
 
             isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
             editReviewCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].wrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
             editReviewCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].wrap()
                 dp.Text(toolTipTxt)
 
             isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
             editReviewCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
-                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].strWithWrap()
+                toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
                 dp.Text(toolTipTxt)
 
             dp.Separator()
@@ -3462,6 +3462,11 @@ class Window_EditCategories(WindowBase):
             defaultValue = ""
 
         # Create a new category
+        name = allAttributes["Name"]
+        if name == None or name == "":
+            RichPrintWarning(f"Category name is empty, defaulting to role")
+            name = allAttributes["role"]
+            
         newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"])
         newCategory.defaultValue = defaultValue
 
