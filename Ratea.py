@@ -895,6 +895,12 @@ class TeaCategory:
     # Show as dropdown?
     isDropdown = False
 
+    # Prefix, rounding
+    prefix = ""
+    suffix = ""
+    rounding = 2
+    dropdownMaxLength = 5
+
 
     def __init__(self, name, categoryType):
         self.name = name
@@ -1002,6 +1008,12 @@ class ReviewCategory:
 
     # Show as dropdown?
     isDropdown = False
+
+    # Prefix, rounding
+    prefix = ""
+    suffix = ""
+    rounding = 2
+    dropdownMaxLength = 5
 
     def __init__(self, name, categoryType):
         self.name = name
@@ -1508,7 +1520,7 @@ class Window_Stash_Reviews(WindowBase):
                     defaultValue = f"{cat.defaultValue}"
 
                 # Get the past answers for the category for dropdowns
-                pastAnswers, pastAnswersList = searchPreviousAnswers(cat.categoryRole, data="Review", topX=5)
+                pastAnswers, pastAnswersList = searchPreviousAnswers(cat.categoryRole, data="Review", topX=cat.dropdownMaxLength)
                 shouldShowDropdown = True if len(pastAnswers) > 0 and cat.isDropdown else False
                 pastAnswersTextList = [f"({x[1]}) - ({x[0]})" for x in pastAnswers]
 
@@ -1816,7 +1828,7 @@ class Window_Stash_Reviews(WindowBase):
 
                         cat: TeaCategory
                         for j, cat in enumerate(TeaReviewCategories):
-                            cellInvalidEmpty = False
+                            cellInvalidOrEmpty = False
                             # Convert attribbutes to json
                             displayValue = "N/A"
                             if cat.name == "Name":
@@ -1830,16 +1842,16 @@ class Window_Stash_Reviews(WindowBase):
                                     except json.JSONDecodeError:
                                         # If there's an error in decoding, set to N/A
                                         displayValue = "Err (JSON Decode Error)"
-                                        cellInvalidEmpty = True
+                                        cellInvalidOrEmpty = True
                                     except KeyError:
                                         # If the key doesn't exist, set to N/A
                                         displayValue = "N/A"
-                                        cellInvalidEmpty = True
+                                        cellInvalidOrEmpty = True
                                     except Exception as e:
                                         RichPrintError(f"Error loading attributes: {e}")
                                         # If it fails, just set to N/A
                                         displayValue = f"Err (Exception {e})"
-                                        cellInvalidEmpty = True
+                                        cellInvalidOrEmpty = True
                                 else:
                                     if cat.categoryRole in review.attributes:
                                         displayValue = review.attributes[cat.categoryRole]
@@ -1847,9 +1859,15 @@ class Window_Stash_Reviews(WindowBase):
                             # If the value is None or empty, set to N/A
                             if displayValue == None or displayValue == "" or displayValue == "N/A":
                                 displayValue = "N/A"
-                                cellInvalidEmpty = True
+                                cellInvalidOrEmpty = True
 
-                            if cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int":
+                            if not cellInvalidOrEmpty and (cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int"):
+                                # Rounding
+                                if type(displayValue) == float:
+                                    displayValue = round(displayValue, cat.rounding)
+                                # Prefix, suffix
+                                displayValue = cat.prefix + str(displayValue) + cat.suffix
+
                                 dp.Text(label=displayValue, default_value=displayValue)
                             elif cat.categoryType == "bool":
                                 if displayValue == "True" or displayValue == True:
@@ -1862,7 +1880,7 @@ class Window_Stash_Reviews(WindowBase):
                                 displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
                                 displayValue = parseDTToStringWithFallback(displayValue, "None")
                                 if displayValue == "None":
-                                    cellInvalidEmpty = True
+                                    cellInvalidOrEmpty = True
                                 # If supported, display as date
                                 dp.Text(label=displayValue, default_value=displayValue)
                             else:
@@ -1870,7 +1888,7 @@ class Window_Stash_Reviews(WindowBase):
                                 displayValue = str(displayValue)
                                 dp.Text(label=displayValue, default_value=displayValue)
                             
-                            if cellInvalidEmpty:
+                            if cellInvalidOrEmpty:
                                 # If the cell is invalid or empty, set the background color to red
                                 dpg.highlight_table_cell(reviewsTable, i, j+1, COLOR_INVALID_EMPTY_TABLE_CELL)
                         
@@ -2017,7 +2035,12 @@ class Window_Stash(WindowBase):
                                     usingAutocalculatedValue = True
                                     cellInvalidOrEmpty = False
 
-                            if cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int":
+                            if not cellInvalidOrEmpty and (cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int"):
+                                # Rounding
+                                if type(displayValue) == float:
+                                    displayValue = round(displayValue, cat.rounding)
+                                # Prefix, suffix
+                                displayValue = cat.prefix + str(displayValue) + cat.suffix
                                 dp.Text(label=displayValue, default_value=displayValue)
                                 
                             elif cat.categoryType == "bool":
@@ -2137,7 +2160,7 @@ class Window_Stash(WindowBase):
                 # If the category is a string, int, float, or bool, add the appropriate input type
                 catItem = None
                 # Get past values for dropdown
-                pastAnswers, pastAnswersList = searchPreviousAnswers(cat.categoryRole, "Tea", 5)
+                pastAnswers, pastAnswersList = searchPreviousAnswers(cat.categoryRole, "Tea", cat.dropdownMaxLength)
                 shouldShowDropdown = True if len(pastAnswers) > 0 and cat.isDropdown else False
                 pastAnswersTextList = [f"({x[1]}) - ({x[0]})" for x in pastAnswers]
 
@@ -2995,6 +3018,25 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
                 dp.Text(toolTipTxt)
 
+            dp.Separator()
+
+            # Prefix, rounding, etc
+            dp.Text("Additional Options")
+            dp.Text("Rounding")
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=0, min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt.set_value(category.rounding)
+            addCategoryWindowItems["rounding"] = roundingAmtSliderInt
+            dp.Text("Prefix")
+            prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
+            addCategoryWindowItems["prefix"] = prefixItem
+            dp.Text("Suffix")
+            suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
+            addCategoryWindowItems["suffix"] = suffixItem
+            dp.Text("Dropdown - Max Items")
+            maxItemsItem = dp.InputText(label="Max Items", default_value=category.dropdownMaxLength)
+            addCategoryWindowItems["maxItems"] = maxItemsItem
+
+
                 
             
             dp.Separator()
@@ -3098,8 +3140,26 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
                 dp.Text(toolTipTxt)
                 
+            dp.Separator()
+
+            # Prefix, rounding, etc
+            dp.Text("Additional Options")
+            dp.Text("Rounding")
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=0, min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt.set_value(category.rounding)
+            addReviewCategoryWindowItems["rounding"] = roundingAmtSliderInt
+            dp.Text("Prefix")
+            prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
+            addReviewCategoryWindowItems["prefix"] = prefixItem
+            dp.Text("Suffix")
+            suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
+            addReviewCategoryWindowItems["suffix"] = suffixItem
+            dp.Text("Dropdown - Max Items")
+            maxItemsItem = dp.InputText(label="Max Items", default_value=category.dropdownMaxLength)
+            addReviewCategoryWindowItems["maxItems"] = maxItemsItem
             
             dp.Separator()
+
 
             addReviewCategoryWindowItems["Type"].user_data = (addReviewCategoryWindowItems["Type"], roleItem)
                     
@@ -3143,6 +3203,12 @@ class Window_EditCategories(WindowBase):
         newCategory.isRequiredForTea = allAttributes["isRequiredForTea"]
         newCategory.isDropdown = allAttributes["isDropdown"]
         newCategory.isAutoCalculated = allAttributes["isAutoCalculated"]
+
+        # Add additional options
+        newCategory.rounding = allAttributes["rounding"]
+        newCategory.prefix = allAttributes["prefix"]
+        newCategory.suffix = allAttributes["suffix"]
+        newCategory.dropdownMaxLength = allAttributes["maxItems"]
 
         
         TeaReviewCategories.append(newCategory)
@@ -3207,7 +3273,6 @@ class Window_EditCategories(WindowBase):
                 if cat.categoryType == typeCategory and cat.categoryRole != category.categoryRole:
                     alreadyUsedItems.append(cat.categoryRole)
             if self.hideUsedCategoriesBool:
-                print(f"hiding? {self.hideUsedCategoriesBool}")
                 items = [item for item in items if item not in alreadyUsedItems]
             if category.categoryRole not in items:
                 items.append(category.categoryRole)
@@ -3244,6 +3309,24 @@ class Window_EditCategories(WindowBase):
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
                 dp.Text(toolTipTxt)
+
+            dp.Separator()
+
+            # Prefix, rounding, etc
+            dp.Text("Additional Options")
+            dp.Text("Rounding")
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=0, min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt.set_value(category.rounding)
+            editCategoryWindowItems["rounding"] = roundingAmtSliderInt
+            dp.Text("Prefix")
+            prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
+            editCategoryWindowItems["prefix"] = prefixItem
+            dp.Text("Suffix")
+            suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
+            editCategoryWindowItems["suffix"] = suffixItem
+            dp.Text("Dropdown - Max Items")
+            maxItemsItem = dp.InputText(label="Max Items", default_value=category.dropdownMaxLength)
+            editCategoryWindowItems["maxItems"] = maxItemsItem
 
 
             dp.Separator()
@@ -3319,6 +3402,12 @@ class Window_EditCategories(WindowBase):
         category.isDropdown = allAttributes["isDropdown"].get_value()
         isAutoCalculated = allAttributes["isAutoCalculated"].get_value()
         category.isAutoCalculated = isAutoCalculated
+
+        # Additional options
+        category.rounding = allAttributes["rounding"].get_value()
+        category.prefix = allAttributes["prefix"].get_value()
+        category.suffix = allAttributes["suffix"].get_value()
+        category.dropdownMaxLength = allAttributes["maxItems"].get_value()
         print(f"{category.__dict__}")
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
@@ -3418,6 +3507,24 @@ class Window_EditCategories(WindowBase):
 
             dp.Separator()
 
+            # Prefix, rounding, etc
+            dp.Text("Additional Options")
+            dp.Text("Rounding")
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=0, min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt.set_value(category.rounding)
+            editReviewCategoryWindowItems["rounding"] = roundingAmtSliderInt
+            dp.Text("Prefix")
+            prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
+            editReviewCategoryWindowItems["prefix"] = prefixItem
+            dp.Text("Suffix")
+            suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
+            editReviewCategoryWindowItems["suffix"] = suffixItem
+            dp.Text("Dropdown - Max Items")
+            maxItemsItem = dp.InputText(label="Max Items", default_value=category.dropdownMaxLength)
+            editReviewCategoryWindowItems["maxItems"] = maxItemsItem
+
+            dp.Separator()
+
             editReviewCategoryWindowItems["Type"].user_data = (editReviewCategoryWindowItems["Type"], roleItem)
 
             with dp.Group(horizontal=True):
@@ -3456,7 +3563,14 @@ class Window_EditCategories(WindowBase):
         category.isDropdown = allAttributes["isDropdown"].get_value()
         category.isAutoCalculated = allAttributes["isAutoCalculated"].get_value()
 
+        # Additional options
+        category.rounding = allAttributes["rounding"].get_value()
+        category.prefix = allAttributes["prefix"].get_value()
+        category.suffix = allAttributes["suffix"].get_value()
+        category.dropdownMaxLength = allAttributes["maxItems"].get_value()
 
+
+        RichPrintInfo(f"Editing review category: {category.name} ({category.categoryType}, Flags: {category.isRequiredForAll}, {category.isRequiredForTea}, {category.isAutoCalculated}, {category.isDropdown})")
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
         # close the popup
         self.refresh()
@@ -3522,6 +3636,12 @@ class Window_EditCategories(WindowBase):
         newCategory.isRequiredForTea = allAttributes["isRequiredForTea"]
         newCategory.isAutoCalculated = allAttributes["isAutoCalculated"]
         newCategory.isDropdown = allAttributes["isDropdown"]
+
+        # Additional options
+        newCategory.rounding = allAttributes["rounding"].get_value()
+        newCategory.prefix = allAttributes["prefix"].get_value()
+        newCategory.suffix = allAttributes["suffix"].get_value()
+        newCategory.dropdownMaxLength = allAttributes["maxItems"].get_value()
 
         # Log
         RichPrintInfo(f"Adding category: {newCategory.name} ({newCategory.categoryType}, Flags: {newCategory.isRequiredForAll}, {newCategory.isRequiredForTea}, {newCategory.isAutoCalculated}, {newCategory.isDropdown})")
@@ -3912,6 +4032,10 @@ def saveTeaCategories(categories, path):
             "isRequiredForTea": category.isRequiredForTea,
             "isRequiredForAll": category.isRequiredForAll,
             "isDropdown": category.isDropdown,
+            "rounding": category.rounding,
+            "prefix": category.prefix,
+            "suffix": category.suffix,
+            "maxItems": category.dropdownMaxLength
         }
         allData.append(categoryData)
 
@@ -3956,6 +4080,23 @@ def loadTeaCategories(path):
 
         if "isAutoCalculated" in categoryData:
             category.isAutoCalculated = categoryData["isAutoCalculated"]
+
+        # Additional options
+        if "rounding" in categoryData:
+            category.rounding = categoryData["rounding"]
+        else:
+            category.rounding = 2
+
+        if "prefix" in categoryData:
+            category.prefix = categoryData["prefix"]
+
+        if "suffix" in categoryData:
+            category.suffix = categoryData["suffix"]
+
+        if "maxItems" in categoryData:
+            category.dropdownMaxLength = categoryData["maxItems"]
+        else:
+            category.dropdownMaxLength = 5
 
     return TeaCategories
 
@@ -4034,6 +4175,10 @@ def saveTeaReviewCategories(categories, path):
             "isRequiredForTea": category.isRequiredForTea,
             "isRequiredForAll": category.isRequiredForAll,
             "isDropdown": category.isDropdown,
+            "rounding": category.rounding,
+            "prefix": category.prefix,
+            "suffix": category.suffix,
+            "maxItems": category.dropdownMaxLength
         }
         allData.append(categoryData)
 
