@@ -34,6 +34,7 @@ TODO: Adjustment window for tea.
 TODO: autoresize columns of table
 TODO: fix monitor ui sizing
 TODO: See if we can increase top bar size
+TODO: Export to google sheets readable format
 
 
 Nice To Have:
@@ -4335,7 +4336,8 @@ def teaStashToCSV(csvPath=None, csvPathReviews=None):
 #endregion
 
 def UI_CreateViewPort_MenuBar():
-    with dp.ViewportMenuBar():
+    # Bind larger default font to all menu items
+    with dp.ViewportMenuBar() as menuBar:
         with dp.Menu(label="Session"):
             dp.MenuItem(label="Log", callback=Menu_Stash)
             dp.MenuItem(label="Summary(TODO)", callback=Menu_Summary)
@@ -4379,7 +4381,41 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Print role Cat", callback=debugGetcategoryRole)
             dp.Button(label="Print role Rev Cat", callback=debugGetReviewcategoryRole)
             dp.Button(label="Renumber data", callback=renumberTeasAndReviews)
-            
+    
+
+def bindLoadFonts():
+    # Load fonts
+    with dpg.font_registry():
+        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 16, tag="RobotoRegular")
+        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 20, tag="RobotoRegular2")
+        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 24, tag="RobotoRegular3")
+
+        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 16, tag="RobotoBold")
+        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 20, tag="RobotoBold2")
+        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 24, tag="RobotoBold3")
+        # Merriweather 24pt regular
+        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 16, tag="MerriweatherRegular")
+        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 20, tag="MerriweatherRegular2")
+        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 24, tag="MerriweatherRegular3")
+        # Montserrat-regular
+        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 16, tag="MontserratRegular")
+        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 20, tag="MontserratRegular2")
+        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 24, tag="MontserratRegular3")
+        # Opensans regular
+        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 18, tag="OpenSansRegular")
+        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 20, tag="OpenSansRegular2")
+        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 24, tag="OpenSansRegular3")
+
+        
+
+        # Test
+        if settings["DEFAULT_FONT"] in session["validFonts"]:
+            RichPrintInfo(f"Font {settings["DEFAULT_FONT"]} loaded")
+            dpg.bind_font(settings["DEFAULT_FONT"])
+        else:
+            RichPrintError(f"Font {settings["DEFAULT_FONT"]} not found, defaulting to OpenSansRegular")
+            dpg.bind_font("OpenSansRegular")
+    
             
 
 def printSettings():
@@ -4406,6 +4442,7 @@ def main():
     globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
     # get monitor resolution
     monitor = screeninfo.get_monitors()[0]
+    print(f"Monitor resolution: {monitor.width}x{monitor.height}")
     WindowSize = (1920, 1600)
     Monitor_Scale = 1
     if monitor.width >= 3840:
@@ -4419,6 +4456,7 @@ def main():
     elif monitor.width < 1280:
         Monitor_Scale = 0.75
     baseDir = os.path.dirname(os.path.abspath(__file__))
+    
 
     DEBUG_ALWAYSNEWJSON = False
 
@@ -4497,41 +4535,14 @@ def main():
     if len(TeaStash) == 0:
         RichPrintError("No teas found in stash! Potentially issue with loading teas. ")
     
+    # Menu MUST be loaded before any font based calls, don't ask me why. Will Ref error if not
     UI_CreateViewPort_MenuBar()
-
+    bindLoadFonts()
 
 
     Settings_SaveCurrentSettings()
     # Set the DearPyGui theme
-    # Load fonts
-    with dpg.font_registry():
-        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 16, tag="RobotoRegular")
-        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 20, tag="RobotoRegular2")
-        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 24, tag="RobotoRegular3")
-
-        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 16, tag="RobotoBold")
-        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 20, tag="RobotoBold2")
-        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 24, tag="RobotoBold3")
-        # Merriweather 24pt regular
-        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 16, tag="MerriweatherRegular")
-        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 20, tag="MerriweatherRegular2")
-        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 24, tag="MerriweatherRegular3")
-        # Montserrat-regular
-        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 16, tag="MontserratRegular")
-        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 20, tag="MontserratRegular2")
-        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 24, tag="MontserratRegular3")
-        # Opensans regular
-        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 18, tag="OpenSansRegular")
-        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 20, tag="OpenSansRegular2")
-        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 24, tag="OpenSansRegular3")
-
-        # Test
-        if settings["DEFAULT_FONT"] in session["validFonts"]:
-            RichPrintInfo(f"Font {settings["DEFAULT_FONT"]} loaded")
-            dpg.bind_font(settings["DEFAULT_FONT"])
-        else:
-            RichPrintError(f"Font {settings["DEFAULT_FONT"]} not found, defaulting to OpenSansRegular")
-            dpg.bind_font("OpenSansRegular")
+        
         
     dpg.set_global_font_scale(settings["UI_SCALE"])
 
@@ -4544,6 +4555,7 @@ def main():
     dp.Viewport.title = "RaTea"
     dp.Viewport.width = WindowSize[0]
     dp.Viewport.height = WindowSize[1]
+
     dp.Runtime.start()
 
 
