@@ -68,7 +68,8 @@ TODO: Alternate calculation methods and a flag for that
 
 
 ---Done---
-Work(0.5.7): UI: Reorder menu bar, fix autosave stop
+Feat(0.5.7): Rounding, dropdown size, prefix, postfix
+Feat(0.5.7): Added price/gram and total score autocalcs
 Feat(0.5.7): Notepad: Wrap text in notepad, add template for notepad
 Feat(0.5.6): Validation: Add in a proper default folder for settings and data
 Feat(0.5.6): Validation: Restrict categories to only if not already in use
@@ -76,10 +77,8 @@ Feat(0.5.6): Add some metrics relating to steeps and amount of tea
 Feat(0.5.6): Code: Centralize tooltips and other large texts
 Feat(0.5.6): Stats: Basic stats for tea and reviews, like average rating, total amount of tea, etc.
 Feat(0.5.6): Files: Export To CSV
-Chore(0.5.6): Remove width for categories and review categories
 Feat(0.5.6): Fix bug with edit category, add some toolltips
 Feat(0.5.6): Make dropdown widgets based on past inputs
-Fix(0.5.6): Fix: Remove Year from teas and reviews, use dateAdded instead
 Feat(0.5.6): Tables: Dynamic Sizing of columns based on content
 Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 '''
@@ -4792,8 +4791,11 @@ def main():
     startStopBackupThread(settings["AUTO_SAVE"])
     # Start the backup thread
     dp.Viewport.title = "RaTea"
-    dp.Viewport.width = WindowSize[0]
-    dp.Viewport.height = WindowSize[1]
+    dp.Viewport.width = monitor.width
+    dp.Viewport.height = monitor.height
+    # Move the viewport to the to top left corner
+    dp.Viewport.x_pos = 0
+    dp.Viewport.y_pos = 0
 
     dp.Runtime.start()
 
