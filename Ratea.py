@@ -3186,7 +3186,13 @@ class Window_EditCategories(WindowBase):
             allAttributes["Type"] = "string"
 
         # Create a new category
-        newCategory = ReviewCategory(allAttributes["Name"], allAttributes["Type"])
+        name = allAttributes["Name"]
+        if name == None or name == "":
+            RichPrintWarning("Category name is empty")
+            name = allAttributes["role"]
+
+        
+        newCategory = ReviewCategory(name, allAttributes["Type"])
         defaultValue = allAttributes["DefaultValue"]
         if defaultValue != None and defaultValue != "":
             newCategory.defaultValue = defaultValue
@@ -3621,7 +3627,7 @@ class Window_EditCategories(WindowBase):
             RichPrintWarning(f"Category name is empty, defaulting to role")
             name = allAttributes["role"]
 
-        newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"])
+        newCategory = TeaCategory(name, allAttributes["Type"])
         newCategory.defaultValue = defaultValue
 
         # Add in role
@@ -3636,10 +3642,10 @@ class Window_EditCategories(WindowBase):
         newCategory.isDropdown = allAttributes["isDropdown"]
 
         # Additional options
-        newCategory.rounding = int(allAttributes["rounding"].get_value())
-        newCategory.prefix = allAttributes["prefix"].get_value()
-        newCategory.suffix = allAttributes["suffix"].get_value()
-        newCategory.dropdownMaxLength = int(allAttributes["maxItems"].get_value())
+        newCategory.rounding = int(allAttributes["rounding"])
+        newCategory.prefix = allAttributes["prefix"]
+        newCategory.suffix = allAttributes["suffix"]
+        newCategory.dropdownMaxLength = int(allAttributes["maxItems"])
 
         # Log
         RichPrintInfo(f"Adding category: {newCategory.name} ({newCategory.categoryType}, Flags: {newCategory.isRequiredForAll}, {newCategory.isRequiredForTea}, {newCategory.isAutoCalculated}, {newCategory.isDropdown})")
