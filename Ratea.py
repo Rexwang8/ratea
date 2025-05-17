@@ -747,6 +747,7 @@ def _table_sort_callback(sender, sortSpec):
 
 # We want to search our entire list of teas or reviews for a list of previous answers, then return the top X results by frequency
 def searchPreviousAnswers(categoryName, data="Tea", topX=5):
+    topX = int(topX)
     # data must be either "Tea" or "Review"
     if data not in ["Tea", "Review"]:
         RichPrintError("Data must be either Tea or Review")
@@ -3033,7 +3034,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             addCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.InputText(label="Max Items", default_value=category.dropdownMaxLength)
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=category.dropdownMaxLength, min_value=3, max_value=20, format="%d")
             addCategoryWindowItems["maxItems"] = maxItemsItem
 
 
@@ -3155,7 +3156,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             addReviewCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.InputText(label="Max Items", default_value=category.dropdownMaxLength)
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=category.dropdownMaxLength, min_value=3, max_value=20, format="%d")
             addReviewCategoryWindowItems["maxItems"] = maxItemsItem
             
             dp.Separator()
@@ -3325,7 +3326,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             editCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.InputText(label="Max Items", default_value=category.dropdownMaxLength)
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=category.dropdownMaxLength, min_value=3, max_value=20, format="%d")
             editCategoryWindowItems["maxItems"] = maxItemsItem
 
 
@@ -3520,7 +3521,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             editReviewCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.InputText(label="Max Items", default_value=category.dropdownMaxLength)
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=category.dropdownMaxLength, min_value=3, max_value=20, format="%d")
             editReviewCategoryWindowItems["maxItems"] = maxItemsItem
 
             dp.Separator()
