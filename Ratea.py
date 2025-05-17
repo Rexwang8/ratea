@@ -14,6 +14,7 @@ import screeninfo
 import yaml
 import threading
 import pyperclip
+import textwrap
 
 # From local files
 import RateaTexts
@@ -30,6 +31,10 @@ TODO: Menus: Update settings menu with new settings
 TODO: Category: Correction for amount of tea, and amount of tea consumed/marker for finished tea
 TODO: Files: Persistant windows in settings
 TODO: Adjustment window for tea.
+TODO: autoresize columns of table
+TODO: fix monitor ui sizing
+TODO: See if we can increase top bar size
+
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -38,6 +43,8 @@ TODO: Feature: Some form of category migration
 TODO: Code: Centralize tooltips and other large texts
 TODO: Tables: Non-tea items, like teaware, shipping, etc.
 TODO: Category: Write in description for each category role
+TODO: Slider for textbox size for notepad, wrap too
+TODO: Stopwatch, combine stop/start button
 
 
 
@@ -58,6 +65,7 @@ TODO: Highlight color customization
 
 
 ---Done---
+Feat(0.5.7): Notepad: Wrap text in notepad, add template for notepad
 Feat(0.5.6): Validation: Add in a proper default folder for settings and data
 Feat(0.5.6): Validation: Restrict categories to only if not already in use
 Feat(0.5.6): Add some metrics relating to steeps and amount of tea
@@ -2448,8 +2456,8 @@ class Window_Stash(WindowBase):
 
 
 def Menu_Notepad(sender, app_data, user_data):
-    w = 480 * settings["UI_SCALE"]
-    h = 480 * settings["UI_SCALE"]
+    w = 520 * settings["UI_SCALE"]
+    h = 560 * settings["UI_SCALE"]
     notepad = Window_Notepad("Notepad", w, h, exclusive=False)
     if user_data is not None:
         notepad.importYML(user_data)
@@ -2468,7 +2476,8 @@ class Window_Notepad(WindowBase):
             with hgroupToolbar:
                 dp.Button(label="Clear", callback=self.clearNotepad)
                 dp.Button(label="Copy", callback=self.copyNotepad)
-                dp.Button(label="Template", callback=self.copyNotepad)
+                dp.Button(label="Template", callback=self.setTemplate)
+                dp.Button(label="Format/Wrap", callback=self.wrapText)
                 dp.Checkbox(label="Persist", default_value=self.persist, callback=self.updatePersist)
                 #tooltip
                 dp.Button(label="?")
@@ -2480,9 +2489,10 @@ class Window_Notepad(WindowBase):
 
             # Text input
             defaultText = "Some space for your notes!"
-            scaledWidth = 470 * settings["UI_SCALE"]
-            scaledHeight = 400 * settings["UI_SCALE"]
-            self.textInput = dp.InputText(default_value=defaultText, multiline=True, width=scaledWidth, height=scaledHeight, callback=self.updateText)
+            scaledWidth = 440 * settings["UI_SCALE"]
+            scaledHeight = 440 * settings["UI_SCALE"]
+            self.textInput = dp.InputText(default_value=defaultText, multiline=True, width=scaledWidth, height=scaledHeight, callback=self.updateText, user_data=self)
+            
             dp.Separator()
 
     def clearNotepad(self, sender, data):
@@ -2491,8 +2501,59 @@ class Window_Notepad(WindowBase):
         pyperclip.copy(self.text)
     def updatePersist(self, sender, data):
         self.persist = data
-    def updateText(self, sender, data):
-        self.text = data
+    def wrapLongLines(self, text, breakwidth=70):
+        # Wraps long lines of text to a specified width
+        lines = text.split("\n")
+        wrappedLines = []
+        for line in lines:
+            if len(line) > breakwidth-20:
+                wrappedLines.extend(textwrap.wrap(line, width=breakwidth, replace_whitespace=False, break_on_hyphens=False))
+            else:
+                wrappedLines.append(line)
+        return "\n".join(wrappedLines)
+
+    def wrapText(self, sender, app_data, user_data):
+        # Calls the textwrap package to wrap the text and sets the value of the text input to the wrapped text
+        wrappedText = self.wrapLongLines(self.text, breakwidth=100)
+        self.textInput.set_value(wrappedText)
+        self.text = wrappedText
+    def setTemplate(self, sender, app_data, user_data):
+        # Sets the value to a simple template for notes
+        template = '''Template for notes
+---
+Name: 
+Producer: 
+Type: 
+Amount: 
+Pot/Temperature: 
+Date: DATE
+Times Steeped:
+Notes: 
+Grade/Rating: 
+
+Reference Scale:
+S+ -- 5.0
+S -- 4.5
+A+ -- 4.0
+A -- 3.5
+B+ -- 3.0
+B -- 2.5
+C+ -- 2.0
+C -- 1.5
+D+ -- 1.0
+D -- 0.5
+F -- 0.0
+
+
+---
+'''
+        # Replace the date with the current date
+        currentDate = dt.datetime.now(tz=dt.timezone.utc)
+        template = template.replace("DATE", currentDate.strftime(settings["DATE_FORMAT"]))
+        self.textInput.set_value(template)
+        self.text = template
+    def updateText(self, sender, app_data, user_data):
+        self.text = app_data
 
     def exportYML(self):
         windowVars = {
@@ -4382,7 +4443,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.5.6", # Updates to most recently loaded
+        "APP_VERSION": "0.5.7", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
