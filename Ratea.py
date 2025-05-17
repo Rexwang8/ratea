@@ -33,7 +33,6 @@ TODO: Files: Persistant windows in settings
 TODO: Adjustment window for tea.
 TODO: autoresize columns of table
 TODO: fix monitor ui sizing
-TODO: See if we can increase top bar size
 TODO: Export to google sheets readable format
 
 
@@ -67,6 +66,7 @@ TODO: Make a clean default page for new users
 
 
 ---Done---
+Work(0.5.7): UI: Reorder menu bar, fix autosave stop
 Feat(0.5.7): Notepad: Wrap text in notepad, add template for notepad
 Feat(0.5.6): Validation: Add in a proper default folder for settings and data
 Feat(0.5.6): Validation: Restrict categories to only if not already in use
@@ -90,6 +90,11 @@ COLOR_AUTOCALCULATED_TABLE_CELL = (0, 100, 0, 100)
 COLOR_INVALID_EMPTY_TABLE_CELL = (100, 0, 0, 100)
 
 #endregion
+
+#region Global Variables
+backupThread = False
+backupStopEvent = threading.Event()
+# Global variables
 
 
 #region Helpers
@@ -1315,7 +1320,7 @@ class Window_Settings(WindowBase):
         # Start/Stop Autosave
         if user_data == "AUTOSAVE":
             shouldStart = settings["AUTO_SAVE"]
-            startBackupThread(shouldStart) # Starts or stops the autosave thread
+            startStopBackupThread(shouldStart) # Starts or stops the autosave thread
 
         # Update font
         if user_data == "DEFAULT_FONT":
@@ -3991,18 +3996,26 @@ def SaveAll(altPath=None):
 
 
 # Start Backup Thread
-def startBackupThread(shouldStart=False):
+def checkboxBackupThread(sender, app_data, user_data):
+    print(f"Checkbox Backup Thread: {app_data}")
+    startStopBackupThread(app_data)
+def startStopBackupThread(shouldStart=False):
     # If ShouldStart and not started, start, else end
     global backupThread
+    global backupStopEvent
     
-    if shouldStart and backupThread == False:
+    if shouldStart == True and backupThread == False:
+        backupStopEvent.clear()
+        RichPrintInfo("Starting backup thread")
         backupThread = threading.Thread(target=backupThreadFunc, daemon=True)
         backupThread.start()
-        RichPrintInfo("Backup thread started")
-    elif not shouldStart and backupThread != False:
-        backupThread.join()
+        RichPrintSuccess("Backup thread started")
+    elif shouldStart == False and backupThread != False:
+        RichPrintInfo("Stopping backup thread")
+        backupStopEvent.set()
+        backupThread.join(timeout=2)
         backupThread = False
-        RichPrintInfo("Backup thread stopped")
+        RichPrintSuccess("Backup thread stopped")
     else:
         RichPrintInfo("Backup thread already started or stopped, doing nothing")
 
@@ -4010,9 +4023,11 @@ def startBackupThread(shouldStart=False):
 
 def backupThreadFunc():
     # Start a loop to poll the time since start and save if needed
-    while True:
+    while not backupStopEvent.is_set():
+        # Check if the backup thread is running
         pollAndAutosaveIfNeeded()
-        time.sleep(60)  # Poll every 5s
+        #time.sleep(60)  # Poll every 5s
+        backupStopEvent.wait(timeout=60)  # Wait for 60 seconds or until the event is set
 
 def pollAndAutosaveIfNeeded():
     timeLastSave = pollTimeSinceStartMinutes()
@@ -4336,51 +4351,56 @@ def teaStashToCSV(csvPath=None, csvPathReviews=None):
 #endregion
 
 def UI_CreateViewPort_MenuBar():
-    # Bind larger default font to all menu items
+    # UI is constructed before backup thread is started, so check if it is enabled
+    shouldBackupThread = settings["AUTO_SAVE"]
+
     with dp.ViewportMenuBar() as menuBar:
-        with dp.Menu(label="Session"):
-            dp.MenuItem(label="Log", callback=Menu_Stash)
-            dp.MenuItem(label="Summary(TODO)", callback=Menu_Summary)
-            dp.Button(label="Settings", callback=Menu_Settings)
+        with dp.Menu(label="File"):
+            dp.Button(label="Save", callback=SaveAll)
+            dp.Button(label="Load", callback=LoadAll)
+            with dp.Menu(label="Backup"):
+                dp.Button(label="Backup", callback=generateBackup)
+                dp.Checkbox(label="Auto Backup", callback=checkboxBackupThread, default_value=shouldBackupThread)
+            with dp.Menu(label="Export"):
+                dp.Button(label="Export to CSV", callback=teaStashToCSV)
         with dp.Menu(label="Stash"):
-            dp.MenuItem(label="Reviews(TODO)", callback=Menu_ReviewsTable)
-            dp.MenuItem(label="Stats(TODO)", callback=Menu_Stats)
+            dp.MenuItem(label="Log", callback=Menu_Stash)
             dp.MenuItem(label="Edit Categories", callback=Menu_EditCategories)
+        with dp.Menu(label="Stats"):
+            dp.MenuItem(label="Reviews(TODO)", callback=Menu_ReviewsTable)
+            dp.MenuItem(label="Stats(WIP)", callback=Menu_Stats)
+            dp.MenuItem(label="Summary(WIP)", callback=Menu_Summary)
+            with dp.Menu(label="Graphs(TODO)"):
+                dp.MenuItem(label="Graph 1(TODO)", callback=print_me)
+                dp.MenuItem(label="Graph 2(TODO)", callback=print_me)
         with dp.Menu(label="Tools"):
             dp.MenuItem(label="Timer", callback=Menu_Timer)
             dp.MenuItem(label="Notepad", callback=Menu_Notepad)
-            dp.Button(label="Export Stash to CSV", callback=teaStashToCSV)
+            dp.Button(label="Settings", callback=Menu_Settings)
+        with dp.Menu(label="Windows"):
+            dp.Button(label="Sort Windows", callback=windowManager.sortWindows)
             dp.Button(label="Import Persistant Windows", callback=windowManager.importPersistantWindowWrapper)
             dp.Button(label="Export Persistant Windows", callback=windowManager.exportPersistantWindowWrapper)
-        with dp.Menu(label="Visualize"):
-            dp.MenuItem(label="Graph 1(TODO)", callback=print_me)
-            dp.MenuItem(label="Graph 2(TODO)", callback=print_me)
-        with dp.Menu(label="Settings(TODO)"):
-            dp.MenuItem(label="Setting 1", callback=print_me, check=True)
-            dp.MenuItem(label="Setting 2", callback=print_me)
-        dp.MenuItem(label="Help", callback=print_me)
-        with dp.Menu(label="Library(TODO)"):
-            dp.Checkbox(label="Pick Me", callback=print_me)
-            dp.Button(label="Press Me", callback=print_me)
-            dp.ColorPicker(label="Color Me", callback=print_me)
+        with dp.Menu(label="Help(TODO)", callback=print_me):
+            with dp.Menu(label="Library(TODO)"):
+                dp.Checkbox(label="Pick Me", callback=print_me)
+                dp.Button(label="Press Me", callback=print_me)
         with dp.Menu(label="Debug"):
-            dp.Button(label="Windows", callback=windowManager.printWindows)
-            dp.Button(label="Settings", callback=printSettings)
-            dp.Button(label="Threads", callback=printThreads)
-            dp.Button(label="Check Categories", callback=verifyCategoriesReviewCategories)
-            dp.Button(label="Generate Backup", callback=generateBackup)
-            dp.Button(label="Sort Windows", callback=windowManager.sortWindows)
-            dp.Button(label="Export Windows", callback=windowManager.exportPersistantWindows)
-            dp.Button(label="Import Windows", callback=windowManager.importPersistantWindows)
-        with dp.Menu(label="Debug 2"):
             dp.Button(label="Demo", callback=demo.show_demo)
-            dp.Button(label="Poll Time", callback=pollTimeSinceStartMinutes)
-            dp.Button(label="Stop Backup Thread", callback=startBackupThread)
-            dp.Button(label="printTeasAndReviews", callback=printTeasAndReviews)
-            dp.Button(label="Print Categories/Reviews", callback=printCategories)
-            dp.Button(label="Print role Cat", callback=debugGetcategoryRole)
-            dp.Button(label="Print role Rev Cat", callback=debugGetReviewcategoryRole)
-            dp.Button(label="Renumber data", callback=renumberTeasAndReviews)
+            with dp.Menu(label="Ops"):
+                dp.Button(label="Renumber data", callback=renumberTeasAndReviews)
+                dp.Button(label="Check Categories", callback=verifyCategoriesReviewCategories)
+                dp.Button(label="Stop Backup Thread", callback=startStopBackupThread)
+            with dp.Menu(label="Print"):
+                dp.Button(label="Poll Time", callback=debugPrintPolledTime)
+                dp.Button(label="printTeasAndReviews", callback=printTeasAndReviews)
+                dp.Button(label="Print Categories/Reviews", callback=printCategories)
+                dp.Button(label="Print role Cat", callback=debugGetcategoryRole)
+                dp.Button(label="Print role Rev Cat", callback=debugGetReviewcategoryRole)
+                dp.Button(label="Settings", callback=printSettings)
+                dp.Button(label="Threads", callback=printThreads)
+                dp.Button(label="Windows", callback=windowManager.printWindows)
+                
     
 
 def bindLoadFonts():
@@ -4435,6 +4455,10 @@ def pollTimeSinceStartMinutes():
     # Round to 0.1
     timeDiffMinutes = round(timeDiffMinutes, 1)
     return timeDiffMinutes
+
+def debugPrintPolledTime():
+    polledTime = pollTimeSinceStartMinutes()
+    RichPrintInfo(f"Polled time since start: {polledTime} minutes")
 
 def main():
     RichPrintInfo("Starting Tea Tracker")
@@ -4550,7 +4574,7 @@ def main():
     Menu_Welcome(None, None, None)
 
     
-    startBackupThread(settings["AUTO_SAVE"])
+    startStopBackupThread(settings["AUTO_SAVE"])
     # Start the backup thread
     dp.Viewport.title = "RaTea"
     dp.Viewport.width = WindowSize[0]
