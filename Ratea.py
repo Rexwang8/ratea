@@ -1532,7 +1532,7 @@ class Window_Stash_Reviews(WindowBase):
                     if cat.categoryRole == "Name":
                         # For the name, use a single line input text
                         catItem = dp.InputText(label=cat.name, default_value=str(nameReview), width=300)
-                    elif cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
+                    elif cat.categoryRole == "Notes (Long)" or cat.categoryRole == "Notes":
                         # For notes, allow multiline input
                         catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
                     else:
@@ -1862,14 +1862,23 @@ class Window_Stash_Reviews(WindowBase):
                                 displayValue = "N/A"
                                 cellInvalidOrEmpty = True
 
-                            if not cellInvalidOrEmpty and (cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int"):
+                            if not cellInvalidOrEmpty and (cat.categoryType == "string"):
+                                # Prefix, suffix
+                                displayValue = cat.prefix + str(displayValue) + cat.suffix
+                                dp.Text(default_value=displayValue)
+                                if cat.categoryRole == "Notes (Long)":
+                                    # Add a tooltip for long notes
+                                    with dp.Tooltip(dpg.last_item()):
+                                        # Wrap the text to a specified width
+                                        wrappedText = RateaTexts.wrapLongLines(displayValue, breakwidth=70)
+                                        dp.Text(wrappedText)
+                            elif not cellInvalidOrEmpty and (cat.categoryType == "float" or cat.categoryType == "int"):
                                 # Rounding
                                 if type(displayValue) == float:
                                     displayValue = round(displayValue, cat.rounding)
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
-
-                                dp.Text(label=displayValue, default_value=displayValue)
+                                dp.Text(default_value=displayValue)    
                             elif cat.categoryType == "bool":
                                 if displayValue == "True" or displayValue == True:
                                     displayValue = True
@@ -2036,14 +2045,23 @@ class Window_Stash(WindowBase):
                                     usingAutocalculatedValue = True
                                     cellInvalidOrEmpty = False
 
-                            if not cellInvalidOrEmpty and (cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int"):
+                            if not cellInvalidOrEmpty and (cat.categoryType == "string"):
+                                # Prefix, suffix
+                                displayValue = cat.prefix + str(displayValue) + cat.suffix
+                                dp.Text(default_value=displayValue)
+                                if cat.categoryRole == "Notes (Long)":
+                                    # Add a tooltip for long notes
+                                    with dp.Tooltip(dpg.last_item()):
+                                        # Wrap the text to a specified width
+                                        wrappedText = RateaTexts.wrapLongLines(displayValue, breakwidth=70)
+                                        dp.Text(wrappedText)
+                            elif not cellInvalidOrEmpty and (cat.categoryType == "float" or cat.categoryType == "int"):
                                 # Rounding
                                 if type(displayValue) == float:
                                     displayValue = round(displayValue, cat.rounding)
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
-                                dp.Text(label=displayValue, default_value=displayValue)
-                                
+                                dp.Text(default_value=displayValue)    
                             elif cat.categoryType == "bool":
                                 if displayValue == "True" or displayValue == True:
                                     displayValue = True

@@ -7,6 +7,16 @@
 import textwrap
 import time
 
+def wrapLongLines(text, breakwidth=70):
+        # Wraps long lines of text to a specified width
+        lines = text.split("\n")
+        wrappedLines = []
+        for line in lines:
+            if len(line) > breakwidth-20:
+                wrappedLines.extend(textwrap.wrap(line, width=breakwidth, replace_whitespace=False, break_on_hyphens=False))
+            else:
+                wrappedLines.append(line)
+        return "\n".join(wrappedLines)
 
 class Text:
     text = ""
@@ -26,20 +36,9 @@ class Text:
     def __repr__(self):
         return self.text
     
-    def wrapLongLines(self, text, breakwidth=70):
-        # Wraps long lines of text to a specified width
-        lines = text.split("\n")
-        wrappedLines = []
-        for line in lines:
-            if len(line) > breakwidth-20:
-                wrappedLines.extend(textwrap.wrap(line, width=breakwidth, replace_whitespace=False, break_on_hyphens=False))
-            else:
-                wrappedLines.append(line)
-        return "\n".join(wrappedLines)
-    
     def wrap(self):
         # Wraps the text to a specified width
-        wrappedText = self.wrapLongLines(self.text, breakwidth=70)
+        wrappedText = wrapLongLines(self.text, breakwidth=70)
         return wrappedText
 
 # Text used for category and explainations
