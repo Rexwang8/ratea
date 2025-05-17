@@ -3024,8 +3024,8 @@ class Window_EditCategories(WindowBase):
             # Prefix, rounding, etc
             dp.Text("Additional Options")
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=0, min_value=0, max_value=5, format="%d")
-            roundingAmtSliderInt.set_value(category.rounding)
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt.set_value(int(category.rounding))
             addCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
             prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
@@ -3034,7 +3034,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             addCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=category.dropdownMaxLength, min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
             addCategoryWindowItems["maxItems"] = maxItemsItem
 
 
@@ -3146,8 +3146,8 @@ class Window_EditCategories(WindowBase):
             # Prefix, rounding, etc
             dp.Text("Additional Options")
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=0, min_value=0, max_value=5, format="%d")
-            roundingAmtSliderInt.set_value(category.rounding)
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt.set_value(int(category.rounding))
             addReviewCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
             prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
@@ -3156,7 +3156,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             addReviewCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=category.dropdownMaxLength, min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
             addReviewCategoryWindowItems["maxItems"] = maxItemsItem
             
             dp.Separator()
@@ -3206,10 +3206,10 @@ class Window_EditCategories(WindowBase):
         newCategory.isAutoCalculated = allAttributes["isAutoCalculated"]
 
         # Add additional options
-        newCategory.rounding = allAttributes["rounding"]
+        newCategory.rounding = int(allAttributes["rounding"])
         newCategory.prefix = allAttributes["prefix"]
         newCategory.suffix = allAttributes["suffix"]
-        newCategory.dropdownMaxLength = allAttributes["maxItems"]
+        newCategory.dropdownMaxLength = int(allAttributes["maxItems"])
 
         
         TeaReviewCategories.append(newCategory)
@@ -3316,8 +3316,8 @@ class Window_EditCategories(WindowBase):
             # Prefix, rounding, etc
             dp.Text("Additional Options")
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=0, min_value=0, max_value=5, format="%d")
-            roundingAmtSliderInt.set_value(category.rounding)
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt.set_value(int(category.rounding))
             editCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
             prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
@@ -3326,7 +3326,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             editCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=category.dropdownMaxLength, min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
             editCategoryWindowItems["maxItems"] = maxItemsItem
 
 
@@ -3405,10 +3405,10 @@ class Window_EditCategories(WindowBase):
         category.isAutoCalculated = isAutoCalculated
 
         # Additional options
-        category.rounding = allAttributes["rounding"].get_value()
+        category.rounding = int(allAttributes["rounding"].get_value())
         category.prefix = allAttributes["prefix"].get_value()
         category.suffix = allAttributes["suffix"].get_value()
-        category.dropdownMaxLength = allAttributes["maxItems"].get_value()
+        category.dropdownMaxLength = int(allAttributes["maxItems"].get_value())
         print(f"{category.__dict__}")
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
@@ -3511,8 +3511,8 @@ class Window_EditCategories(WindowBase):
             # Prefix, rounding, etc
             dp.Text("Additional Options")
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=0, min_value=0, max_value=5, format="%d")
-            roundingAmtSliderInt.set_value(category.rounding)
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt.set_value(int(category.rounding))
             editReviewCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
             prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
@@ -3521,7 +3521,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             editReviewCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=category.dropdownMaxLength, min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
             editReviewCategoryWindowItems["maxItems"] = maxItemsItem
 
             dp.Separator()
@@ -3565,10 +3565,10 @@ class Window_EditCategories(WindowBase):
         category.isAutoCalculated = allAttributes["isAutoCalculated"].get_value()
 
         # Additional options
-        category.rounding = allAttributes["rounding"].get_value()
+        category.rounding = int(allAttributes["rounding"].get_value())
         category.prefix = allAttributes["prefix"].get_value()
         category.suffix = allAttributes["suffix"].get_value()
-        category.dropdownMaxLength = allAttributes["maxItems"].get_value()
+        category.dropdownMaxLength = int(allAttributes["maxItems"].get_value())
 
 
         RichPrintInfo(f"Editing review category: {category.name} ({category.categoryType}, Flags: {category.isRequiredForAll}, {category.isRequiredForTea}, {category.isAutoCalculated}, {category.isDropdown})")
@@ -3639,10 +3639,10 @@ class Window_EditCategories(WindowBase):
         newCategory.isDropdown = allAttributes["isDropdown"]
 
         # Additional options
-        newCategory.rounding = allAttributes["rounding"].get_value()
+        newCategory.rounding = int(allAttributes["rounding"].get_value())
         newCategory.prefix = allAttributes["prefix"].get_value()
         newCategory.suffix = allAttributes["suffix"].get_value()
-        newCategory.dropdownMaxLength = allAttributes["maxItems"].get_value()
+        newCategory.dropdownMaxLength = int(allAttributes["maxItems"].get_value())
 
         # Log
         RichPrintInfo(f"Adding category: {newCategory.name} ({newCategory.categoryType}, Flags: {newCategory.isRequiredForAll}, {newCategory.isRequiredForTea}, {newCategory.isAutoCalculated}, {newCategory.isDropdown})")
@@ -4033,10 +4033,10 @@ def saveTeaCategories(categories, path):
             "isRequiredForTea": category.isRequiredForTea,
             "isRequiredForAll": category.isRequiredForAll,
             "isDropdown": category.isDropdown,
-            "rounding": category.rounding,
+            "rounding": int(category.rounding),
             "prefix": category.prefix,
             "suffix": category.suffix,
-            "maxItems": category.dropdownMaxLength
+            "maxItems": int(category.dropdownMaxLength)
         }
         allData.append(categoryData)
 
@@ -4084,7 +4084,7 @@ def loadTeaCategories(path):
 
         # Additional options
         if "rounding" in categoryData:
-            category.rounding = categoryData["rounding"]
+            category.rounding = int(categoryData["rounding"])
         else:
             category.rounding = 2
 
@@ -4095,7 +4095,7 @@ def loadTeaCategories(path):
             category.suffix = categoryData["suffix"]
 
         if "maxItems" in categoryData:
-            category.dropdownMaxLength = categoryData["maxItems"]
+            category.dropdownMaxLength = int(categoryData["maxItems"])
         else:
             category.dropdownMaxLength = 5
 
@@ -4176,10 +4176,10 @@ def saveTeaReviewCategories(categories, path):
             "isRequiredForTea": category.isRequiredForTea,
             "isRequiredForAll": category.isRequiredForAll,
             "isDropdown": category.isDropdown,
-            "rounding": category.rounding,
+            "rounding": int(category.rounding),
             "prefix": category.prefix,
             "suffix": category.suffix,
-            "maxItems": category.dropdownMaxLength
+            "maxItems": int(category.dropdownMaxLength)
         }
         allData.append(categoryData)
 
