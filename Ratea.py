@@ -34,6 +34,7 @@ TODO: Adjustment window for tea.
 TODO: autoresize columns of table
 TODO: fix monitor ui sizing
 TODO: Export to google sheets readable format
+TODO: Prefix and rounding settings for categories
 
 
 Nice To Have:
@@ -669,6 +670,11 @@ def setValidTypes():
     
 
 def _table_sort_callback(sender, sortSpec):
+    # If num rows is less than 2, return
+    numRows = dpg.get_item_children(sender, 1)
+    if numRows is None or len(numRows) < 2:
+        RichPrintInfo("No rows to sort, skipping sort")
+        return
     # sortSpec is a list of tuples: [(column_index, sort_direction), ...]
     # sort_direction: 1 = ascending, -1 = descending
     if not sortSpec or sortSpec[0] is None:
@@ -727,6 +733,9 @@ def _table_sort_callback(sender, sortSpec):
                 cleanSortableItems.append(item)
     cleanSortableItems.sort(key=sort_key, reverse=not ascending)
     RichPrintInfo(f"Found {len(cleanSortableItems)} sortable items and {len(unsortableItems)} unsortable items")
+    if len(cleanSortableItems) < 2:
+        RichPrintError("Not enough sortable items to sort")
+        return
     # Re-add the unsortable items to the end of the list
     for item in unsortableItems:
         cleanSortableItems.append(item)
@@ -910,15 +919,13 @@ class TeaCategory:
 
     def autocalculate(self, data):
         # role - Remaining
-        print("Autocalculating")
+        RichPrintInfo("Autocalculating...")
         if self.categoryRole == "Remaining":
             # Requires: Amount to be set, Amount in reviews to be set
             validReviewsCategories, _ = getValidReviewCategoryRolesList()
             validCategories, _ = getValidCategoryRolesList()
-            print(f"Valid Categories: {validCategories}")
-            print(f"Valid Reviews Categories: {validReviewsCategories}")
             if "Amount" in validCategories and "Amount" in validReviewsCategories and "Amount" in data.attributes:
-                print("Calculating remaining")
+                RichPrintInfo("Calculating remaining")
                 # Sum of all review Amounts in the tea (data)
                 reviewAmount = 0
                 for review in data.reviews:
@@ -931,6 +938,38 @@ class TeaCategory:
                 return remaining
             else:
                 RichPrintError("Amount not found in categories, cannot calculate remaining")
+                return None
+        elif self.categoryRole == "Cost per Gram":
+            # Requires: Cost to be set, Amount to be set
+            validCategories, _ = getValidCategoryRolesList()
+            if "Cost" in validCategories and "Amount" in data.attributes:
+                RichPrintInfo("Calculating price per gram")
+                # Price per gram = Cost / Amount
+                cost = data.attributes["Cost"]
+                amount = data.attributes["Amount"]
+                pricePerGram = cost / amount
+                return pricePerGram
+            else:
+                RichPrintError("Cost or Amount not found in categories, cannot calculate price per gram")
+                return None
+        elif self.categoryRole == "Total Score":
+            # Average of all review scores
+            validReviewsCategories, _ = getValidReviewCategoryRolesList()
+            if "Final Score" in validReviewsCategories:
+                RichPrintInfo("Calculating total score")
+                # Total score = Average of all review scores
+                totalScore = 0
+                for review in data.reviews:
+                    if "Final Score" in review.attributes:
+                        totalScore += review.attributes["Final Score"]
+                # Divide by the number of reviews
+                if len(data.reviews) == 0:
+                    RichPrintError("No reviews found, cannot calculate total score")
+                    return None
+                totalScore /= len(data.reviews)
+                return totalScore
+            else:
+                RichPrintError("Score not found in review categories, cannot calculate total score")
                 return None
         
 
@@ -1973,7 +2012,10 @@ class Window_Stash(WindowBase):
                                 val = cat.autocalculate(tea)
                                 if val is not None:
                                     displayValue = val
+                                    if type(val) == float:
+                                        displayValue = round(val, 3)
                                     usingAutocalculatedValue = True
+                                    cellInvalidOrEmpty = False
 
                             if cat.categoryType == "string" or cat.categoryType == "float" or cat.categoryType == "int":
                                 dp.Text(label=displayValue, default_value=displayValue)
@@ -3466,7 +3508,7 @@ class Window_EditCategories(WindowBase):
         if name == None or name == "":
             RichPrintWarning(f"Category name is empty, defaulting to role")
             name = allAttributes["role"]
-            
+
         newCategory = TeaCategory(allAttributes["Name"], allAttributes["Type"])
         newCategory.defaultValue = defaultValue
 
