@@ -62,6 +62,7 @@ TODO: Optional Override of autocalculated fields
 TODO: Adjustments of quantities including sells and purchases and 'Done' status
 TODO: Highlight when '0' flags are set
 TODO: Highlight color customization
+TODO: Make a clean default page for new users
 
 
 ---Done---
@@ -1305,7 +1306,10 @@ class Window_Settings(WindowBase):
         Settings_SaveCurrentSettings()
         # ui scale
         if user_data == "UI_SCALE":
-            dpg.set_global_font_scale(settings["UI_SCALE"])
+            uiscale = round(data, 2)
+            settings["UI_SCALE"] = uiscale
+            # Update the UI scale
+            dpg.set_global_font_scale(uiscale)
 
         # Start/Stop Autosave
         if user_data == "AUTOSAVE":
