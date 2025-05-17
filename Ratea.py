@@ -34,7 +34,7 @@ TODO: Adjustment window for tea.
 TODO: autoresize columns of table
 TODO: fix monitor ui sizing
 TODO: Export to google sheets readable format
-TODO: Prefix and rounding settings for categories
+TODO: Button to re-order reviews and teas based on current view
 
 
 Nice To Have:
@@ -68,6 +68,7 @@ TODO: Alternate calculation methods and a flag for that
 
 
 ---Done---
+Feat(0.5.7): Resize monitor on creation
 Feat(0.5.7): Rounding, dropdown size, prefix, postfix
 Feat(0.5.7): Added price/gram and total score autocalcs
 Feat(0.5.7): Notepad: Wrap text in notepad, add template for notepad
@@ -3023,17 +3024,16 @@ class Window_EditCategories(WindowBase):
             # Prefix, rounding, etc
             dp.Text("Additional Options")
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
-            roundingAmtSliderInt.set_value(int(category.rounding))
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=2, min_value=0, max_value=5, format="%d")
             addCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
-            prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
+            prefixItem = dp.InputText(label="Prefix", default_value="")
             addCategoryWindowItems["prefix"] = prefixItem
             dp.Text("Suffix")
-            suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
+            suffixItem = dp.InputText(label="Suffix", default_value="")
             addCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=5, min_value=3, max_value=20, format="%d")
             addCategoryWindowItems["maxItems"] = maxItemsItem
 
 
@@ -3108,7 +3108,6 @@ class Window_EditCategories(WindowBase):
                 if cat.categoryType == typeCategory:
                     alreadyUsedItems.append(cat.categoryRole)
             if self.hideUsedCategoriesBool:
-                print(f"hiding? {self.hideUsedCategoriesBool}")
                 items = [item for item in items if item not in alreadyUsedItems]
             roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
             addReviewCategoryWindowItems["role"] = roleItem
@@ -3145,17 +3144,16 @@ class Window_EditCategories(WindowBase):
             # Prefix, rounding, etc
             dp.Text("Additional Options")
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
-            roundingAmtSliderInt.set_value(int(category.rounding))
+            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=2, min_value=0, max_value=5, format="%d")
             addReviewCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
-            prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
+            prefixItem = dp.InputText(label="Prefix", default_value="")
             addReviewCategoryWindowItems["prefix"] = prefixItem
             dp.Text("Suffix")
-            suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
+            suffixItem = dp.InputText(label="Suffix", default_value="")
             addReviewCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=5, min_value=3, max_value=20, format="%d")
             addReviewCategoryWindowItems["maxItems"] = maxItemsItem
             
             dp.Separator()
