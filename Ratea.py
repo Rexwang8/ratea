@@ -1875,7 +1875,7 @@ class Window_Stash_Reviews(WindowBase):
                             elif not cellInvalidOrEmpty and (cat.categoryType == "float" or cat.categoryType == "int"):
                                 # Rounding
                                 if type(displayValue) == float:
-                                    displayValue = round(displayValue, cat.rounding)
+                                    displayValue = displayValue = f"{displayValue:.{cat.rounding}f}"
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
                                 dp.Text(default_value=displayValue)    
@@ -2058,7 +2058,7 @@ class Window_Stash(WindowBase):
                             elif not cellInvalidOrEmpty and (cat.categoryType == "float" or cat.categoryType == "int"):
                                 # Rounding
                                 if type(displayValue) == float:
-                                    displayValue = round(displayValue, cat.rounding)
+                                    displayValue = f"{displayValue:.{cat.rounding}f}"
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
                                 dp.Text(default_value=displayValue)    
