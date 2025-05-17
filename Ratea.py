@@ -63,6 +63,7 @@ TODO: Adjustments of quantities including sells and purchases and 'Done' status
 TODO: Highlight when '0' flags are set
 TODO: Highlight color customization
 TODO: Make a clean default page for new users
+TODO: Alternate calculation methods and a flag for that
 
 
 ---Done---
@@ -789,6 +790,13 @@ class StashedTea:
     attributes = {}
     reviews = []
     calculated = {}
+    # Price and amount adjustments, if required, in lists of Adjustment dicts
+    # Price adjustments = [{"price": 10, "amount": 100}, {"price": 5, "amount": 50}]
+    adjustments = []
+
+    # Finished flag
+    finished = False
+
     def __init__(self, id, name, dateAdded=None, attributes={}):
         self.id = id
         self.name = name
@@ -2022,6 +2030,10 @@ class Window_Stash(WindowBase):
             for review in clipboardReviews:
                 newTea.addReview(loadReviewFromDictNewID(review, len(newTea.reviews), newId))
 
+            # Add adjustments and finished flag
+            newTea.adjustments = allAttributes.get("adjustments", [])
+            newTea.finished = allAttributes.get("finished", False)
+
             TeaStash.append(newTea)
             RichPrintSuccess(f"Imported tea from clipboard: {newTea.name}")
 
@@ -2411,6 +2423,10 @@ class Window_Stash(WindowBase):
         newTea.reviews = tea.reviews
         # Transfer the calculated values
         newTea.calculated = tea.calculated
+        # Transfer the adjustments
+        newTea.adjustments = tea.adjustments
+        # Transfer the finished flag
+        newTea.finished = tea.finished
 
         for i, tea in enumerate(TeaStash):
             if tea.id == user_data.id:
@@ -3797,6 +3813,12 @@ def loadTeasReviews(path):
                     RichPrintError(f"Failed to load attributes from JSON: {e}. Falling back to old attributes format.")
                     tea.attributes = {}  # Fallback to empty attributes if both fail
         tea.dateAdded = dateAdded
+
+        # Add adjustments and finished flags
+        if "adjustments" in teaData:
+            tea.adjustments = teaData["adjustments"]
+        if "finished" in teaData:
+            tea.finished = teaData["finished"]
         
         for reviewData in teaData["reviews"]:
             idx2 = j
