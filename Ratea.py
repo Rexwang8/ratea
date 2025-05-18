@@ -31,7 +31,6 @@ TODO: Menus: Update settings menu with new settings
 TODO: Category: Correction for amount of tea, and amount of tea consumed/marker for finished tea
 TODO: Files: Persistant windows in settings
 TODO: Adjustment window for tea.
-TODO: autoresize columns of table
 TODO: fix monitor ui sizing
 TODO: Export to google sheets readable format
 TODO: Button to re-order reviews and teas based on current view
@@ -68,6 +67,7 @@ TODO: Alternate calculation methods and a flag for that
 
 
 ---Done---
+Feat(0.5.7): Put notes in tooltips when hovered
 Feat(0.5.7): Resize monitor on creation
 Feat(0.5.7): Rounding, dropdown size, prefix, postfix
 Feat(0.5.7): Added price/gram and total score autocalcs
@@ -88,7 +88,8 @@ Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 #region Constants
 
 # light green
-COLOR_AUTOCALCULATED_TABLE_CELL = (0, 100, 0, 100)
+COLOR_AUTOCALCULATED_TABLE_CELL = (0, 100, 0, 80)
+# light red
 COLOR_INVALID_EMPTY_TABLE_CELL = (100, 0, 0, 100)
 
 #endregion
@@ -1105,9 +1106,6 @@ class WindowBase:
         # removes the window from the window manager
         windowManager.deleteWindow(self.utitle)
 
-    def windowDefintion(self, window):
-        # Define the window
-        pass
     def DummyCallback(self, sender, data):
         print(f"Sender: {sender}, Data: {data}")
 
@@ -1445,20 +1443,6 @@ class Window_Stash_Reviews(WindowBase):
         dpg.configure_item(self.reviewsWindow.tag, show=False)
         self.refresh()
 
-    # Resize the window to fit the table by getting the table width
-    # and setting the window width to the table width + padding
-    def resizeWidthToTable(self, window):
-        # Resize the window to fit the table
-        padding = 20 * settings["UI_SCALE"]
-        time.sleep(0.05)  # Wait for the table to be drawn
-        if window is not None:
-            # Get the width of the table
-            tableWidth = dpg.get_item_rect_size(window.tag)
-            print(f"Table Width: {tableWidth}")
-            # Set the width of the window to the width of the table
-            dpg.set_item_width(window.tag, tableWidth[1] + padding)
-            self.dpgWindow.width = tableWidth[1] + padding
-
     def GenerateEditReviewWindow(self, sender, app_data, user_data):
         # Create a new window for editing the review
         w = 600 * settings["UI_SCALE"]
@@ -1767,6 +1751,9 @@ class Window_Stash_Reviews(WindowBase):
 
     def windowDefintion(self, window):
         tea = self.tea
+
+        # Enable window resizing
+        dpg.configure_item(window.tag, autosize=True)
         # create a new window for the reviews
         with window:
             hbarActionGroup = dp.Group(horizontal=True)
@@ -1905,8 +1892,17 @@ class Window_Stash_Reviews(WindowBase):
 
                         # button that opens a modal with reviews
                         dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
-                # Resize the window to fit the table
-                self.resizeWidthToTable(window)
+        
+        # disable autosize to prevent flickering or looping
+        # 3 frame delay is the fastest it can do this properly
+        dpg.set_frame_callback(dpg.get_frame_count()+3, self.afterWindowDefintion, user_data=window)
+
+    def afterWindowDefintion(self, sender, app_data, user_data):
+        RichPrintInfo(f"Finished window definition for {user_data.tag}")
+        window = user_data
+        dpg.configure_item(window, autosize=False)
+        minHeight = 640 * settings["UI_SCALE"]
+        dpg.set_item_height(window.tag, minHeight)
 
     def deleteEditReviewWindow(self):
         # If window is open, close it first
@@ -1936,23 +1932,11 @@ class Window_Stash(WindowBase):
         # Invoke base class delete
         super().onDelete()
 
-    # Resize the window to fit the table by getting the table width
-    # and setting the window width to the table width + padding
-    def resizeWidthToTable(self, window):
-        # Resize the window to fit the table
-        padding = 20 * settings["UI_SCALE"]
-        time.sleep(0.05)  # Wait for the table to be drawn
-        if window is not None:
-            # Get the width of the table
-            tableWidth = dpg.get_item_rect_size(window.tag)
-            # Set the width of the window to the width of the table
-            dpg.set_item_width(window.tag, tableWidth[1] + padding)
-            self.dpgWindow.width = tableWidth[1] + padding
-
 
     def windowDefintion(self, window):
         self.addTeaList = dict()
         self.addReviewList = dict()
+        dpg.configure_item(window.tag, autosize=True)
         with window:
             dp.Separator()
             hgroupButtons = dp.Group(horizontal=True)
@@ -2093,7 +2077,20 @@ class Window_Stash(WindowBase):
 
             # Add seperator and import/export buttons
             dp.Separator()
-        self.resizeWidthToTable(window)
+        
+        # disable autosize to prevent flickering or looping
+        # 3 frame delay is the fastest it can do this properly
+        dpg.set_frame_callback(dpg.get_frame_count()+3, self.afterWindowDefintion, user_data=window)
+
+
+    def afterWindowDefintion(self, sender, app_data, user_data):
+        RichPrintInfo(f"Finished window definition for {user_data.tag}")
+        window = user_data
+        dpg.configure_item(window, autosize=False)
+        minHeight = 640 * settings["UI_SCALE"]
+        dpg.set_item_height(window.tag, minHeight)
+
+
 
     def importOneTeaFromClipboard(self, sender, app_data, user_data):
         # Import a tea from the clipboard
