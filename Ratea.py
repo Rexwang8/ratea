@@ -2695,6 +2695,58 @@ def statsNumReviews():
         numReviews += len(tea.reviews)
     return numReviews
 
+# Get total volume of all teas in the stash
+def statsTotalVolume():
+    # Guard if no attributes are present
+    validCategories, _  = getValidCategoryRolesList()
+    if "Remaining" not in validCategories:
+        RichPrintError("Error: No 'Remaining' attribute found in Tea Categories.")
+        return 0, 0
+    numTeas = statsNumTeas()
+    totalVolume = 0
+    for tea in TeaStash:
+        if "Remaining" in tea.attributes:
+            totalVolume += tea.attributes["Remaining"]
+    if numTeas > 0:
+        averageVolume = totalVolume / numTeas
+    else:
+        averageVolume = 0
+    
+    return totalVolume, averageVolume
+
+# Get the total cost of all teas in the stash
+def statsTotalAverageCost():
+    # Guard if no attributes are present
+    validCategories, _  = getValidCategoryRolesList()
+    if "Cost" not in validCategories:
+        RichPrintError("Error: No 'Cost' attribute found in Tea Categories.")
+        return 0, 0
+    numTeas = statsNumTeas()
+    totalCost = 0
+    for tea in TeaStash:
+        if "Cost" in tea.attributes:
+            totalCost += tea.attributes["Cost"]
+    if numTeas > 0:
+        averageCost = totalCost / numTeas
+    
+    return totalCost, averageCost
+
+# Get the weighted average cost of all teas in the stash
+def statsWeightedAverageCost():
+    # Guard if no attributes are present
+    validCategories, _ = getValidCategoryRolesList()
+    if "Cost" not in validCategories or "Amount" not in validCategories:
+        RichPrintError("Error: No 'Cost' or 'Amount' attribute found in Tea Categories.")
+        return 0, 0
+    
+    totalVol, _ = statsTotalVolume()
+    totalCost = statsTotalAverageCost()[0]
+    if totalVol > 0:
+        weightedAverageCost = totalCost / totalVol
+    else:
+        weightedAverageCost = 0
+    return weightedAverageCost
+
 def Menu_Stats():
     w = 480 * settings["UI_SCALE"]
     h = 720 * settings["UI_SCALE"]
@@ -2811,6 +2863,18 @@ class Window_Stats(WindowBase):
             else:
                 dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
             dp.Separator()
+
+            # Total volume, total cost, and weighted average cost
+            if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
+                dp.Text("Total Volume and Cost")
+                totalVolume, averageVolume = statsTotalVolume()
+                dp.Text(f"Total Volume: {totalVolume:.2f}g, Average Volume: {averageVolume:.2f}g")
+                totalCost, averageCost = statsTotalAverageCost()
+                dp.Text(f"Total Cost: ${totalCost:.2f}, Average Cost: ${averageCost:.2f}")
+                weightedAverageCost = statsWeightedAverageCost()
+                dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
+            else:
+                dp.Text("Required Category role 'Cost' or 'Amount' for Tea is not enabled.")
 
 
 
