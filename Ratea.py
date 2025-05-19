@@ -38,8 +38,6 @@ TODO: Starting month, month to month stats, year to year stats
 TODO: Display more on category
 TODO: Query all of a single type or category, filter?
 TODO: Colored Text
-TODO: Weirdness with dates and editing dates
-
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -101,7 +99,10 @@ Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 COLOR_AUTOCALCULATED_TABLE_CELL = (0, 100, 0, 80)
 # light red
 COLOR_INVALID_EMPTY_TABLE_CELL = (100, 0, 0, 100)
-
+# Red
+COLOR_REQUIRED_TEXT = (255, 0, 0, 200)
+# green
+COLOR_AUTO_CALCULATED_TEXT = (0, 255, 0, 200)
 #endregion
 
 #region Global Variables
@@ -1501,11 +1502,15 @@ class Window_Stash_Reviews(WindowBase):
                 cat: ReviewCategory
                 # Add it to the window
                 catName = cat.name
-                if cat.isAutoCalculated:
-                    catName += f" (Auto)"
-                if cat.isRequiredForTea:
-                    catName += f" [required]"
-                dp.Text(catName)
+
+                # Text indicators for required and auto calculated
+                with dp.Group(horizontal=True):
+                    if cat.isRequiredForTea:
+                        dp.Text("[required]", color=COLOR_REQUIRED_TEXT)
+                    dp.Text(catName)
+                    if cat.isAutoCalculated:
+                        # If auto calculated, don't show the input
+                        catItem = dp.Text(label=f"(Auto)", color=COLOR_AUTO_CALCULATED_TEXT)
                 defaultValue = None
 
                 try:
@@ -1553,16 +1558,8 @@ class Window_Stash_Reviews(WindowBase):
                     catItem = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     # Date picker widget
-                    if type(defaultValue) == str:
-                        try:
-                            defaultValue = dt.datetime.strptime(defaultValue, settings["DATE_FORMAT"]).date()
-                            defaultValue = DTToDateDict(defaultValue)
-                        except ValueError as e:
-                            RichPrintError(f"Error parsing date: {e}")
-                            defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
-                    else:
-                        # Convert to date dict
-                        defaultValue = DTToDateDict(defaultValue)
+                    defaultValue = parseStringToDT(defaultValue)  # Ensure it's a datetime object first
+                    defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
                     # If supported, display as date
                     catItem =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                     if shouldShowDropdown:
@@ -1888,7 +1885,7 @@ class Window_Stash_Reviews(WindowBase):
                                     displayValue = False
                                 dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
                             elif cat.categoryType == "date" or cat.categoryType == "datetime":
-                                # Date picker widget
+                                # Date Display widget
                                 displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
                                 displayValue = parseDTToStringWithFallback(displayValue, "None")
                                 if displayValue == "None":
@@ -2177,12 +2174,17 @@ class Window_Stash(WindowBase):
                 cat: TeaCategory
                 # Add it to the window
                 catName = cat.name
-                if cat.isAutoCalculated:
-                    catName += f" (Auto)"
-                if cat.isRequiredForTea:
-                    catName += f" [required]"
-                dp.Text(catName)
+
+                # Text indicators for required and auto calculated
+                with dp.Group(horizontal=True):
+                    if cat.isRequiredForTea:
+                        dp.Text("[required]", color=COLOR_REQUIRED_TEXT)
+                    dp.Text(catName)
+                    if cat.isAutoCalculated:
+                        # If auto calculated, don't show the input
+                        dp.Text("(Auto)", color=COLOR_AUTO_CALCULATED_TEXT)
                 defaultValue = None
+                
                 try:
                     defaultValue = teasData.attributes[cat.categoryRole]
                 except:
@@ -2226,11 +2228,8 @@ class Window_Stash(WindowBase):
                         # Add, so default to now if no date is set
                         defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
                     # Date picker widget
-                    try:
-                        defaultValue = dt.datetime.strptime(defaultValue, settings["DATE_FORMAT"]).date()
-                        defaultValue = DTToDateDict(defaultValue)
-                    except:
-                        defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
+                    defaultValue = parseStringToDT(defaultValue)  # Ensure it's a datetime object first
+                    defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
                     # If supported, display as date
                     catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                     if shouldShowDropdown:
