@@ -34,6 +34,11 @@ TODO: Adjustment window for tea.
 TODO: fix monitor ui sizing
 TODO: Export to google sheets readable format
 TODO: Button to re-order reviews and teas based on current view
+TODO: Starting month, month to month stats, year to year stats
+TODO: Display more on category
+TODO: Query all of a single type or category, filter?
+TODO: Colored Text
+TODO: Weirdness with dates and editing dates
 
 
 Nice To Have:
@@ -45,6 +50,8 @@ TODO: Tables: Non-tea items, like teaware, shipping, etc.
 TODO: Category: Write in description for each category role
 TODO: Slider for textbox size for notepad, wrap too
 TODO: Stopwatch, combine stop/start button
+TODO: Confirmation window for deleting tea/review
+TODO: Terminal window to print out debug info
 
 
 
@@ -64,9 +71,12 @@ TODO: Highlight when '0' flags are set
 TODO: Highlight color customization
 TODO: Make a clean default page for new users
 TODO: Alternate calculation methods and a flag for that
+TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.5.7): Stats: Volume, cost, weighted avrg stat
+Feat(0.5.7): Auto-Resize tea and review table with frame callbacks
 Feat(0.5.7): Put notes in tooltips when hovered
 Feat(0.5.7): Resize monitor on creation
 Feat(0.5.7): Rounding, dropdown size, prefix, postfix
@@ -662,7 +672,7 @@ def setValidTypes():
                                 "date": ["UNUSED", "date"],
                                 "datetime": ["UNUSED", "date"]}
     
-    session["validroleReviewCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Vendor", "Type"],
+    session["validroleReviewCategory"] = {"string": ["UNUSED", "Notes (short)", "Notes (Long)", "Name", "Method"],
                                 "int": ["UNUSED", "Year", "Amount", "Steeps", "Vessel size"],
                                 "float": ["UNUSED", "Score", "Final Score", "Amount"],
                                 "bool": ["UNUSED", "bool"],
@@ -1543,11 +1553,16 @@ class Window_Stash_Reviews(WindowBase):
                     catItem = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     # Date picker widget
-                    try:
-                        defaultValue = dt.datetime.strptime(defaultValue, settings["DATE_FORMAT"]).date()
+                    if type(defaultValue) == str:
+                        try:
+                            defaultValue = dt.datetime.strptime(defaultValue, settings["DATE_FORMAT"]).date()
+                            defaultValue = DTToDateDict(defaultValue)
+                        except ValueError as e:
+                            RichPrintError(f"Error parsing date: {e}")
+                            defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
+                    else:
+                        # Convert to date dict
                         defaultValue = DTToDateDict(defaultValue)
-                    except:
-                        defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
                     # If supported, display as date
                     catItem =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                     if shouldShowDropdown:
@@ -3833,7 +3848,8 @@ class Window_Welcome(WindowBase):
         dpg.set_item_pos(window.tag, [self.x, self.y])
 
         with window:
-            dp.Text(f"Welcome {settings['USERNAME']}!")
+            todayDate = dt.datetime.now(tz=dt.timezone.utc)
+            dp.Text(f"Welcome {settings['USERNAME']}! Today is {parseDTToString(todayDate)}")
             dpg.bind_item_font(dpg.last_item(), getFontName(3))
             numTeas = statsNumTeas()
             numReviews = statsNumReviews()
