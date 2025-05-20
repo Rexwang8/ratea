@@ -96,7 +96,7 @@ Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 #region Constants
 
 # light green
-COLOR_AUTOCALCULATED_TABLE_CELL = (0, 100, 0, 80)
+COLOR_AUTOCALCULATED_TABLE_CELL = (0, 100, 0, 60)
 # light red
 COLOR_INVALID_EMPTY_TABLE_CELL = (100, 0, 0, 100)
 # Red
@@ -965,10 +965,13 @@ class TeaCategory:
                 originalAmount = data.attributes["Amount"]
                 # Remaining = Original Amount - Sum of all review Amounts
                 remaining = originalAmount - reviewAmount
-                return remaining
+
+                # Explanation
+                explanation = f"Remaining = Purchased Amount - Sum of all review Amounts\n{originalAmount:.2f} - {reviewAmount:.2f} = {remaining:.2f}"
+                return remaining, explanation
             else:
                 RichPrintError("Amount not found in categories, cannot calculate remaining")
-                return None
+                return None, None
         elif self.categoryRole == "Cost per Gram":
             # Requires: Cost to be set, Amount to be set
             validCategories, _ = getValidCategoryRolesList()
@@ -978,10 +981,12 @@ class TeaCategory:
                 cost = data.attributes["Cost"]
                 amount = data.attributes["Amount"]
                 pricePerGram = cost / amount
-                return pricePerGram
+                # Explanation
+                explanation = f"Price per gram = Cost / Amount\n{cost:.2f} / {amount:.2f} = {pricePerGram:.2f}"
+                return pricePerGram, explanation
             else:
                 RichPrintError("Cost or Amount not found in categories, cannot calculate price per gram")
-                return None
+                return None, None
         elif self.categoryRole == "Total Score":
             # Average of all review scores
             validReviewsCategories, _ = getValidReviewCategoryRolesList()
@@ -995,12 +1000,17 @@ class TeaCategory:
                 # Divide by the number of reviews
                 if len(data.reviews) == 0:
                     RichPrintError("No reviews found, cannot calculate total score")
-                    return None
-                totalScore /= len(data.reviews)
-                return totalScore
+                    return None, None
+                
+
+                avrgScore = totalScore / len(data.reviews)
+
+                # Explanation
+                explanation = f"Total score = Average of all review scores\n{totalScore:.2f} / {len(data.reviews)} = {avrgScore:.2f}"
+                return avrgScore, explanation
             else:
                 RichPrintError("Score not found in review categories, cannot calculate total score")
-                return None
+                return None, None
         
 
 # Themes for coloring
@@ -2070,8 +2080,9 @@ class Window_Stash(WindowBase):
                                 cellInvalidOrEmpty = True
                             # If category is autocalculatable and the autocalculated value is not None, use that
                             usingAutocalculatedValue = False
+                            exp = None
                             if cat.isAutoCalculated:
-                                val = cat.autocalculate(tea)
+                                val, exp = cat.autocalculate(tea)
                                 if val is not None:
                                     displayValue = val
                                     if type(val) == float:
@@ -2095,7 +2106,11 @@ class Window_Stash(WindowBase):
                                     displayValue = f"{displayValue:.{cat.rounding}f}"
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
-                                dp.Text(default_value=displayValue)    
+                                dp.Text(default_value=displayValue)
+                                if usingAutocalculatedValue:
+                                    # Give tooltip for autocalculated value
+                                    with dp.Tooltip(dpg.last_item()):
+                                        dp.Text(f"Autocalc Formula:\n{exp}")
                             elif cat.categoryType == "bool":
                                 if displayValue == "True" or displayValue == True:
                                     displayValue = True
