@@ -733,7 +733,18 @@ def _table_sort_callback(sender, sortSpec):
                 sortableItems.append((row, cellValue))
     # Define sort key
     def sort_key(item):
+        print(item[1])
+        # If date string, try to parse it, if succeeds, use timestamp
+        if isinstance(item[1], str):
+            try:
+                parsed_date = parseStringToDT(item[1])
+                if parsed_date:
+                    return parsed_date.timestamp()
+            except:
+                # Fail silently as we know it isnt always a date
+                return item[1]
         return item[1]
+    
     unsortableItems = []
     cleanSortableItems = []
     # Remove N/A from the list
@@ -1437,6 +1448,12 @@ class Window_Stash_Reviews(WindowBase):
                 # If float, round to 3 decimal places
                 if type(val) == float:
                     val = round(val, 3)
+
+                # If string, strip, and remove quotes
+                if type(val) == str:
+                    val = val.strip()
+                    val = val.replace('"', '')
+                    val = val.replace("'", "")
                 allAttributes[k] = val
 
         if "dateAdded" not in allAttributes:
@@ -1599,6 +1616,8 @@ class Window_Stash_Reviews(WindowBase):
                     print("Found parent tea")
                     print(parentTea.name)
                     break
+
+        
         if review is not None:
             if review.name == "" or review.name is None:
                 # Review name can be empty but it should instead be set to the tea name
@@ -1608,6 +1627,19 @@ class Window_Stash_Reviews(WindowBase):
                 else:
                     RichPrintError("Review name cannot be empty.")
                     isValid = False
+
+        # Strip and remove invalid quotes from name
+        if "Name" in editReviewWindowItems:
+            name = editReviewWindowItems["Name"].get_value()
+            if name is None or name.strip() == "":
+                RichPrintError("Review name cannot be empty.")
+                isValid = False
+            else:
+                # Remove invalid quotes
+                name = name.replace("\"", "").replace("'", "")
+                editReviewWindowItems["Name"].set_value(name)
+                if review is not None:
+                    review.name = name
         
         # Check based on required fields
         for cat in TeaReviewCategories:
@@ -1697,6 +1729,12 @@ class Window_Stash_Reviews(WindowBase):
                 # If float, round to 3 decimal places
                 if type(val) == float:
                     val = round(val, 3)
+
+                # If string, strip, and remove quotes
+                if type(val) == str:
+                    val = val.strip()
+                    val = val.replace('"', '')
+                    val = val.replace("'", "")
                 allAttributes[k] = val
 
         # Infer name from allAttributes if avaliable, review or parent else
@@ -2184,7 +2222,7 @@ class Window_Stash(WindowBase):
                         # If auto calculated, don't show the input
                         dp.Text("(Auto)", color=COLOR_AUTO_CALCULATED_TEXT)
                 defaultValue = None
-                
+
                 try:
                     defaultValue = teasData.attributes[cat.categoryRole]
                 except:
@@ -2227,9 +2265,9 @@ class Window_Stash(WindowBase):
                     if teasData is None:
                         # Add, so default to now if no date is set
                         defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
-                    # Date picker widget
-                    defaultValue = parseStringToDT(defaultValue)  # Ensure it's a datetime object first
-                    defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
+                    else:                    # Date picker widget
+                        defaultValue = parseStringToDT(defaultValue)  # Ensure it's a datetime object first
+                        defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
                     # If supported, display as date
                     catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                     if shouldShowDropdown:
@@ -2272,6 +2310,7 @@ class Window_Stash(WindowBase):
         if "Name" not in self.addTeaList or self.addTeaList["Name"].get_value() == "":
             RichPrintError("Error: Name is required.")
             isValid = False
+
 
         # Some fields are marked required for tea or for all, check them here
         
@@ -2464,6 +2503,12 @@ class Window_Stash(WindowBase):
                 # If float, round to 3 decimal places
                 if type(val) == float:
                     val = round(val, 3)
+
+                # If string, strip, and remove quotes
+                if type(val) == str:
+                    val = val.strip()
+                    val = val.replace('"', '')
+                    val = val.replace("'", "")
                 allAttributes[k] = val
 
         RichPrintInfo(f"Adding tea: {allAttributes}")
@@ -2502,6 +2547,12 @@ class Window_Stash(WindowBase):
                 # If float, round to 3 decimal places
                 if type(val) == float:
                     val = round(val, 3)
+
+                # If string, strip, and remove quotes
+                if type(val) == str:
+                    val = val.strip()
+                    val = val.replace('"', '')
+                    val = val.replace("'", "")
                 allAttributes[k] = val
 
 
