@@ -1566,7 +1566,8 @@ class Window_Stash_Reviews(WindowBase):
                         catItem = dp.InputText(label=cat.name, default_value=str(nameReview), width=300)
                     elif cat.categoryRole == "Notes (Long)" or cat.categoryRole == "Notes":
                         # For notes, allow multiline input
-                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
+                        height = 150 * settings["UI_SCALE"]
+                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=height)
                     else:
                         # For other strings, single line input
                         catItem = dp.InputText(label=cat.name, default_value=defaultValue)
@@ -2263,7 +2264,8 @@ class Window_Stash(WindowBase):
                 if cat.categoryType == "string":
                     # For notes, allow multiline input if it's a note
                     if cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
-                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=100)
+                        height = 150 * settings["UI_SCALE"]
+                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=height)
                     else:
                         
                         catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=False)
