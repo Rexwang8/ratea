@@ -37,7 +37,7 @@ TODO: Button to re-order reviews and teas based on current view
 TODO: Starting month, month to month stats, year to year stats
 TODO: Display more on category
 TODO: Query all of a single type or category, filter?
-TODO: Colored Text
+TODO: save table sort state
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -277,7 +277,14 @@ def parseStringToDT(string, default=None, format=None, silent=False):
 def DTToDateDict(dt):
     # Convert datetime to date dict
     # convert year to 2 digits
-    year = dt.year
+    year = None
+    try:
+        year = dt.year
+    except AttributeError as e:
+        RichPrintError(f"DTToDateDict: dt is not a datetime object: {e}")
+    except Exception as e:
+        RichPrintError(f"DTToDateDict: {e}")
+        return None
     if year > 1900:
         year = year - 1900
     return {
@@ -733,7 +740,6 @@ def _table_sort_callback(sender, sortSpec):
                 sortableItems.append((row, cellValue))
     # Define sort key
     def sort_key(item):
-        print(item[1])
         # If date string, try to parse it, if succeeds, use timestamp
         if isinstance(item[1], str):
             try:
@@ -1585,8 +1591,12 @@ class Window_Stash_Reviews(WindowBase):
                     catItem = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     # Date picker widget
-                    defaultValue = parseStringToDT(defaultValue)  # Ensure it's a datetime object first
-                    defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
+                    if defaultValue is None or defaultValue == "":
+                        defaultValue = dt.datetime.now(tz=dt.timezone.utc)
+                        defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
+                    else:
+                        defaultValue = parseStringToDT(defaultValue)  # Ensure it's a datetime object first
+                        defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
                     # If supported, display as date
                     catItem =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                     if shouldShowDropdown:
@@ -2712,11 +2722,12 @@ Name:
 Producer: 
 Type: 
 Amount: 
-Pot/Temperature: 
+Pot/Temperature: 100C/212F
 Date: DATE
 Times Steeped:
-Notes: 
 Grade/Rating: 
+Notes: 
+
 
 Reference Scale:
 S+ -- 5.0
