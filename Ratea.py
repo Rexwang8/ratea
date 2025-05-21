@@ -1526,6 +1526,7 @@ class Window_Stash_Reviews(WindowBase):
         windowManager.addSubWindow(self.editReviewWindow)
 
         nameReview = ""
+        parentName = ""
         idReview = 0
         if review is not None:
             idReview = review.id
@@ -1535,10 +1536,8 @@ class Window_Stash_Reviews(WindowBase):
                 # Get from name of parent
                 for i, tea in enumerate(TeaStash):
                     if tea.id == review.parentID:
-                        nameReview = tea.name
-                        review.name = nameReview
+                        parentName = tea.name
                         break
-        else:
             # Infer parent name and ID from parent Tea instead of review
             if parentTea is not None:
                 nameReview = parentTea.name
@@ -1580,6 +1579,9 @@ class Window_Stash_Reviews(WindowBase):
                 if cat.categoryType == "string":
                     if cat.categoryRole == "Name":
                         # For the name, use a single line input text
+                        if nameReview is None or nameReview == "" and parentName is not None:
+                            nameReview = parentName
+                        
                         catItem = dp.InputText(label=cat.name, default_value=str(nameReview), width=300)
                     elif cat.categoryRole == "Notes (Long)" or cat.categoryRole == "Notes":
                         # For notes, allow multiline input
