@@ -38,6 +38,7 @@ TODO: Starting month, month to month stats, year to year stats
 TODO: Display more on category
 TODO: Query all of a single type or category, filter?
 TODO: save table sort state
+TODO: Internal timestamps unix
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -200,7 +201,8 @@ def parseDTToString(stringOrDT):
     return datetimeobj.strftime(format)
 
 def parseDTToStringWithHoursMinutes(stringOrDT):
-    format = settings["DATE_FORMAT"] + " %H:%M"
+    # Use consistant format with no slashes or colons
+    format = "%Y-%m-%d %H-%M"
     timezone = settings["TIMEZONE"]
     # Parse into datetime
     datetimeobj = None
@@ -870,7 +872,6 @@ class Review:
     dateAdded = None
     attributes = {}
     calculated = {}
-    finalScore = 0
 
     # If is required, for when talking about tea, or for all, like teaware and shipping
     isRequiredForTea = False
@@ -891,7 +892,6 @@ class Review:
         self.attributes = attributes
         self.rating = rating
         self.calculated = {}
-        self.finalScore = 0
 
         self.isRequiredForTea = False
         self.isRequiredForAll = False
@@ -902,9 +902,6 @@ class Review:
     def calculate(self):
         # call all the calculate functions
         self.calculateFinalScore()
-    def calculateFinalScore(self):
-        # calculate the final score
-        self.finalScore = self.rating
 
 
 class TeaCategory:
@@ -4382,6 +4379,9 @@ def saveTeaReviewCategories(categories, path):
     WriteYaml(path, allData)
 
 def SaveAll(altPath=None):
+    # ignore sender and app_data
+    if type(altPath) != str and altPath is not None:
+        altPath = None
     # Save all data
     if altPath is not None:
         # This is a backup path, so save to the backup path
