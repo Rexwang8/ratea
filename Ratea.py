@@ -1162,8 +1162,8 @@ class WindowBase:
             dpg.set_item_height(self.tag, height)
 
 def Menu_Timer(sender, app_data, user_data):
-    w = 225 * settings["UI_SCALE"]
-    h = 250 * settings["UI_SCALE"]
+    w = 250 * settings["UI_SCALE"]
+    h = 300 * settings["UI_SCALE"]
     timer = Window_Timer("Timer", w, h, exclusive=False)
     if user_data is not None:
         timer.importYML(user_data)
@@ -1182,6 +1182,7 @@ class Window_Timer(WindowBase):
     window = None
     titleText = ""
     titleTextObject = None
+    buttonObject = None
     def onCreateFirstTime(self):
         # init new addresses for variables
         self.previousTimes = list()
@@ -1213,29 +1214,39 @@ class Window_Timer(WindowBase):
                     if self.titleText == "":
                         self.titleText = "Tea! "
                     dp.Text(label="Timer for... ", default_value="Timer for... ")
-                    self.titleTextObject = dp.InputText(default_value=self.titleText, width=170, multiline=False, callback=self.updateTitleText)
+                    # increase font size
+                    dpg.set_item_font(dpg.last_item(), getFontName(2))
+                    width = 125 * settings["UI_SCALE"]
+                    self.titleTextObject = dp.InputText(default_value=self.titleText, width=width, multiline=False, callback=self.updateTitleText)
+                    dpg.set_item_font(dpg.last_item(), getFontName(2))
 
             self.display = dp.Text(label=f"{self.formatTimeDisplay(self.timer)}")
+            dpg.set_item_font(dpg.last_item(), getFontName(3))
 
             # in horizontal layout
             with dp.Group(horizontal=True):
 
-                dp.Button(label="Start", callback=self.startTimer)
-                dp.Button(label="Stop", callback=self.stopTimer)
+                # Timer buttons
+                # Toggle between start and stop
+                self.buttonObject = dp.Button(label="Start", callback=self.startOrStopTimer)
+                dpg.set_item_font(dpg.last_item(), getFontName(3))
                 dp.Button(label="Reset", callback=self.resetTimer)
+                dpg.set_item_font(dpg.last_item(), getFontName(3))
 
                 dp.Checkbox(label="Persist", default_value=self.persist, callback=self.updatePersist)
-                #tooltip
+                # Tooltip
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
-                    tooltipText = '''Timer for timing tea steeps. Copy times to clipboard with the clipboard button.
-                    \nPersist will save the timer between sessions (WIP)'''
+                    tooltipText = RateaTexts.ListTextHelpMenu["menuStopwatchHelp"].wrap()
+                    #tooltipText = '''Timer for timing tea steeps. Copy times to clipboard with the clipboard button.
+                    #\nPersist will save the timer between sessions (WIP)'''
                     dp.Text(tooltipText)
 
             # Group that contains an input text raw and a button to copy to clipboard
             with dp.Group(horizontal=True):
                 dp.Button(label="Copy", callback=self.copyRawTimeToClipboard)
-                self.rawDisplay = dp.InputText(default_value="Raw Times", readonly=True, callback=self.updateDefaultValueDisplay, width=200)
+                width = 125 * settings["UI_SCALE"]
+                self.rawDisplay = dp.InputText(default_value="Raw Times", readonly=True, callback=self.updateDefaultValueDisplay, width=width)
                 
 
         # child window logging up to 30 previous times
@@ -1272,17 +1283,26 @@ class Window_Timer(WindowBase):
         if self.childWindow is not None:
             print(type(self.childWindow), self.childWindow.tag)
             self.childWindow.delete()
-        w = 215 * settings["UI_SCALE"]
+        w = 225 * settings["UI_SCALE"]
         h = 200 * settings["UI_SCALE"]
         self.childWindow = dp.ChildWindow(label="Previous Times (max 30)", width=w, height=h, parent=self.window)
         with self.childWindow:
             # add it in reverse order sop latest is at the top
             reversedTimes = self.previousTimes[::-1]
+            dp.Text(f"Previous Times ({len(reversedTimes)})")
             for i, time in enumerate(reversedTimes):
                 with dp.Group(horizontal=True):
                     dp.Button(label="Remove", callback=self.removeOneTime, user_data=i)
                     dp.Text(f"{i+1}: {self.formatTimeDisplay(time)}")
         
+    def startOrStopTimer(self, sender, app_data):
+        # Starts or stops the timer, changes the button label
+        if self.timerRunning:
+            self.stopTimer()
+            self.buttonObject.label = "Start"
+        else:
+            self.startTimer()
+            self.buttonObject.label = "Stop"
 
     def startTimer(self):
         self.timerRunning = True
@@ -1329,7 +1349,7 @@ class Window_Timer(WindowBase):
             if self.timerRunning:
                 self.timer = time.time() - self.startTime
                 self.display.set_value(self.formatTimeDisplay(self.timer))
-            time.sleep(0.1)
+            time.sleep(0.09)
 
     def updatePersist(self, sender, data):
         self.persist = data

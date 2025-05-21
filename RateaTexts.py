@@ -58,5 +58,6 @@ ListTextCategory["CategoryRole"] = Text("The role of the category. This is used 
 
 # Text used for the menu/Window help text
 ListTextHelpMenu = dict()
+ListTextHelpMenu["menuStopwatchHelp"] = Text("This is a tool to help you time your tea sessions. Copy the times into your notes!")
 ListTextHelpMenu["menuTeaStash"] = Text("This is one of the primary windows of the app. It shows a list of all the teas in your stash. You can add, edit, and delete teas from this window. You can also filter the list of teas by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n\n Green - Autocalculated \n Red - Invalid/Empty\n")
 ListTextHelpMenu["menuTeaReviews"] = Text("This is one of the primary windows of the app. It shows a list of all the reviews in your stash. You can add, edit, and delete reviews from this window. You can also filter the list of reviews by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n\n Green - Autocalculated \n Red - Invalid/Empty\n")
