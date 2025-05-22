@@ -38,7 +38,7 @@ TODO: Starting month, month to month stats, year to year stats
 TODO: Display more on category
 TODO: Query all of a single type or category, filter?
 TODO: save table sort state
-TODO: Internal timestamps unix
+TODO: Duplicate button for reviews too
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -278,7 +278,6 @@ def parseStringToDT(string, default=None, format=None, silent=False):
 
 def DTToDateDict(dt):
     # Convert datetime to date dict
-    # convert year to 2 digits
     year = None
     try:
         year = dt.year
@@ -289,10 +288,13 @@ def DTToDateDict(dt):
         return None
     if year > 1900:
         year = year - 1900
+
+    # Month is 0-indexed
+    # Year starts from 1900
     return {
         'month_day': dt.day,
         'year': year,
-        'month': dt.month,
+        'month': dt.month-1,
     }
     
 def DateDictToDT(dateDict):
@@ -301,6 +303,55 @@ def DateDictToDT(dateDict):
     if year < 1900:
         year += 1900  # Convert 2-digit year to 4-digit year
     return dt.datetime(year, dateDict['month']+1, dateDict['month_day'])
+
+# Timestamp based operations
+
+def TimeStampToDateTime(timestamp):
+    # Convert timestamp to datetime
+    return dt.datetime.fromtimestamp(timestamp)
+def DateTimeToTimeStamp(datetime):
+    # Convert datetime to timestamp
+    return int(datetime.timestamp())
+def TimeStampToDateDict(timestamp):
+    # Convert timestamp to date dict
+    datetime = TimeStampToDateTime(timestamp)
+    return DTToDateDict(datetime)
+def DateDictToTimeStamp(dateDict):
+    # Convert date dict to timestamp
+    datetime = DateDictToDT(dateDict)
+    return DateTimeToTimeStamp(datetime)
+def TimeStampToString(timestamp, format=None):
+    # Convert timestamp to string
+    if format is None:
+        format = settings["DATE_FORMAT"]
+    datetime = TimeStampToDateTime(timestamp)
+    return parseDTToString(datetime)
+def TimeStampToStringWithHoursMinutes(timestamp):
+    # Convert timestamp to string with hours and minutes
+    format = "%Y-%m-%d %H-%M"
+    datetime = TimeStampToDateTime(timestamp)
+    return parseDTToStringWithHoursMinutes(datetime, format=format)
+def TimeStampToStringWithFallback(timestamp, fallbackString):
+    # Convert timestamp to string with fallback
+    datetime = TimeStampToDateTime(timestamp)
+    return parseDTToStringWithFallback(datetime, fallbackString=fallbackString)
+def AnyDTFormatToTimeStamp(unknownDT):
+    # Convert any datetime format to timestamp
+    if type(unknownDT) is dt.datetime:
+        return DateTimeToTimeStamp(unknownDT)
+    elif isinstance(unknownDT, str):
+        return DateDictToTimeStamp(parseStringToDT(unknownDT))
+    elif isinstance(unknownDT, dict):
+        return DateDictToTimeStamp(DateDictToDT(unknownDT))
+    elif isinstance(unknownDT, int) or isinstance(unknownDT, float):
+        # If it's a timestamp, return it directly
+        return int(unknownDT)
+    else:
+        raise ValueError("Invalid datetime format")
+def StringToTimeStamp(string):
+    # Convert string to timestamp
+    dt = parseStringToDT(string)
+    return DateTimeToTimeStamp(dt)
 
 def RichPrint(text, color):
     richPrintConsole.print(text, style=color)
@@ -745,7 +796,7 @@ def _table_sort_callback(sender, sortSpec):
         # If date string, try to parse it, if succeeds, use timestamp
         if isinstance(item[1], str):
             try:
-                parsed_date = parseStringToDT(item[1])
+                parsed_date = StringToTimeStamp(item[1])
                 if parsed_date:
                     return parsed_date.timestamp()
             except:
@@ -842,7 +893,7 @@ class StashedTea:
         self.id = id
         self.name = name
         if dateAdded is None:
-            dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+            dateAdded = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         self.dateAdded = dateAdded
         self.attributes = attributes
         self.reviews = []
@@ -887,7 +938,7 @@ class Review:
         self.id = id
         self.name = name
         if dateAdded is None:
-            dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+            dateAdded = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         self.dateAdded = dateAdded
         self.attributes = attributes
         self.rating = rating
@@ -942,7 +993,7 @@ class TeaCategory:
             self.defaultValue = False
         elif categoryType == "date" or categoryType == "datetime":
             # Set the default value to the current date and time
-            self.defaultValue = dt.datetime.now(tz=dt.timezone.utc)
+            self.defaultValue = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         self.categoryRole = "UNUSED"
 
         self.isRequiredForTea = False
@@ -1484,13 +1535,11 @@ class Window_Stash_Reviews(WindowBase):
 
                 # If string, strip, and remove quotes
                 if type(val) == str:
-                    val = val.strip()
-                    val = val.replace('"', '')
-                    val = val.replace("'", "")
+                    val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
 
         if "dateAdded" not in allAttributes:
-            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc)
+            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         if "Final Score" not in allAttributes:
             allAttributes["Final Score"] = 0
 
@@ -1612,11 +1661,9 @@ class Window_Stash_Reviews(WindowBase):
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     # Date picker widget
                     if defaultValue is None or defaultValue == "":
-                        defaultValue = dt.datetime.now(tz=dt.timezone.utc)
-                        defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
+                        defaultValue = dt.datetime.now(tz=dt.timezone.utc).timestamp()
                     else:
-                        defaultValue = parseStringToDT(defaultValue)  # Ensure it's a datetime object first
-                        defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
+                        defaultValue = TimeStampToDateDict(AnyDTFormatToTimeStamp(defaultValue))
                     # If supported, display as date
                     catItem =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                     if shouldShowDropdown:
@@ -1733,9 +1780,7 @@ class Window_Stash_Reviews(WindowBase):
             elif typeOfValue == "date" or typeOfValue == "datetime":
                 # Convert string date to datetime object
                 try:
-                    newSelectedValue = parseStringToDT(newSelectedValue)
-                    # Then to date dict
-                    newSelectedValue = DTToDateDict(newSelectedValue)
+                    newSelectedValue = TimeStampToDateDict(StringToTimeStamp(newSelectedValue))
                 except ValueError:
                     RichPrintError(f"Error: {newSelectedValue} is not a valid date.")
                     return
@@ -1772,9 +1817,7 @@ class Window_Stash_Reviews(WindowBase):
 
                 # If string, strip, and remove quotes
                 if type(val) == str:
-                    val = val.strip()
-                    val = val.replace('"', '')
-                    val = val.replace("'", "")
+                    val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
 
         # Infer name from allAttributes if avaliable, review or parent else
@@ -1791,7 +1834,7 @@ class Window_Stash_Reviews(WindowBase):
         
         # Get dateAdded from allAttributes or use current time
         if "dateAdded" not in allAttributes:
-            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc)
+            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         if "Final Score" not in allAttributes:
             allAttributes["Final Score"] = 0
 
@@ -1964,8 +2007,7 @@ class Window_Stash_Reviews(WindowBase):
                                 dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
                             elif cat.categoryType == "date" or cat.categoryType == "datetime":
                                 # Date Display widget
-                                displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
-                                displayValue = parseDTToStringWithFallback(displayValue, "None")
+                                displayValue = TimeStampToString(displayValue)
                                 if displayValue == "None":
                                     cellInvalidOrEmpty = True
                                 # If supported, display as date
@@ -2032,6 +2074,7 @@ class Window_Stash(WindowBase):
             hgroupButtons = dp.Group(horizontal=True)
             with hgroupButtons:
                 dp.Button(label="Add Tea", callback=self.ShowAddTea)
+                dp.Button(label="Duplicate  Last Tea", callback=self.ShowAddTea, user_data="duplicate")
                 dp.Button(label="Import Tea", callback=self.importOneTeaFromClipboard)
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
@@ -2149,8 +2192,7 @@ class Window_Stash(WindowBase):
                                 dp.Checkbox(label=cat.name, default_value=bool(displayValue), enabled=False)
                             elif cat.categoryType == "date" or cat.categoryType == "datetime":
                                 # Date picker widget
-                                displayValue = parseStringToDT(displayValue)  # Ensure it's a datetime object first
-                                displayValue = parseDTToStringWithFallback(displayValue, "None")
+                                displayValue = TimeStampToStringWithFallback(displayValue, "None")
                                 if displayValue == "None":
                                     cellInvalidOrEmpty = True
                                 # If supported, display as date
@@ -2239,11 +2281,22 @@ class Window_Stash(WindowBase):
             self.deleteTeasWindow()
 
         teasData = None
+        duplicateTea = False
+        operation = user_data[1]
         self.addTeaList = dict()
-        if user_data[1] == "add":
+        if operation == "add":
             teasData = None
-        elif user_data[1] == "edit":
+        elif operation == "edit" or operation == "duplicate":
             teasData = user_data[0]
+
+        # Fill in field from user_data but add as a new tea
+        if operation == "duplicate":
+            # Get the last tea in the stash
+            if len(TeaStash) > 0:
+                duplicateTea = True
+            else:
+                RichPrintError("Error: No teas in stash to duplicate.")
+                return
 
         # Create a new window
         w = 500 * settings["UI_SCALE"]
@@ -2310,10 +2363,9 @@ class Window_Stash(WindowBase):
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     if teasData is None:
                         # Add, so default to now if no date is set
-                        defaultValue = DTToDateDict(dt.datetime.now(tz=dt.timezone.utc))
+                        defaultValue = dt.datetime.now(tz=dt.timezone.utc).timestamp()
                     else:                    # Date picker widget
-                        defaultValue = parseStringToDT(defaultValue)  # Ensure it's a datetime object first
-                        defaultValue = DTToDateDict(defaultValue)  # Convert to date dict
+                        defaultValue = TimeStampToDateDict(AnyDTFormatToTimeStamp(defaultValue))
                     # If supported, display as date
                     catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
                     if shouldShowDropdown:
@@ -2332,25 +2384,27 @@ class Window_Stash(WindowBase):
                     RichPrintError(f"Error: {cat.categoryRole} not supported")
 
             # Add buttons
-            if user_data[1] == "add":
+            if operation == "add":
                 dp.Button(label="Add New Tea", callback=self.validateAddEditTea, user_data=(teasData, "ADD"))
-            elif user_data[1] == "edit":
+            elif operation == "edit":
                 dp.Button(label="Confirm Edit", callback=self.validateAddEditTea, user_data=(teasData, "EDIT"))
-                # Copy Values to string (json) for the edit window, use function
+            elif operation == "duplicate":
+                dp.Button(label="Confirm Duplicate", callback=self.validateAddEditTea, user_data=(teasData, "DUPLICATE"))
+            # Copy Values to string (json) for the edit window, use function
+            if operation == "edit":
                 dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
-                dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
+            dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
+            if operation == "edit":
                 dp.Button(label="Delete Tea", callback=self.DeleteTea, user_data=teasData)
             dp.Button(label="Cancel", callback=self.deleteTeasWindow)
     
-        #self.resizeWidthToTable(self.teasWindow)
-
     def validateAddEditTea(self, sender, app_data, user_data):
         # Function to validate the input values
         isValid = True
         isTea = True # Placeholder for later 
         teasData = user_data[0]
         isAdd = False
-        if user_data[1] == "ADD":
+        if user_data[1] == "ADD" or user_data[1] == "DUPLICATE":
             isAdd = True
         # Name must always be present
         if "Name" not in self.addTeaList or self.addTeaList["Name"].get_value() == "":
@@ -2416,9 +2470,8 @@ class Window_Stash(WindowBase):
             elif typeOfValue == "date" or typeOfValue == "datetime":
                 # Convert string date to datetime object
                 try:
-                    newSelectedValue = parseStringToDT(newSelectedValue)
-                    # Then to date dict
-                    newSelectedValue = DTToDateDict(newSelectedValue)
+                    newSelectedValue = StringToTimeStamp(newSelectedValue)
+                    newSelectedValue = TimeStampToDateDict(newSelectedValue)
                 except ValueError:
                     RichPrintError(f"Error: {newSelectedValue} is not a valid date.")
                     return
@@ -2487,8 +2540,8 @@ class Window_Stash(WindowBase):
                 if k in allAttributes:
                     if type(v) == dp.DatePicker:
                         # Convert string date to datetime object
-                        dt_value = parseStringToDT(allAttributes[k])
-                        v.set_value(DTToDateDict(dt_value))
+                        dt_value = TimeStampToDateDict(StringToTimeStamp(allAttributes[k]))
+                        v.set_value(dt_value)
                     else:
                         v.set_value(allAttributes[k])
             RichPrintSuccess("Pasted Tea Values Successfully.")
@@ -2509,8 +2562,9 @@ class Window_Stash(WindowBase):
         for k, v in self.addTeaList.items():
             if k in allAttributes:
                 if type(v) == dp.DatePicker:
-                    dt_value = parseStringToDT(allAttributes[k])
-                    v.set_value(DTToDateDict(dt_value))
+                    dt_value = StringToTimeStamp(allAttributes[k])
+                    dt_value = TimeStampToDateDict(dt_value)
+                    v.set_value(dt_value)
                 else:
                     v.set_value(allAttributes[k])
 
@@ -2530,9 +2584,23 @@ class Window_Stash(WindowBase):
 
 
     def ShowAddTea(self, sender, app_data, user_data):
+        if self.teasWindow != None and type(self.teasWindow) == dp.Window:
+            self.deleteTeasWindow()
+        if user_data == "duplicate":
+            # Duplicate the last tea
+            if len(TeaStash) > 0:
+                lastTea = TeaStash[-1]
+                self.generateTeasWindow(sender, app_data, user_data=(lastTea, "duplicate"))
+                return
+            else:
+                RichPrintError("No teas to duplicate.")
+                return
         self.generateTeasWindow(sender, app_data, user_data=(None,"add"))
     def ShowEditTea(self, sender, app_data, user_data):
+        if self.teasWindow != None and type(self.teasWindow) == dp.Window:
+            self.deleteTeasWindow()
         self.generateTeasWindow(sender, app_data, user_data=(user_data,"edit"))
+        return
                    
                     
 
@@ -2552,20 +2620,18 @@ class Window_Stash(WindowBase):
 
                 # If string, strip, and remove quotes
                 if type(val) == str:
-                    val = val.strip()
-                    val = val.replace('"', '')
-                    val = val.replace("'", "")
+                    val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
 
         RichPrintInfo(f"Adding tea: {allAttributes}")
 
         # Check if the dateAdded attribute is present, if not, set it to the current time
         if "dateAdded" not in allAttributes:
-            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc)
+            allAttributes["dateAdded"] = dt.datetime.now(tz=dt.timezone.utc).timestamp()
 
         # Create a new tea and add it to the stash
         newTea = StashedTea(len(TeaStash) + 1, allAttributes["Name"], allAttributes["dateAdded"], allAttributes)
-        dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+        dateAdded = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         newTea.dateAdded = dateAdded
         TeaStash.append(newTea)
 
@@ -2596,9 +2662,7 @@ class Window_Stash(WindowBase):
 
                 # If string, strip, and remove quotes
                 if type(val) == str:
-                    val = val.strip()
-                    val = val.replace('"', '')
-                    val = val.replace("'", "")
+                    val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
 
 
@@ -2608,7 +2672,7 @@ class Window_Stash(WindowBase):
             dateAdded = tea.dateAdded
         # Transfer the dateAdded if it exists, otherwise use the current time
         if dateAdded is None:
-            dateAdded = dt.datetime.now(tz=dt.timezone.utc)
+            dateAdded = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         newTea = StashedTea(tea.id, allAttributes["Name"], dateAdded, allAttributes)
 
         # Transfer the reviews
@@ -4111,21 +4175,39 @@ def saveTeasReviews(stash, path):
     allData = []
     nowString = parseDTToString(dt.datetime.now(tz=dt.timezone.utc))  # Get current time as string for default dateAdded
     for tea in stash:
+        teaAttributesModified = tea.attributes
+        # Convert all datetimes to unix timestamps
+        for key, value in teaAttributesModified.items():
+            if isinstance(value, dt.datetime):
+                teaAttributesModified[key] = value.timestamp()
+
+        timestamp = tea.dateAdded
+        if type(timestamp) == dt.datetime:
+            timestamp = tea.dateAdded.timestamp()
         teaData = {
             "_index": tea.id,
             "Name": tea.name,
-            "dateAdded": parseDTToStringWithFallback(tea.dateAdded, fallbackString=nowString),  # Save dateAdded as string, default to now if not specified
-            "attributes": tea.attributes,
+            "dateAddedTimeStamp": timestamp,  # Save dateAdded as timestamp for easier parsing
+            "attributes": teaAttributesModified,
             "attributesJson": dumpAttributesToString(tea.attributes),  # Save attributes as JSON string for easier parsing
             "reviews": []
         }
         for review in tea.reviews:
+            reviewAttributesModified = review.attributes
+            # Convert all datetimes to unix timestamps
+            for key, value in reviewAttributesModified.items():
+                if isinstance(value, dt.datetime):
+                    reviewAttributesModified[key] = value.timestamp()
+
+            timestamp = review.dateAdded
+            if type(timestamp) == dt.datetime:
+                timestamp = review.dateAdded.timestamp()
             reviewData = {
                 "_reviewindex": review.id,
                 "parentIDX": tea.id,
                 "Name": review.name,
-                "dateAdded": parseDTToStringWithFallback(review.dateAdded, fallbackString=nowString),  # Save dateAdded as string, default to now if not specified
-                "attributes": review.attributes,
+                "dateAddedTimeStamp": timestamp,  # Save dateAdded as timestamp for easier parsing
+                "attributes": reviewAttributesModified,
                 "attributesJson": dumpAttributesToString(review.attributes),  # Save review attributes as JSON string for easier parsing
                 "rating": review.rating,
             }
@@ -4155,15 +4237,12 @@ def loadTeasReviews(path):
         if name is None:
             name = teaData.get("Name", None)
 
-        # Date added could be under dateAdded or Date Added
-        dateAdded = teaData.get("dateAdded", None)
-        if dateAdded is None:
-            dateAdded = teaData.get("Date Added", None)
+        dateAdded = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+        if "dateAddedTimeStamp" in teaData:
+            dateAdded = dt.datetime.fromtimestamp(teaData["dateAddedTimeStamp"], tz=dt.timezone.utc)
 
         tea = StashedTea(idx, name, dateAdded=dateAdded, attributes=teaData["attributes"])
-        dateAdded = dt.datetime.now(tz=dt.timezone.utc)  # Default to now if not specified
-        if "dateAdded" in teaData:
-            dateAdded = parseStringToDT(teaData["dateAdded"], default=dt.datetime.now(tz=dt.timezone.utc))
+        
         if "attributesJson" in teaData and teaData["attributesJson"]:
             # If attributesJson is present, load it
             try:
@@ -4175,7 +4254,6 @@ def loadTeasReviews(path):
                 else:
                     RichPrintError(f"Failed to load attributes from JSON: {e}. Falling back to old attributes format.")
                     tea.attributes = {}  # Fallback to empty attributes if both fail
-        tea.dateAdded = dateAdded
 
         # Add adjustments and finished flags
         if "adjustments" in teaData:
@@ -4197,16 +4275,14 @@ def loadTeasReviews(path):
             if name is None:
                 name = reviewData.get("Name", None)
 
-            # dateAdded could be under dateAdded or Date Added
-            dateAdded = reviewData.get("dateAdded", None)
-            if dateAdded is None:
-                dateAdded = reviewData.get("Date Added", None)
-            if dateAdded is None:
-                dateAdded = dt.datetime.now(tz=dt.timezone.utc)
-            dateAdded = parseStringToDT(dateAdded, default=dt.datetime.now(tz=dt.timezone.utc))
+
+            # dateadded Timestamp could be under dateAddedTimeStamp or Date Added TimeStamp
+            dateAddedTimeStamp = reviewData.get("dateAddedTimeStamp", None)
+            if dateAddedTimeStamp is None:
+                dateAddedTimeStamp = reviewData.get("Date Added TimeStamp", None)
 
             
-            review = Review(idx2, name, dateAdded, reviewData["attributes"], rating)
+            review = Review(idx2, name, dateAddedTimeStamp, reviewData["attributes"], rating)
             review.parentID = tea.id
             tea.addReview(review)
             j += 1
@@ -4543,9 +4619,11 @@ def dumpAttributesToDict(attributes):
     # Ensure all datetime objects are converted to strings
     for key, value in parseDict.items():
         if isinstance(value, dt.datetime):
-            datetimeString = parseDTToString(value)
-            dateString = datetimeString.split(" ")[0]
+            #atetimeString = parseDTToString(value)
+            #dateString = datetimeString.split(" ")[0]
             #timeString = datetimeString.split(" ")[1]
+            # Timestamp
+            dateString = TimeStampToString(value.timestamp())
             returnDict[key] = dateString
         else:
             keyvalue = value
@@ -4997,6 +5075,7 @@ def main():
     dp.Viewport.y_pos = 0
 
     dp.Runtime.start()
+
 
 
 

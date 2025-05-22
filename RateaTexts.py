@@ -18,6 +18,20 @@ def wrapLongLines(text, breakwidth=70):
                 wrappedLines.append(line)
         return "\n".join(wrappedLines)
 
+def sanitizeInputLineString(string):
+    # strip, remove single and double quotes, ascii only
+    cleanString = string.strip()
+    cleanString = cleanString.replace("'", "")
+    cleanString = cleanString.replace('"', "")
+    cleanString = ''.join(c for c in cleanString if ord(c) < 128)
+    cleanString = cleanString.replace("\n", "")
+    cleanString = cleanString.replace("\r", "")
+    cleanString = cleanString.replace("\t", "")
+    cleanString = cleanString.replace("\\", "")
+    cleanString = cleanString.replace(";", "")
+    cleanString = cleanString.replace("'", "")
+    return cleanString
+
 class Text:
     text = ""
     font = "Arial"
