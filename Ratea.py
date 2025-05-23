@@ -94,6 +94,13 @@ Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 '''
 
 
+# ALL - All messages
+# INFO - Informational messages that are not errors
+# WARNING - Warning messages that may indicate a problem or alteration
+# ERROR - Error messages that indicate a problem
+# CRITICAL - Critical error messages that indicate a serious problem that may cause the program to crash
+DEBUG_LEVEL = "ALL"  # ALL, INFO, WARNING, ERROR, CRITICAL
+
 #region Constants
 
 # light green
@@ -353,19 +360,31 @@ def StringToTimeStamp(string):
     dt = parseStringToDT(string)
     return DateTimeToTimeStamp(dt)
 
+
+
+
 def RichPrint(text, color):
     richPrintConsole.print(text, style=color)
 
+def RichPrintCritical(text):
+    if DEBUG_LEVEL == "CRITICAL" or DEBUG_LEVEL == "ALL":
+        RichPrint(f"CRITICAL: {text}", "bold red")
+
 def RichPrintError(text):
-    RichPrint(text, "bold red")
+    if DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "CRITICAL":
+        RichPrint(text, "bold red")
 def RichPrintInfo(text):
-    RichPrint(text, "bold blue")
+    if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
+        RichPrint(text, "bold blue")
 def RichPrintSuccess(text):
-    RichPrint(text, "bold green")
+    if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
+        RichPrint(text, "bold green")
 def RichPrintWarning(text):
-    RichPrint(text, "bold yellow")
+    if DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "CRITICAL" or DEBUG_LEVEL == "ALL":
+        RichPrint(text, "bold yellow")
 def RichPrintSeparator():
-    RichPrint("--------------------------------------------------", "bold white")
+    if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
+        RichPrint("--------------------------------------------------", "bold white")
 
 def print_me(sender, data, user_data):
     print("Hello World")
