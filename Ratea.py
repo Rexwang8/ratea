@@ -1662,6 +1662,7 @@ class Window_Stash_Reviews(WindowBase):
                     # Date picker widget
                     if defaultValue is None or defaultValue == "":
                         defaultValue = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+                        defaultValue = TimeStampToDateDict(defaultValue)
                     else:
                         defaultValue = TimeStampToDateDict(AnyDTFormatToTimeStamp(defaultValue))
                     # If supported, display as date
@@ -1703,6 +1704,9 @@ class Window_Stash_Reviews(WindowBase):
                     print("Found parent tea")
                     print(parentTea.name)
                     break
+            else:
+            # If review is None, we are adding a new review, so set the parent tea to the current tea
+                parentTea = self.tea
 
         
         if review is not None:
@@ -2364,6 +2368,7 @@ class Window_Stash(WindowBase):
                     if teasData is None:
                         # Add, so default to now if no date is set
                         defaultValue = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+                        defaultValue = TimeStampToDateDict(defaultValue)
                     else:                    # Date picker widget
                         defaultValue = TimeStampToDateDict(AnyDTFormatToTimeStamp(defaultValue))
                     # If supported, display as date
