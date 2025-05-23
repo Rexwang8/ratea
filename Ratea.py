@@ -72,6 +72,7 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.5.8): Added adjustments window for teas
 Feat(0.5.7): Table filters by name search
 Feat(0.5.7): Stopwatch, combine stop/start button
 Feat(0.5.7): Stats: Volume, cost, weighted avrg stat
@@ -99,7 +100,7 @@ Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 # WARNING - Warning messages that may indicate a problem or alteration
 # ERROR - Error messages that indicate a problem
 # CRITICAL - Critical error messages that indicate a serious problem that may cause the program to crash
-DEBUG_LEVEL = "ALL"  # ALL, INFO, WARNING, ERROR, CRITICAL
+DEBUG_LEVEL = "ERROR"  # ALL, INFO, WARNING, ERROR, CRITICAL
 
 #region Constants
 
@@ -903,7 +904,7 @@ class StashedTea:
     calculated = {}
     # Price and amount adjustments, if required, in lists of Adjustment dicts
     # Price adjustments = [{"price": 10, "amount": 100}, {"price": 5, "amount": 50}]
-    adjustments = []
+    adjustments = {}
 
     # Finished flag
     finished = False
@@ -1034,14 +1035,28 @@ class TeaCategory:
                 for review in data.reviews:
                     if "Amount" in review.attributes:
                         reviewAmount += review.attributes["Amount"]
-                print(data.attributes)
+
+                # Get adjustments amount
+                adjustmentsAmount = 0
+                try:
+                    adjustmentsAmount += data.adjustments["Standard"]
+                except:
+                    RichPrintWarning("No adjustments found, skipping")
+
                 originalAmount = data.attributes["Amount"]
                 # Remaining = Original Amount - Sum of all review Amounts
-                remaining = originalAmount - reviewAmount
+                remaining = originalAmount - reviewAmount - adjustmentsAmount
+
+                # Also check if finished
+                finished = data.finished
 
                 # Explanation
-                explanation = f"Remaining = Purchased Amount - Sum of all review Amounts\n{originalAmount:.2f} - {reviewAmount:.2f} = {remaining:.2f}"
-                return remaining, explanation
+                if not finished:
+                    explanation = f"Remaining = Purchased Amount - Sum of all review Amounts - Adjustments\n{originalAmount:.2f} - {reviewAmount:.2f} - {adjustmentsAmount:.2f} = {remaining:.2f}"
+                    return remaining, explanation
+                else:
+                    explanation = f"[Finished] Remaining = Purchased Amount - Sum of all review Amounts - Adjustments\n{originalAmount:.2f} - {reviewAmount:.2f} - {remaining:.2f} = 0"
+                    return 0, explanation
             else:
                 RichPrintError("Amount not found in categories, cannot calculate remaining")
                 return None, None
@@ -1084,7 +1099,7 @@ class TeaCategory:
             else:
                 RichPrintError("Score not found in review categories, cannot calculate total score")
                 return None, None
-        
+                    
 
 # Themes for coloring
 def create_cell_theme(color_rgba):
@@ -2084,6 +2099,8 @@ def Menu_Stash():
 class Window_Stash(WindowBase):
     addTeaList = dict()
     teasWindow = None
+    adjustmentsWindow = None
+    adjustmentsDict = dict()
 
     def onDelete(self):
         # Close all popups
@@ -2092,6 +2109,13 @@ class Window_Stash(WindowBase):
         elif self.teasWindow is not None:
             RichPrintInfo("Warning: Attempted to delete a non-existent teas window.")
             self.teasWindow = None
+
+        # Close adjustments window
+        if self.adjustmentsWindow != None and type(self.adjustmentsWindow) == dp.Window and self.adjustmentsWindow.exists():
+            self.adjustmentsWindow.delete()
+        elif self.adjustmentsWindow is not None:
+            RichPrintInfo("Warning: Attempted to delete a non-existent adjustments window.")
+            self.adjustmentsWindow = None
         # Invoke base class delete
         super().onDelete()
 
@@ -2138,7 +2162,8 @@ class Window_Stash(WindowBase):
                 for i, cat in enumerate(TeaCategories):
                     dp.TableColumn(label=cat.name, no_resize=False, no_clip=True, user_data=f"{i+1}")
                 dp.TableColumn(label="Reviews", no_resize=False, no_clip=True, width=300, no_hide=True)
-                dp.TableColumn(label="Edit", no_resize=False, no_clip=True, width=50, no_hide=True)
+                dp.TableColumn(label="Actions", no_resize=False, no_clip=True, width=50, no_hide=True)
+                
 
                 # Add rows
                 for i, tea in enumerate(TeaStash):
@@ -2243,7 +2268,9 @@ class Window_Stash(WindowBase):
                         # button that opens a modal with reviews
                         numReviews = len(tea.reviews)
                         dp.Button(label=f"{numReviews} Reviews", callback=self.generateReviewListWindow, user_data=tea)
-                        dp.Button(label="Edit", callback=self.ShowEditTea, user_data=tea)
+                        with dp.Group(horizontal=True):
+                            dp.Button(label="Edit", callback=self.ShowEditTea, user_data=tea)
+                            dp.Button(label="Adjust", callback=self.showAdjustTeaWindow, user_data=tea)
 
             # Add seperator and import/export buttons
             dp.Separator()
@@ -2614,6 +2641,16 @@ class Window_Stash(WindowBase):
         else:
             print("No window to delete")
 
+    def deleteAdjustmentsWindow(self):
+        # If window is open, close it first
+        if self.adjustmentsWindow != None:
+            self.adjustmentsWindow.delete()
+            self.adjustmentsWindow = None
+            self.addTeaList = dict()
+        else:
+            print("No window to delete")
+            
+
 
 
 
@@ -2635,6 +2672,145 @@ class Window_Stash(WindowBase):
             self.deleteTeasWindow()
         self.generateTeasWindow(sender, app_data, user_data=(user_data,"edit"))
         return
+    
+    def showAdjustTeaWindow(self, sender, app_data, user_data):
+        # Show the adjust tea window
+        if self.adjustmentsWindow != None and type(self.adjustmentsWindow) == dp.Window:
+            self.deleteAdjustmentsWindow()
+        self.generateAdjustmentsWindow(sender, app_data, user_data=user_data)
+        return
+    
+
+    # The adjustments window allows the user to adjust the amount of tea remaining, and mark it as finished
+    def generateAdjustmentsWindow(self, sender, app_data, user_data):
+        # If window is open, close it first
+        if self.adjustmentsWindow != None and type(self.adjustmentsWindow) == dp.Window:
+            self.deleteAdjustmentsWindow()
+
+        # Create a new window
+        w = 500 * settings["UI_SCALE"]
+        h = 500 * settings["UI_SCALE"]
+        self.adjustmentsWindow = dp.Window(label="Adjustments", width=w, height=h, show=True)
+        windowManager.addSubWindow(self.adjustmentsWindow)
+        teaCurrent = user_data
+        teaCurrent: StashedTea
+        with self.adjustmentsWindow:
+            dp.Text("Adjustments")
+
+            # Check if all required categories are present,
+            # Needs Amount Purchased, amount remaining
+            AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
+            allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
+            if "Amount" in teaCurrent.attributes or "Remaining" in teaCurrent.attributes:
+
+                # Get Amount and Remaining categories
+                amountCategory = None
+                for cat in TeaCategories:
+                    if cat.categoryRole == "Amount":
+                        amountCategory = cat
+                        break
+                remainingCategory = None
+                for cat in TeaCategories:
+                    if cat.categoryRole == "Remaining":
+                        remainingCategory = cat
+                        break
+
+                # Display the current tea name and amount
+                dp.Text(f"Tea Name: {teaCurrent.name}")
+                currentRemaining, exp = remainingCategory.autocalculate(teaCurrent)
+                if currentRemaining is None:
+                    currentRemaining = 0.0
+                totalPurchased = teaCurrent.attributes.get("Amount", None)
+                dp.Text(f"Total Purchased: {totalPurchased:.3f}g")
+                dp.Text(f"Current Amount: {currentRemaining:.3f}g")
+                with dp.Tooltip(dpg.last_item()):
+                    dp.Text(f"Autocalc Formula:\n{exp}")
+
+
+                # Current Adjustment in the tea dict
+                currentAdjustmentAmt = 0
+                currentAdjustmentDict = teaCurrent.adjustments
+                if currentAdjustmentDict is not None:
+                    # Try to get standard adjustment
+                    currentAdjustmentAmt = currentAdjustmentDict.get("Standard", None)
+                    if currentAdjustmentAmt is None:
+                        currentAdjustmentAmt = 0.0
+                dp.Text(f"Current Adjustment: {currentAdjustmentAmt:.3f}g")
+                # Add a checkbox to mark the tea as finished
+                finished = teaCurrent.finished
+                finsihedCheckbox = dp.Checkbox(label="Finished", default_value=finished, callback=self.greyOutAdjustmentInput)                
+                
+
+                # Add a text input for the adjustment
+                dp.Text("Adjustment:")
+                adjustmentInput = dp.InputFloat(label="Adjustment", default_value=currentAdjustmentAmt, enabled=not finished)
+                self.addTeaList["Adjustment"] = adjustmentInput
+
+                # Add userdata for the adjustment input to grey out
+                finsihedCheckbox.user_data = (finished, teaCurrent, adjustmentInput, currentRemaining)
+
+                # Add a button to confirm the adjustment
+                dp.Button(label="Confirm Adjustment", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, adjustmentInput, finsihedCheckbox))
+            else:
+                # If the tea does not have the required attributes, show an error message
+                dp.Text("Error: Tea does not have the required attributes for adjustments.")
+                dp.Text("Required attributes: Amount, Remaining")
+
+            # Add a button to cancel the adjustment
+            dp.Button(label="Cancel", callback=self.deleteAdjustmentsWindow)
+
+    def greyOutAdjustmentInput(self, sender, app_data, user_data):
+        # If the tea is finished, grey out the adjustment input
+
+        finished = app_data
+        teaCurrent = user_data[1]
+        adjustmentInput = user_data[2]
+        currentAmount = user_data[3]
+        if finished:
+            # If the tea is finished, grey out the adjustment input
+            adjustmentInput.enabled = False
+            adjustmentInput.set_value(0.0)
+            RichPrintInfo(f"Tea {teaCurrent.name} is finished. Adjustment input is disabled.")
+        else:
+            # If the tea is not finished, enable the adjustment input
+            adjustmentInput.enabled = True
+            adjustmentInput.set_value(0.0)
+            RichPrintInfo(f"Tea {teaCurrent.name} is not finished. Adjustment input is enabled.")
+
+
+    
+    def UpdateAdjustmentAmt(self, sender, app_data, user_data):
+        # Updates the adjustment amount, user_data[0] is the tea object
+        tea = user_data[0]
+        adjustmentInput = user_data[1]
+        adjustment = adjustmentInput.get_value()
+        finishedCheckbox = user_data[2]
+        finished = finishedCheckbox.get_value()
+        # Check if the adjustment is a valid number
+        try:
+            adjustment = float(adjustment)
+        except ValueError:
+            RichPrintError("Error: Adjustment is not a valid number.")
+            return
+        # Modify the TeaStash object
+        teaStashObj = None
+        for i, teaStash in enumerate(TeaStash):
+            if teaStash.id == tea.id:
+                teaStashObj = teaStash
+                break
+        if teaStashObj is None:
+            RichPrintError("Error: Tea not found in stash.")
+            return
+        
+        # Update the adjustment amount
+        teaStashObj.adjustments["Standard"] = round(adjustment, 2)
+        teaStashObj.finished = finished
+        # Save the tea stash to file
+        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+
+        # Refresh the window
+        self.deleteAdjustmentsWindow()
+        self.refresh()
                    
                     
 
@@ -2911,7 +3087,7 @@ def statsNumReviews():
         numReviews += len(tea.reviews)
     return numReviews
 
-# Get total volume of all teas in the stash
+# Get total Purchase volume of all teas in the stash
 def statsTotalVolume():
     # Guard if no attributes are present
     validCategories, _  = getValidCategoryRolesList()
@@ -2962,6 +3138,37 @@ def statsWeightedAverageCost():
     else:
         weightedAverageCost = 0
     return weightedAverageCost
+
+# Get total consumed by summing all reviews, adjustments, and finished teas
+def statsTotalConsumed():
+    # Guard if no attributes are present
+    validCategories, _ = getValidCategoryRolesList()
+    if "Amount" not in validCategories:
+        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
+        return 0, 0
+    
+    numTeas = statsNumTeas()
+    totalConsumed = 0
+    for tea in TeaStash:
+        if not tea.finished:
+            # If the tea is not finished, add the amount from the reviews
+            for review in tea.reviews:
+                if "Amount" in review.attributes:
+                    totalConsumed += review.attributes["Amount"]
+            # Add the adjustments
+            if "Standard" in tea.adjustments:
+                totalConsumed += tea.adjustments["Standard"]
+        else:
+            # Directly add total purchase volume
+            if "Amount" in tea.attributes:
+                totalConsumed += tea.attributes["Amount"]
+    if numTeas > 0:
+        averageConsumed = totalConsumed / numTeas
+    else:
+        averageConsumed = 0
+    
+    return totalConsumed, averageConsumed
+
 
 def Menu_Stats():
     w = 480 * settings["UI_SCALE"]
@@ -3080,7 +3287,7 @@ class Window_Stats(WindowBase):
                 dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
             dp.Separator()
 
-            # Total volume, total cost, and weighted average cost
+            # Total volume Purchased, total cost, and weighted average cost
             if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
                 dp.Text("Total Volume and Cost")
                 totalVolume, averageVolume = statsTotalVolume()
@@ -3091,6 +3298,16 @@ class Window_Stats(WindowBase):
                 dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
             else:
                 dp.Text("Required Category role 'Cost' or 'Amount' for Tea is not enabled.")
+
+            dp.Separator()
+            # Total consumed by summing all reviews, adjustments, and finished teas
+            dp.Text("Total Consumed")
+            if "Amount" in AllTypesCategoryRoleValid:
+                totalConsumed, averageConsumed = statsTotalConsumed()
+                dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per tea: {averageConsumed:.2f}g")
+            else:
+                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+            dp.Separator()
 
 
 
@@ -4249,7 +4466,9 @@ def saveTeasReviews(stash, path):
             "dateAddedTimeStamp": timestamp,  # Save dateAdded as timestamp for easier parsing
             "attributes": teaAttributesModified,
             "attributesJson": dumpAttributesToString(tea.attributes),  # Save attributes as JSON string for easier parsing
-            "reviews": []
+            "reviews": [],
+            "adjustments": tea.adjustments,
+            "finished": tea.finished,
         }
         for review in tea.reviews:
             reviewAttributesModified = review.attributes
@@ -4629,7 +4848,6 @@ def LoadAll(baseDir=None):
     session["settingsPath"] = settingsPath
     settings = LoadSettings(session["settingsPath"])
     # Update version
-    print(session)
     categoriesPath = f"{baseDir}/{settings["TEA_CATEGORIES_PATH"]}"
     teaReviewCategoriesPath = f"{baseDir}/{settings["TEA_REVIEW_CATEGORIES_PATH"]}"
     session["categoriesPath"] = categoriesPath
@@ -5060,7 +5278,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.5.7", # Updates to most recently loaded
+        "APP_VERSION": "0.5.8", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
