@@ -1535,7 +1535,10 @@ class Window_Stash_Reviews(WindowBase):
 
                 # If string, strip, and remove quotes
                 if type(val) == str:
-                    val = RateaTexts.sanitizeInputLineString(val)
+                    if k == "Notes (Long)":
+                        val = RateaTexts.sanitizeInputMultiLineString(val)
+                    else:
+                        val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
 
         if "dateAdded" not in allAttributes:
@@ -1821,7 +1824,10 @@ class Window_Stash_Reviews(WindowBase):
 
                 # If string, strip, and remove quotes
                 if type(val) == str:
-                    val = RateaTexts.sanitizeInputLineString(val)
+                    if k == "Notes (Long)":
+                        val = RateaTexts.sanitizeInputMultiLineString(val)
+                    else:
+                        val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
 
         # Infer name from allAttributes if avaliable, review or parent else
@@ -1989,7 +1995,7 @@ class Window_Stash_Reviews(WindowBase):
                             if not cellInvalidOrEmpty and (cat.categoryType == "string"):
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
-                                dp.Text(default_value=displayValue)
+                                dp.Text(default_value=RateaTexts.truncateString(displayValue, 70))
                                 if cat.categoryRole == "Notes (Long)":
                                     # Add a tooltip for long notes
                                     with dp.Tooltip(dpg.last_item()):
@@ -2170,7 +2176,7 @@ class Window_Stash(WindowBase):
                             if not cellInvalidOrEmpty and (cat.categoryType == "string"):
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
-                                dp.Text(default_value=displayValue)
+                                dp.Text(default_value=RateaTexts.truncateString(displayValue, 70))
                                 if cat.categoryRole == "Notes (Long)":
                                     # Add a tooltip for long notes
                                     with dp.Tooltip(dpg.last_item()):
@@ -2625,7 +2631,10 @@ class Window_Stash(WindowBase):
 
                 # If string, strip, and remove quotes
                 if type(val) == str:
-                    val = RateaTexts.sanitizeInputLineString(val)
+                    if k == "Notes (Long)":
+                        val = RateaTexts.sanitizeInputMultiLineString(val)
+                    else:
+                        val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
 
         RichPrintInfo(f"Adding tea: {allAttributes}")
@@ -2667,7 +2676,10 @@ class Window_Stash(WindowBase):
 
                 # If string, strip, and remove quotes
                 if type(val) == str:
-                    val = RateaTexts.sanitizeInputLineString(val)
+                    if k == "Notes (Long)":
+                        val = RateaTexts.sanitizeInputMultiLineString(val)
+                    else:
+                        val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
 
 

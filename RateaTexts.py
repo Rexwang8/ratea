@@ -32,6 +32,25 @@ def sanitizeInputLineString(string):
     cleanString = cleanString.replace("'", "")
     return cleanString
 
+def sanitizeInputMultiLineString(string):
+    # strip, remove single and double quotes, ascii only
+    cleanString = string.strip()
+    cleanString = cleanString.replace("'", "")
+    cleanString = cleanString.replace('"', "")
+    cleanString = ''.join(c for c in cleanString if ord(c) < 128)
+    cleanString = cleanString.replace("\r", "")
+    cleanString = cleanString.replace("\t", "")
+    cleanString = cleanString.replace("\\", "")
+    cleanString = cleanString.replace("'", "")
+    return cleanString
+
+def truncateString(string, length):
+    # Truncates a string to a specified length
+    if len(string) > length:
+        return string[:length] + "..."
+    else:
+        return string
+
 class Text:
     text = ""
     font = "Arial"
