@@ -4048,6 +4048,25 @@ class Window_Welcome(WindowBase):
             
             dp.Button(label="OK", callback=window.delete)
 
+# Terminal window
+def Menu_Terminal():
+    w = 640 * settings["UI_SCALE"]
+    h = 480 * settings["UI_SCALE"]
+    terminal = Window_Terminal("Terminal", w, h, exclusive=True)
+
+class Window_Terminal(WindowBase):
+    def windowDefintion(self, window):
+        with window:
+            dp.Text("Terminal")
+            dp.Text("Terminal goes here")
+            # Add a text input box
+            textInput = dp.InputText(label="Input", default_value="", multiline=True, width=600 * settings["UI_SCALE"], height=400 * settings["UI_SCALE"])
+            # Add a button to clear the terminal
+            dp.Button(label="Clear", callback=self.clearTerminal)
+
+    def clearTerminal(self, sender, app_data):
+        print("Clearing terminal")
+        pass
 
 
 class Manager_Windows:
@@ -4900,6 +4919,7 @@ def UI_CreateViewPort_MenuBar():
         with dp.Menu(label="Debug"):
             dp.Button(label="Demo", callback=demo.show_demo)
             with dp.Menu(label="Ops"):
+                dp.Button(label="Terminal", callback=Menu_Terminal)
                 dp.Button(label="Renumber data", callback=renumberTeasAndReviews)
                 dp.Button(label="Check Categories", callback=verifyCategoriesReviewCategories)
                 dp.Button(label="Stop Backup Thread", callback=startStopBackupThread)
