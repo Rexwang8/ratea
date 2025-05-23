@@ -36,7 +36,6 @@ TODO: Export to google sheets readable format
 TODO: Button to re-order reviews and teas based on current view
 TODO: Starting month, month to month stats, year to year stats
 TODO: Display more on category
-TODO: Query all of a single type or category, filter?
 TODO: save table sort state
 TODO: Duplicate button for reviews too
 
@@ -48,7 +47,6 @@ TODO: Code: Centralize tooltips and other large texts
 TODO: Tables: Non-tea items, like teaware, shipping, etc.
 TODO: Category: Write in description for each category role
 TODO: Slider for textbox size for notepad, wrap too
-TODO: Stopwatch, combine stop/start button
 TODO: Confirmation window for deleting tea/review
 TODO: Terminal window to print out debug info
 
@@ -74,6 +72,8 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.5.7): Table filters by name search
+Feat(0.5.7): Stopwatch, combine stop/start button
 Feat(0.5.7): Stats: Volume, cost, weighted avrg stat
 Feat(0.5.7): Auto-Resize tea and review table with frame callbacks
 Feat(0.5.7): Put notes in tooltips when hovered
@@ -1930,11 +1930,13 @@ class Window_Stash_Reviews(WindowBase):
                     dp.Button(label="Add", callback=self.AddReview, user_data=tea)
             dp.Separator()
             # Add a table with reviews
+            _filter_table_id = dpg.generate_uuid()
+            dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)))
             reviewsTable = dp.Table(header_row=True, no_host_extendX=True,
                                 borders_innerH=True, borders_outerH=True, borders_innerV=True,
                                 borders_outerV=True, row_background=True, hideable=True, reorderable=True,
                                 resizable=True, sortable=True, policy=dpg.mvTable_SizingFixedFit,
-                                scrollX=True, delay_search=True, scrollY=True, callback=_table_sort_callback)
+                                scrollX=True, delay_search=True, scrollY=True, callback=_table_sort_callback, tag=_filter_table_id)
             with reviewsTable:
                 # Add columns
                 # Add ID
@@ -1948,7 +1950,7 @@ class Window_Stash_Reviews(WindowBase):
                                      width=50, default_sort=True, no_hide=True)
                 # Add rows
                 for i, review in enumerate(tea.reviews):
-                    tableRow = dp.TableRow()
+                    tableRow = dp.TableRow(filter_key=review.name)
                     with tableRow:
 
                         # Add ID index based on position in list
@@ -2101,11 +2103,13 @@ class Window_Stash(WindowBase):
             dp.Separator()
 
             # Table with collapsable rows for reviews
+            _filter_table_id = dpg.generate_uuid()
+            dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)))
             teasTable = dp.Table(header_row=True, no_host_extendX=True,
                                 borders_innerH=True, borders_outerH=True, borders_innerV=True,
                                 borders_outerV=True, row_background=True, hideable=True, reorderable=True,
                                 resizable=True, sortable=True, policy=dpg.mvTable_SizingFixedFit,
-                                scrollX=True, delay_search=True, scrollY=True, callback=_table_sort_callback)
+                                scrollX=True, delay_search=True, scrollY=True, callback=_table_sort_callback, tag=_filter_table_id)
             with teasTable:
                 # Add columns from teaCategories
                 # Add ID
@@ -2119,7 +2123,7 @@ class Window_Stash(WindowBase):
 
                 # Add rows
                 for i, tea in enumerate(TeaStash):
-                    tableRow = dp.TableRow()
+                    tableRow = dp.TableRow(filter_key=tea.name)
                     with tableRow:
                         # Add ID index based on position in list
                         dp.Text(label=f"{i}", default_value=f"{i}")
