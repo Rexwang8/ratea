@@ -68,6 +68,7 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.5.8): Overhaul ui a bit with bigger fonts, refresh button
 Feat(0.5.8): Calculate Start day and consumed/day
 Feat(0.5.8): Added adjustments window for teas
 Feat(0.5.7): Table filters by name search
@@ -1598,8 +1599,8 @@ class Window_Stash_Reviews(WindowBase):
 
     def GenerateEditReviewWindow(self, sender, app_data, user_data):
         # Create a new window for editing the review
-        w = 600 * settings["UI_SCALE"]
-        h = 700 * settings["UI_SCALE"]
+        w = 620 * settings["UI_SCALE"]
+        h = 720 * settings["UI_SCALE"]
         
         editReviewWindowItems = dict()
         review = user_data[0]
@@ -1639,16 +1640,28 @@ class Window_Stash_Reviews(WindowBase):
 
             
         with self.editReviewWindow:
+            # Add a title
+            if isEdit:
+                dp.Text(f"Edit Review - {nameReview}")
+                dpg.bind_item_font(dpg.last_item(), getFontName(3))
+            else:
+                dp.Text("Add New Review")
+                dpg.bind_item_font(dpg.last_item(), getFontName(3))
+
+
             for cat in TeaReviewCategories:
                 cat: ReviewCategory
                 # Add it to the window
                 catName = cat.name
 
+
                 # Text indicators for required and auto calculated
+                dp.Separator()
                 with dp.Group(horizontal=True):
                     if cat.isRequiredForTea:
                         dp.Text("[required]", color=COLOR_REQUIRED_TEXT)
                     dp.Text(catName)
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     if cat.isAutoCalculated:
                         # If auto calculated, don't show the input
                         catItem = dp.Text(label=f"(Auto)", color=COLOR_AUTO_CALCULATED_TEXT)
@@ -1680,33 +1693,42 @@ class Window_Stash_Reviews(WindowBase):
                         if nameReview is None or nameReview == "" and parentName is not None:
                             nameReview = parentName
                         
-                        catItem = dp.InputText(label=cat.name, default_value=str(nameReview), width=300)
+                        catItem = dp.InputText(default_value=str(nameReview), width=300 * settings["UI_SCALE"])
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     elif cat.categoryRole == "Notes (Long)" or cat.categoryRole == "Notes":
                         # For notes, allow multiline input
                         height = 150 * settings["UI_SCALE"]
-                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=height)
+                        catItem = dp.InputText(default_value=str(defaultValue), multiline=True, height=height)
+                        
                     else:
                         # For other strings, single line input
-                        catItem = dp.InputText(label=cat.name, default_value=defaultValue)
+                        catItem = dp.InputText(default_value=defaultValue)
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
                         if shouldShowDropdown:
                             # Add a dropdown for the past answers
                             dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
+                            dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 elif cat.categoryType == "int":
-                    catItem = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                    catItem = dp.InputInt(default_value=int(defaultValue))
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 elif cat.categoryType == "float":
-                    catItem = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                    catItem = dp.InputFloat(default_value=float(defaultValue))
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 elif cat.categoryType == "bool":
                     if defaultValue == "True" or defaultValue == True:
                         defaultValue = True
                     else:
                         defaultValue = False
                     catItem = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     # Date picker widget
                     if defaultValue is None or defaultValue == "":
@@ -1716,21 +1738,29 @@ class Window_Stash_Reviews(WindowBase):
                         defaultValue = TimeStampToDateDict(AnyDTFormatToTimeStamp(defaultValue))
                     # If supported, display as date
                     catItem =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "date"))
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 else:
-                    catItem = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    catItem = dp.InputText(default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
 
                 if catItem is not None:
                     editReviewWindowItems[cat.categoryRole] = catItem
                     
             # Final Score input
-            dp.Button(label="Save", callback=self.validateAddEditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
-            dp.Button(label="Cancel", callback=self.deleteEditReviewWindow)
+            dp.Separator()
+            with dp.Group(horizontal=True):
+                dp.Button(label="Save", callback=self.validateAddEditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                dp.Button(label="Cancel", callback=self.deleteEditReviewWindow)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
     
     def validateAddEditReview(self, sender, app_data, user_data):
         review = user_data[0]
@@ -2138,7 +2168,6 @@ class Window_Stash(WindowBase):
         # Invoke base class delete
         super().onDelete()
 
-
     def windowDefintion(self, window):
         self.addTeaList = dict()
         self.addReviewList = dict()
@@ -2148,12 +2177,19 @@ class Window_Stash(WindowBase):
             hgroupButtons = dp.Group(horizontal=True)
             with hgroupButtons:
                 dp.Button(label="Add Tea", callback=self.ShowAddTea)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="Duplicate Last Tea", callback=self.ShowAddTea, user_data="duplicate")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="Import Tea", callback=self.importOneTeaFromClipboard)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="Export All (TODO)", callback=self.DummyCallback)
-                dp.Button(label="Refresh (TODO)", callback=self.DummyCallback)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                dp.Button(label="Refresh", callback=self.refresh)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 
 
                 # Tooltip for the buttons
@@ -2378,22 +2414,22 @@ class Window_Stash(WindowBase):
                 return
 
         # Create a new window
-        w = 500 * settings["UI_SCALE"]
-        h = 500 * settings["UI_SCALE"]
+        w = 580 * settings["UI_SCALE"]
+        h = 540 * settings["UI_SCALE"]
         self.teasWindow = dp.Window(label="Teas", width=w, height=h, show=True)
         windowManager.addSubWindow(self.teasWindow)
         with self.teasWindow:
             if operation == "add":
                 dp.Text("Add New Tea")
             elif operation == "edit":
-                dp.Text(f"Edit Tea - {teasData.name if teasData else 'Unknown name'}")
+                dp.Text(f"Edit Tea\n{teasData.name if teasData else 'Unknown name'}")
             elif operation == "duplicate":
                 if duplicateTea:
-                    dp.Text(f"Duplicate Tea - {teasData.name if teasData else 'Unknown name'}")
+                    dp.Text(f"Duplicate Tea\n{teasData.name if teasData else 'Unknown name'}")
                 else:
                     RichPrintError("Error: No teas in stash to duplicate.")
                     return
-            dpg.bind_item_font(dpg.last_item(), getFontName(3))
+            dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
 
 
 
@@ -2401,16 +2437,19 @@ class Window_Stash(WindowBase):
                 cat: TeaCategory
                 # Add it to the window
                 catName = cat.name
+                dp.Separator()
 
                 # Text indicators for required and auto calculated
                 with dp.Group(horizontal=True):
                     if cat.isRequiredForTea:
                         dp.Text("[required]", color=COLOR_REQUIRED_TEXT)
                     dp.Text(catName)
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     if cat.isAutoCalculated:
                         # If auto calculated, don't show the input
                         dp.Text("(Auto)", color=COLOR_AUTO_CALCULATED_TEXT)
                 defaultValue = None
+                
 
                 try:
                     defaultValue = teasData.attributes[cat.categoryRole]
@@ -2434,29 +2473,36 @@ class Window_Stash(WindowBase):
                     # For notes, allow multiline input if it's a note
                     if cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
                         height = 150 * settings["UI_SCALE"]
-                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=True, height=height)
+                        catItem = dp.InputText(default_value=str(defaultValue), multiline=True, height=height, width=480 * settings["UI_SCALE"])
                     else:
                         
-                        catItem = dp.InputText(label=cat.name, default_value=str(defaultValue), multiline=False)
+                        catItem = dp.InputText(default_value=str(defaultValue), multiline=False, width=480 * settings["UI_SCALE"])
+                        dpg.bind_item_font(catItem.tag, getFontName(2))
                         if shouldShowDropdown:
                             # Create a dropdown with the past answers
                             dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
+                            dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 elif cat.categoryType == "int":
-                    catItem = dp.InputInt(label=cat.name, default_value=int(defaultValue))
+                    catItem = dp.InputInt(default_value=int(defaultValue), width=480 * settings["UI_SCALE"])
+                    dpg.bind_item_font(catItem.tag, getFontName(2))
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 elif cat.categoryType == "float":
-                    catItem = dp.InputFloat(label=cat.name, default_value=float(defaultValue))
+                    catItem = dp.InputFloat(default_value=float(defaultValue), width=480 * settings["UI_SCALE"])
+                    dpg.bind_item_font(catItem.tag, getFontName(2))
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 elif cat.categoryType == "bool":
                     if defaultValue == "True" or defaultValue == True:
                         defaultValue = True
                     else:
                         defaultValue = False
-                    catItem = dp.Checkbox(label=cat.name, default_value=bool(defaultValue))
+                    catItem = dp.Checkbox(default_value=bool(defaultValue), width=480 * settings["UI_SCALE"])
+                    dpg.bind_item_font(catItem.tag, getFontName(2))
                 elif cat.categoryType == "date" or cat.categoryType == "datetime":
                     if teasData is None:
                         # Add, so default to now if no date is set
@@ -2465,15 +2511,19 @@ class Window_Stash(WindowBase):
                     else:                    # Date picker widget
                         defaultValue = TimeStampToDateDict(AnyDTFormatToTimeStamp(defaultValue))
                     # If supported, display as date
-                    catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
+                    catItem = dp.DatePicker(level=dpg.mvDatePickerLevel_Day, default_value=defaultValue, width=480 * settings["UI_SCALE"])
+                    dpg.bind_item_font(catItem.tag, getFontName(2))
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "date"))
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 else:
-                    catItem = dp.InputText(label=cat.name, default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    catItem = dp.InputText(default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}", width=480 * settings["UI_SCALE"])
+                    dpg.bind_item_font(catItem.tag, getFontName(2))
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
 
                 # Add it to the list
                 if catItem != None:
@@ -2481,20 +2531,23 @@ class Window_Stash(WindowBase):
                 else:
                     RichPrintError(f"Error: {cat.categoryRole} not supported")
 
+            dp.Separator()
+
             # Add buttons
-            if operation == "add":
-                dp.Button(label="Add New Tea", callback=self.validateAddEditTea, user_data=(teasData, "ADD"))
-            elif operation == "edit":
-                dp.Button(label="Confirm Edit", callback=self.validateAddEditTea, user_data=(teasData, "EDIT"))
-            elif operation == "duplicate":
-                dp.Button(label="Confirm Duplicate", callback=self.validateAddEditTea, user_data=(teasData, "DUPLICATE"))
-            # Copy Values to string (json) for the edit window, use function
-            if operation == "edit":
-                dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
-            dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
-            if operation == "edit":
-                dp.Button(label="Delete Tea", callback=self.DeleteTea, user_data=teasData)
-            dp.Button(label="Cancel", callback=self.deleteTeasWindow)
+            with dp.Group(horizontal=True):
+                if operation == "add":
+                    dp.Button(label="Add New Tea", callback=self.validateAddEditTea, user_data=(teasData, "ADD"))
+                elif operation == "edit":
+                    dp.Button(label="Confirm Edit", callback=self.validateAddEditTea, user_data=(teasData, "EDIT"))
+                elif operation == "duplicate":
+                    dp.Button(label="Confirm Duplicate", callback=self.validateAddEditTea, user_data=(teasData, "DUPLICATE"))
+                # Copy Values to string (json) for the edit window, use function
+                if operation == "edit":
+                    dp.Button(label="Copy/Export Tea", callback=self.copyTeaValues, user_data=teasData)
+                dp.Button( label="Paste Values", callback= self.pasteTeaValues, user_data=teasData)
+                if operation == "edit":
+                    dp.Button(label="Delete Tea", callback=self.DeleteTea, user_data=teasData)
+                dp.Button(label="Cancel", callback=self.deleteTeasWindow)
     
     def validateAddEditTea(self, sender, app_data, user_data):
         # Function to validate the input values
@@ -2738,6 +2791,7 @@ class Window_Stash(WindowBase):
         teaCurrent: StashedTea
         with self.adjustmentsWindow:
             dp.Text("Adjustments")
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
 
             # Check if all required categories are present,
             # Needs Amount Purchased, amount remaining
@@ -2759,6 +2813,9 @@ class Window_Stash(WindowBase):
 
                 # Display the current tea name and amount
                 dp.Text(f"Tea Name: {teaCurrent.name}")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                dp.Separator()
+                # Display the amount purchased and current remaining
                 currentRemaining, exp = remainingCategory.autocalculate(teaCurrent)
                 if currentRemaining is None:
                     currentRemaining = 0.0
@@ -2781,11 +2838,12 @@ class Window_Stash(WindowBase):
                 # Add a checkbox to mark the tea as finished
                 finished = teaCurrent.finished
                 finsihedCheckbox = dp.Checkbox(label="Finished", default_value=finished, callback=self.greyOutAdjustmentInput)                
-                
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
 
                 # Add a text input for the adjustment
                 dp.Text("Adjustment:")
-                adjustmentInput = dp.InputFloat(label="Adjustment", default_value=currentAdjustmentAmt, enabled=not finished)
+                adjustmentInput = dp.InputFloat(default_value=currentAdjustmentAmt, enabled=not finished)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 self.addTeaList["Adjustment"] = adjustmentInput
 
                 # Add userdata for the adjustment input to grey out
@@ -2793,6 +2851,7 @@ class Window_Stash(WindowBase):
 
                 # Add a button to confirm the adjustment
                 dp.Button(label="Confirm Adjustment", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, adjustmentInput, finsihedCheckbox))
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
             else:
                 # If the tea does not have the required attributes, show an error message
                 dp.Text("Error: Tea does not have the required attributes for adjustments.")
@@ -2800,6 +2859,7 @@ class Window_Stash(WindowBase):
 
             # Add a button to cancel the adjustment
             dp.Button(label="Cancel", callback=self.deleteAdjustmentsWindow)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
 
     def greyOutAdjustmentInput(self, sender, app_data, user_data):
         # If the tea is finished, grey out the adjustment input
@@ -3434,7 +3494,7 @@ class Window_EditCategories(WindowBase):
                 with dp.Group(horizontal=False):
                     dp.Text("Review Categories")
                     dpg.bind_item_font(dpg.last_item(), getFontName(3))
-                    dp.Button(label="Add Review Category", callback=self.shouldAddReviewCategory)
+                    dp.Button(label="Add Review Category", callback=self.showAddReviewCategory)
                     dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     scaledHeight = 480 * settings["UI_SCALE"]
                     with dpg.child_window(label="Review Categories", width=scaledWidth, height=scaledHeight):
@@ -3560,33 +3620,48 @@ class Window_EditCategories(WindowBase):
 
         with addCategoryWindow:
             dp.Text("Add Category")
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
+            dp.Separator()
             category: TeaCategory
             # Declare category name, width, type
             dp.Text("Category Name")
-            nameItem = dp.InputText(label="Name", default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            nameItem = dp.InputText(default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
             addCategoryWindowItems["Name"] = nameItem
 
             dp.Text("Default Value")
-            defaultValueItem = dp.InputText(label="Default Value", default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            defaultValueItem = dp.InputText(default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["DefaultValue"] = defaultValueItem
+            dp.Separator()
             
             validTypes = session["validTypesCategory"]
             with dp.Group(horizontal=True):
                 dp.Text("Category Type")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 with dpg.tooltip(dpg.last_item()):
                     toolTipText = RateaTexts.ListTextCategory["CategoryType"].wrap()
                     dp.Text(toolTipText)
 
-            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5, callback=self.updateTypeDuringEdit)
+            catItem = dp.Listbox(items=validTypes, default_value="string", num_items=5, callback=self.updateTypeDuringEdit)
             addCategoryWindowItems["Type"] = catItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
+
 
             # Category role dropdown
             with dp.Group(horizontal=True):
                 dp.Text("Category Role")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 # Explanation tooltip
                 dp.Separator()
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 with dpg.tooltip(dpg.last_item()):
                     toolTipText = RateaTexts.ListTextCategory["CategoryRole"].wrap()
                     dp.Text(toolTipText)
@@ -3594,8 +3669,8 @@ class Window_EditCategories(WindowBase):
             # Add hide used categories option
             with dp.Group(horizontal=True):
                 dp.Text("Hide Used Categories")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("ADD_CATEGORY", addCategoryWindow))
-
             typeCategory = f"{catItem.get_value()}"
             items = session["validroleCategory"][typeCategory]
             alreadyUsedItems = []
@@ -3606,32 +3681,35 @@ class Window_EditCategories(WindowBase):
                 items = [item for item in items if item not in alreadyUsedItems]
 
             roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["role"] = roleItem
             dp.Separator()
 
             # Additional flags: isRequired, isrequiredForAll, isAutoCalculated, isDropdown
-            dp.Separator()
             dp.Text("Additional Flags")
-
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["isRequiredForAll"] = isRequiredItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].wrap()
                 dp.Text(toolTipTxt)
 
             isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].wrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].wrap()
                 dp.Text(toolTipTxt)
 
             isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
@@ -3641,17 +3719,26 @@ class Window_EditCategories(WindowBase):
 
             # Prefix, rounding, etc
             dp.Text("Additional Options")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=2, min_value=0, max_value=5, format="%d")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            roundingAmtSliderInt = dp.SliderInt(default_value=2, min_value=0, max_value=5, format="%d")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
-            prefixItem = dp.InputText(label="Prefix", default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            prefixItem = dp.InputText(default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["prefix"] = prefixItem
             dp.Text("Suffix")
-            suffixItem = dp.InputText(label="Suffix", default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            suffixItem = dp.InputText(default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=5, min_value=3, max_value=20, format="%d")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            maxItemsItem = dp.SliderInt(default_value=5, min_value=3, max_value=20, format="%d")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addCategoryWindowItems["maxItems"] = maxItemsItem
 
 
@@ -3663,14 +3750,17 @@ class Window_EditCategories(WindowBase):
                     
 
             dp.Button(label="Add", callback=self.AddCategory, user_data=(addCategoryWindowItems, addCategoryWindow))
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Button(label="Cancel", callback=addCategoryWindow.delete)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             # Help question mark
             dp.Button(label="?")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             # Hover tooltip
             with dpg.tooltip(dpg.last_item()):
                 dp.Text("Add a new category to the stash")
 
-    def shouldAddReviewCategory(self, sender, app_data, user_data):
+    def showAddReviewCategory(self, sender, app_data, user_data):
         # Create a popup window to add a new the review category
         w = 500 * settings["UI_SCALE"]
         h = 500 * settings["UI_SCALE"]
@@ -3681,34 +3771,48 @@ class Window_EditCategories(WindowBase):
 
         with addReviewCategoryWindow:
             dp.Text("Add Review Category")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
             category: ReviewCategory
             # Declare category name, width, type
             dp.Text("Category Name")
-            nameItem = dp.InputText(label="Name", default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            nameItem = dp.InputText(default_value="")
             addReviewCategoryWindowItems["Name"] = nameItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
             
             dp.Text("Default Value")
-            defaultValueItem = dp.InputText(label="Default Value", default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            defaultValueItem = dp.InputText(default_value="")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addReviewCategoryWindowItems["DefaultValue"] = defaultValueItem
+            dp.Separator()
 
             
             validTypes = session["validTypesReviewCategory"]
             with dp.Group(horizontal=True):
                 dp.Text("Category Type")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 with dpg.tooltip(dpg.last_item()):
                     toolTipText = RateaTexts.ListTextCategory["CategoryType"].wrap()
                     dp.Text(toolTipText)
 
-            catItem = dp.Listbox(items=validTypes, default_value="string", label="Type", num_items=5, callback=self.updateTypeDuringEditReview)
+            catItem = dp.Listbox(items=validTypes, default_value="string", num_items=5, callback=self.updateTypeDuringEditReview)
             addReviewCategoryWindowItems["Type"] = catItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
 
             # Category role dropdown
             with dp.Group(horizontal=True):
                 dp.Text("Category Role")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 # Explanation tooltip
                 dp.Separator()
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 with dpg.tooltip(dpg.last_item()):
                     toolTipText = RateaTexts.ListTextCategory["CategoryRole"].wrap()
                     dp.Text(toolTipText)
@@ -3716,7 +3820,9 @@ class Window_EditCategories(WindowBase):
             # Add hide used categories option
             with dp.Group(horizontal=True):
                 dp.Text("Hide Used Categories")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("ADD_REVIEW_CATEGORY", addReviewCategoryWindow))
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
 
 
             typeCategory = f"{catItem.get_value()}"
@@ -3728,30 +3834,37 @@ class Window_EditCategories(WindowBase):
             if self.hideUsedCategoriesBool:
                 items = [item for item in items if item not in alreadyUsedItems]
             roleItem = dp.Listbox(items=items, default_value="UNUSED", num_items=5)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addReviewCategoryWindowItems["role"] = roleItem
 
             # Additional flags: isRequired, isrequiredForAll, isAutoCalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=False)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addReviewCategoryWindowItems["isRequiredForAll"] = isRequiredItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].wrap()
                 dp.Text(toolTipTxt)
 
             isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=False)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addReviewCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].wrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=False)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addReviewCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].wrap()
                 dp.Text(toolTipTxt)
 
             isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=False)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             addReviewCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
@@ -3761,18 +3874,24 @@ class Window_EditCategories(WindowBase):
 
             # Prefix, rounding, etc
             dp.Text("Additional Options")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=2, min_value=0, max_value=5, format="%d")
+            roundingAmtSliderInt = dp.SliderInt(default_value=2, min_value=0, max_value=5, format="%d")
             addReviewCategoryWindowItems["rounding"] = roundingAmtSliderInt
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text("Prefix")
-            prefixItem = dp.InputText(label="Prefix", default_value="")
+            prefixItem = dp.InputText(default_value="")
             addReviewCategoryWindowItems["prefix"] = prefixItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text("Suffix")
-            suffixItem = dp.InputText(label="Suffix", default_value="")
+            suffixItem = dp.InputText(default_value="")
             addReviewCategoryWindowItems["suffix"] = suffixItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=5, min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(default_value=5, min_value=3, max_value=20, format="%d")
             addReviewCategoryWindowItems["maxItems"] = maxItemsItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             
             dp.Separator()
 
@@ -3781,9 +3900,12 @@ class Window_EditCategories(WindowBase):
                     
 
             dp.Button(label="Add", callback=self.AddReviewCategory, user_data=(addReviewCategoryWindowItems, addReviewCategoryWindow))
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Button(label="Cancel", callback=addReviewCategoryWindow.delete)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             # Help question mark
             dp.Button(label="?")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             # Hover tooltip
             with dpg.tooltip(dpg.last_item()):
                 dp.Text("Add a new review category to the stash")
@@ -3853,20 +3975,30 @@ class Window_EditCategories(WindowBase):
         category: TeaCategory
 
         with editCategoryWindow:
+            dp.Text("Edit Category")
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
             dp.Text(f"{category.name}")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
             
             dp.Text(f"Default Value")
-            editCategoryWindowItems["DefaultValue"] = dp.InputText(label="Default Value", default_value=category.defaultValue)
-            
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            editCategoryWindowItems["DefaultValue"] = dp.InputText(default_value=category.defaultValue)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
+
             validTypes = session["validTypesCategory"]
             with dp.Group(horizontal=True):
                 dp.Text("Category Type")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 with dpg.tooltip(dpg.last_item()):
                     toolTipText = RateaTexts.ListTextCategory["CategoryType"].wrap()
                     dp.Text(toolTipText)
 
-            catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, label="Type", callback=self.updateTypeDuringEdit, num_items=5)
+            catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, callback=self.updateTypeDuringEdit, num_items=5)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             if category.categoryType not in validTypes:
                 catItem.set_value("ERR: Assume String")
 
@@ -3875,10 +4007,12 @@ class Window_EditCategories(WindowBase):
             # Dropdown for category role
             with dp.Group(horizontal=True):
                 dp.Text("Category Role")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Text(f"")
                 # Explanation tooltip
                 dp.Separator()
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 with dpg.tooltip(dpg.last_item()):
                     toolTipText = RateaTexts.ListTextCategory["CategoryRole"].wrap()
                     dp.Text(toolTipText)
@@ -3886,6 +4020,7 @@ class Window_EditCategories(WindowBase):
             # Add hide used categories option
             with dp.Group(horizontal=True):
                 dp.Text("Hide Used Categories")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("EDIT_CATEGORY", editCategoryWindow))
 
             typeCategory = f"{category.categoryType}"
@@ -3908,25 +4043,30 @@ class Window_EditCategories(WindowBase):
             # Additional flags: isRequired, isrequiredForAll, isAutoCalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editCategoryWindowItems["isRequiredForAll"] = isRequiredItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].wrap()
                 dp.Text(toolTipTxt)
 
             isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].wrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].wrap()
                 dp.Text(toolTipTxt)
 
             isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
@@ -3936,18 +4076,27 @@ class Window_EditCategories(WindowBase):
 
             # Prefix, rounding, etc
             dp.Text("Additional Options")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text("Rounding")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             roundingAmtSliderInt.set_value(int(category.rounding))
             editCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editCategoryWindowItems["prefix"] = prefixItem
             dp.Text("Suffix")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editCategoryWindowItems["maxItems"] = maxItemsItem
 
 
@@ -3959,9 +4108,12 @@ class Window_EditCategories(WindowBase):
 
             with dp.Group(horizontal=True):
                 dp.Button(label="Save", callback=self.EditCategory, user_data=(category, editCategoryWindowItems, editCategoryWindow))
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="Cancel", callback=editCategoryWindow.delete)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 # Help question mark
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 # Hover tooltip
                 with dpg.tooltip(dpg.last_item()):
                     dp.Text("Edit the category name, type, and width in pixels")
@@ -4048,11 +4200,18 @@ class Window_EditCategories(WindowBase):
         category = TeaReviewCategories[user_data]
 
         with editReviewCategoryWindow:
+            dp.Text("Edit Review Category")
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
             dp.Text(f"{category.name}")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
 
             dp.Text(f"Default Value: {category.defaultValue}")
-            editReviewCategoryWindowItems["DefaultValue"] = dp.InputText(label="Default Value", default_value=category.defaultValue)
-
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            editReviewCategoryWindowItems["DefaultValue"] = dp.InputText(default_value=category.defaultValue)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            dp.Separator()
+            # Declare category name, width, type
             validTypes = session["validTypesReviewCategory"]
             with dp.Group(horizontal=True):
                 dp.Text("Category Type")
@@ -4061,23 +4220,27 @@ class Window_EditCategories(WindowBase):
                     toolTipText = RateaTexts.ListTextCategory["CategoryType"].wrap()
                     dp.Text(toolTipText)
 
-            catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, label="Type", num_items=5, callback=self.updateTypeDuringEditReview)
+            catItem = dp.Listbox(items=validTypes, default_value=category.categoryType, num_items=5, callback=self.updateTypeDuringEditReview)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             if category.categoryType not in validTypes:
                 catItem.set_value("ERR: Assume String")
 
             editReviewCategoryWindowItems["Type"] = catItem
+            dp.Separator()
 
             with dp.Group(horizontal=True):
                 dp.Text("Category Role")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 # Explanation tooltip
-                dp.Separator()
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 with dpg.tooltip(dpg.last_item()):
                     toolTipText = RateaTexts.ListTextCategory["CategoryRole"].wrap()
                     dp.Text(toolTipText)
             # Add hide used categories option
             with dp.Group(horizontal=True):
                 dp.Text("Hide Used Categories")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 hideUsedItem = dp.Checkbox(default_value=self.hideUsedCategoriesBool, callback=self.hideUsedCategories, user_data=("EDIT_REVIEW_CATEGORY", editReviewCategoryWindow))
 
             # Dropdown for category role
@@ -4087,13 +4250,13 @@ class Window_EditCategories(WindowBase):
                 if cat.categoryType == category.categoryType and cat.categoryRole != category.categoryRole:
                     alreadyUsedItems.append(cat.categoryRole)
             if self.hideUsedCategoriesBool:
-                print(f"hiding? {self.hideUsedCategoriesBool}")
                 items = [item for item in items if item not in alreadyUsedItems]
             # Add in the current category role
             if category.categoryRole not in items:
                 items.append(category.categoryRole)
 
             roleItem = dp.Listbox(items=items, default_value=category.categoryRole)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editReviewCategoryWindowItems["role"] = roleItem
             if category.categoryRole not in items:
                 roleItem.set_value("ERR: Assume Unused")
@@ -4102,26 +4265,31 @@ class Window_EditCategories(WindowBase):
             # Additional flags: isRequired, isrequiredForAll, isAutoCalculated, isDropdown
             dp.Separator()
             dp.Text("Additional Flags")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
 
             isRequiredItem = dp.Checkbox(label="Is Required (inc Teaware, fees)", default_value=category.isRequiredForAll)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editReviewCategoryWindowItems["isRequiredForAll"] = isRequiredItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForAll"].wrap()
                 dp.Text(toolTipTxt)
 
             isRequiredForTeaItem = dp.Checkbox(label="Is Required for Tea only", default_value=category.isRequiredForTea)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editReviewCategoryWindowItems["isRequiredForTea"] = isRequiredForTeaItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isRequiredForTea"].wrap()
                 dp.Text(toolTipTxt)
 
             isDropdownItem = dp.Checkbox(label="Is Dropdown", default_value=category.isDropdown)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editReviewCategoryWindowItems["isDropdown"] = isDropdownItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isDropdown"].wrap()
                 dp.Text(toolTipTxt)
 
             isAutoCalculatedItem = dp.Checkbox(label="Is Autocalculated", default_value=category.isAutoCalculated)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editReviewCategoryWindowItems["isAutoCalculated"] = isAutoCalculatedItem
             with dpg.tooltip(dpg.last_item()):
                 toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
@@ -4131,19 +4299,25 @@ class Window_EditCategories(WindowBase):
 
             # Prefix, rounding, etc
             dp.Text("Additional Options")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text("Rounding")
-            roundingAmtSliderInt = dp.SliderInt(label="Rounding Amount", default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            roundingAmtSliderInt = dp.SliderInt(default_value=int(category.rounding), min_value=0, max_value=5, format="%d")
             roundingAmtSliderInt.set_value(int(category.rounding))
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             editReviewCategoryWindowItems["rounding"] = roundingAmtSliderInt
             dp.Text("Prefix")
-            prefixItem = dp.InputText(label="Prefix", default_value=category.prefix)
+            prefixItem = dp.InputText(default_value=category.prefix)
             editReviewCategoryWindowItems["prefix"] = prefixItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text("Suffix")
-            suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
+            suffixItem = dp.InputText(default_value=category.suffix)
             editReviewCategoryWindowItems["suffix"] = suffixItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
             editReviewCategoryWindowItems["maxItems"] = maxItemsItem
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
 
             dp.Separator()
 
@@ -4151,9 +4325,12 @@ class Window_EditCategories(WindowBase):
 
             with dp.Group(horizontal=True):
                 dp.Button(label="Save", callback=self.EditReviewCategory, user_data=(category, editReviewCategoryWindowItems, editReviewCategoryWindow))
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 dp.Button(label="Cancel", callback=editReviewCategoryWindow.delete)
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 # Help question mark
                 dp.Button(label="?")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2))
                 # Hover tooltip
                 with dpg.tooltip(dpg.last_item()):
                     dp.Text("Edit the review category name, type, and width in pixels")
