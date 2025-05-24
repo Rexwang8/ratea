@@ -49,6 +49,7 @@ TODO: Category: Write in description for each category role
 TODO: Slider for textbox size for notepad, wrap too
 TODO: Confirmation window for deleting tea/review
 TODO: Terminal window to print out debug info
+TODO: Grades support for scores
 
 
 
@@ -1297,13 +1298,13 @@ class Window_Timer(WindowBase):
                         self.titleText = "Tea! "
                     dp.Text(label="Timer for... ", default_value="Timer for... ")
                     # increase font size
-                    dpg.set_item_font(dpg.last_item(), getFontName(2))
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     width = 125 * settings["UI_SCALE"]
                     self.titleTextObject = dp.InputText(default_value=self.titleText, width=width, multiline=False, callback=self.updateTitleText)
-                    dpg.set_item_font(dpg.last_item(), getFontName(2))
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
 
             self.display = dp.Text(label=f"{self.formatTimeDisplay(self.timer)}")
-            dpg.set_item_font(dpg.last_item(), getFontName(3))
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
 
             # in horizontal layout
             with dp.Group(horizontal=True):
@@ -1311,9 +1312,9 @@ class Window_Timer(WindowBase):
                 # Timer buttons
                 # Toggle between start and stop
                 self.buttonObject = dp.Button(label="Start", callback=self.startOrStopTimer)
-                dpg.set_item_font(dpg.last_item(), getFontName(3))
+                dpg.bind_item_font(dpg.last_item(), getFontName(3))
                 dp.Button(label="Reset", callback=self.resetTimer)
-                dpg.set_item_font(dpg.last_item(), getFontName(3))
+                dpg.bind_item_font(dpg.last_item(), getFontName(3))
 
                 dp.Checkbox(label="Persist", default_value=self.persist, callback=self.updatePersist)
                 # Tooltip
@@ -3349,7 +3350,7 @@ class Window_Stats(WindowBase):
 
         
 def Menu_EditCategories():
-    w = 720 * settings["UI_SCALE"]
+    w = 800 * settings["UI_SCALE"]
     h = 600 * settings["UI_SCALE"]
     editCategories = Window_EditCategories("Edit Categories", w, h, exclusive=True)
 
@@ -3364,11 +3365,13 @@ class Window_EditCategories(WindowBase):
             # vertical half half split, one for tea, one for review
             with dp.Group(horizontal=True):
                 # Tea Categories
-                scaledWidth = 350 * settings["UI_SCALE"]
+                scaledWidth = 400 * settings["UI_SCALE"]
 
                 with dp.Group(horizontal=False):
                     dp.Text("Tea Categories")
+                    dpg.bind_item_font(dpg.last_item(), getFontName(3))
                     dp.Button(label="Add Stash Category", callback=self.showAddCategory)
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     scaledHeight = 480 * settings["UI_SCALE"]
                     with dpg.child_window(label="Tea Categories", width=scaledWidth, height=scaledHeight):
                         self.teaCategoryGroup = dp.Group(horizontal=False)
@@ -3379,7 +3382,9 @@ class Window_EditCategories(WindowBase):
                 # Review
                 with dp.Group(horizontal=False):
                     dp.Text("Review Categories")
+                    dpg.bind_item_font(dpg.last_item(), getFontName(3))
                     dp.Button(label="Add Review Category", callback=self.shouldAddReviewCategory)
+                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
                     scaledHeight = 480 * settings["UI_SCALE"]
                     with dpg.child_window(label="Review Categories", width=scaledWidth, height=scaledHeight):
                         dp.Separator()
@@ -3406,12 +3411,19 @@ class Window_EditCategories(WindowBase):
         with self.teaCategoryGroup:
             for i, category in enumerate(TeaCategories):
                 with dp.Group(horizontal=True):
-                    scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 125 * settings["UI_SCALE"]
+                    scaledWidth = 320 * settings["UI_SCALE"]
+                    scaledHeight = 150 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
-                        dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
+                        dp.Text(f"{i+1}: {category.name} -- ({category.categoryRole})")
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                        dp.Separator()
                         dp.Text(f"Default Value: {category.defaultValue}")
-                        dp.Text(f"Category Role: {category.categoryRole}")
+                        dp.Text(f"Category Type: {category.categoryType}")
+                        dp.Text(f"Dropdown?: {category.isDropdown}, Autocalculated?: {category.isAutoCalculated}")
+                        suffix = category.suffix if category.suffix is not None and category.suffix != "" else "<None>"
+                        prefix = category.prefix if category.prefix is not None and category.prefix != "" else "<None>"
+                        dp.Text(f"Prefix: {prefix}, Suffix: {suffix}")
+                        dp.Text(f"Rounding Amount: {category.rounding}, dropdown items: {category.dropdownMaxLength}")
 
                     scaledWidth = 75 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
@@ -3434,11 +3446,18 @@ class Window_EditCategories(WindowBase):
             for i, category in enumerate(TeaReviewCategories):
                 with dp.Group(horizontal=True):
                     scaledWidth = 250 * settings["UI_SCALE"]
-                    scaledHeight = 125 * settings["UI_SCALE"]
+                    scaledHeight = 150 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
-                        dp.Text(f"{i+1}: {category.name} -- {category.categoryType}")
+                        dp.Text(f"{i+1}: {category.name} -- ({category.categoryRole})")
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                        dp.Separator()
                         dp.Text(f"Default Value: {category.defaultValue}")
-                        dp.Text(f"Category Role: {category.categoryRole}")
+                        dp.Text(f"Category Type: {category.categoryType}")
+                        dp.Text(f"Dropdown?: {category.isDropdown}, Autocalculated?: {category.isAutoCalculated}")
+                        suffix = category.suffix if category.suffix is not None and category.suffix != "" else "<None>"
+                        prefix = category.prefix if category.prefix is not None and category.prefix != "" else "<None>"
+                        dp.Text(f"Prefix: {prefix}, Suffix: {suffix}")
+                        dp.Text(f"Rounding Amount: {category.rounding}, dropdown items: {category.dropdownMaxLength}")
 
                     scaledWidth = 75 * settings["UI_SCALE"]
                     with dp.ChildWindow(width=scaledWidth, height=scaledHeight):
@@ -5215,23 +5234,23 @@ def bindLoadFonts():
     with dpg.font_registry():
         dpg.add_font("assets/fonts/Roboto-Regular.ttf", 16, tag="RobotoRegular")
         dpg.add_font("assets/fonts/Roboto-Regular.ttf", 20, tag="RobotoRegular2")
-        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 24, tag="RobotoRegular3")
+        dpg.add_font("assets/fonts/Roboto-Regular.ttf", 26, tag="RobotoRegular3")
 
         dpg.add_font("assets/fonts/Roboto-Bold.ttf", 16, tag="RobotoBold")
         dpg.add_font("assets/fonts/Roboto-Bold.ttf", 20, tag="RobotoBold2")
-        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 24, tag="RobotoBold3")
+        dpg.add_font("assets/fonts/Roboto-Bold.ttf", 26, tag="RobotoBold3")
         # Merriweather 24pt regular
         dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 16, tag="MerriweatherRegular")
         dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 20, tag="MerriweatherRegular2")
-        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 24, tag="MerriweatherRegular3")
+        dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 26, tag="MerriweatherRegular3")
         # Montserrat-regular
         dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 16, tag="MontserratRegular")
         dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 20, tag="MontserratRegular2")
-        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 24, tag="MontserratRegular3")
+        dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 26, tag="MontserratRegular3")
         # Opensans regular
         dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 18, tag="OpenSansRegular")
         dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 20, tag="OpenSansRegular2")
-        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 24, tag="OpenSansRegular3")
+        dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 26, tag="OpenSansRegular3")
 
         
 
