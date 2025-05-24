@@ -368,11 +368,11 @@ def RichPrint(text, color):
     richPrintConsole.print(text, style=color)
 
 def RichPrintCritical(text):
-    if DEBUG_LEVEL == "CRITICAL" or DEBUG_LEVEL == "ALL":
+    if DEBUG_LEVEL == "CRITICAL" or DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "CRITICAL" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "INFO":
         RichPrint(f"CRITICAL: {text}", "bold red")
 
 def RichPrintError(text):
-    if DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "CRITICAL":
+    if DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "WARNING":
         RichPrint(text, "bold red")
 def RichPrintInfo(text):
     if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
@@ -381,7 +381,7 @@ def RichPrintSuccess(text):
     if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
         RichPrint(text, "bold green")
 def RichPrintWarning(text):
-    if DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "CRITICAL" or DEBUG_LEVEL == "ALL":
+    if DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "INFO":
         RichPrint(text, "bold yellow")
 def RichPrintSeparator():
     if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
@@ -1657,7 +1657,13 @@ class Window_Stash_Reviews(WindowBase):
                 # Get the past answers for the category for dropdowns
                 pastAnswers, pastAnswersList = searchPreviousAnswers(cat.categoryRole, data="Review", topX=cat.dropdownMaxLength)
                 shouldShowDropdown = True if len(pastAnswers) > 0 and cat.isDropdown else False
-                pastAnswersTextList = [f"({x[1]}) - ({x[0]})" for x in pastAnswers]
+                # If past answers are a timestamp, convert them to a readable format
+                if cat.categoryType == "date" or cat.categoryType == "datetime":
+                    # Convert to a readable format
+                    pastAnswersTextList = [f"{x[1]} - {TimeStampToString(x[0])}" for x in pastAnswers]
+                else:
+                    # For other types, just use the string representation
+                    pastAnswersTextList = [f"({x[1]}) - ({x[0]})" for x in pastAnswers]
 
                 catItem = None
                 
@@ -1805,6 +1811,7 @@ class Window_Stash_Reviews(WindowBase):
             newSelectedValue = app_data.split(" - ")[1].strip()
             newSelectedValue = newSelectedValue[1:-1]
 
+
             # If typeOfValue is int or float, attempt to convert
             if typeOfValue == "int":
                 try:
@@ -1823,8 +1830,13 @@ class Window_Stash_Reviews(WindowBase):
                 try:
                     newSelectedValue = TimeStampToDateDict(StringToTimeStamp(newSelectedValue))
                 except ValueError:
-                    RichPrintError(f"Error: {newSelectedValue} is not a valid date.")
-                    return
+                    # Convert date string to timestamp
+                    try:
+                        newSelectedValue = StringToTimeStamp(newSelectedValue)
+                        newSelectedValue = TimeStampToDateDict(newSelectedValue)
+                    except ValueError:
+                        RichPrintError(f"Error: {newSelectedValue} is not a valid date.")
+                        return
             # Set the value of the input item to the new value
             user_data[0].set_value(newSelectedValue)
         else:
@@ -2129,7 +2141,7 @@ class Window_Stash(WindowBase):
             hgroupButtons = dp.Group(horizontal=True)
             with hgroupButtons:
                 dp.Button(label="Add Tea", callback=self.ShowAddTea)
-                dp.Button(label="Duplicate  Last Tea", callback=self.ShowAddTea, user_data="duplicate")
+                dp.Button(label="Duplicate Last Tea", callback=self.ShowAddTea, user_data="duplicate")
                 dp.Button(label="Import Tea", callback=self.importOneTeaFromClipboard)
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
@@ -2364,7 +2376,19 @@ class Window_Stash(WindowBase):
         self.teasWindow = dp.Window(label="Teas", width=w, height=h, show=True)
         windowManager.addSubWindow(self.teasWindow)
         with self.teasWindow:
-            dp.Text("Teas")
+            if operation == "add":
+                dp.Text("Add New Tea")
+            elif operation == "edit":
+                dp.Text(f"Edit Tea - {teasData.name if teasData else 'Unknown name'}")
+            elif operation == "duplicate":
+                if duplicateTea:
+                    dp.Text(f"Duplicate Tea - {teasData.name if teasData else 'Unknown name'}")
+                else:
+                    RichPrintError("Error: No teas in stash to duplicate.")
+                    return
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
+
+
 
             for cat in TeaCategories:
                 cat: TeaCategory
@@ -2391,7 +2415,13 @@ class Window_Stash(WindowBase):
                 # Get past values for dropdown
                 pastAnswers, pastAnswersList = searchPreviousAnswers(cat.categoryRole, "Tea", cat.dropdownMaxLength)
                 shouldShowDropdown = True if len(pastAnswers) > 0 and cat.isDropdown else False
-                pastAnswersTextList = [f"({x[1]}) - ({x[0]})" for x in pastAnswers]
+                # If past answers are a timestamp, convert them to a readable format
+                if cat.categoryType == "date" or cat.categoryType == "datetime":
+                    # Convert to a readable format
+                    pastAnswersTextList = [f"{x[1]} - {TimeStampToString(x[0])}" for x in pastAnswers]
+                else:
+                    # For other types, just use the string representation
+                    pastAnswersTextList = [f"({x[1]}) - ({x[0]})" for x in pastAnswers]
 
                 if cat.categoryType == "string":
                     # For notes, allow multiline input if it's a note
@@ -2534,8 +2564,13 @@ class Window_Stash(WindowBase):
                     newSelectedValue = StringToTimeStamp(newSelectedValue)
                     newSelectedValue = TimeStampToDateDict(newSelectedValue)
                 except ValueError:
-                    RichPrintError(f"Error: {newSelectedValue} is not a valid date.")
-                    return
+                    # Convert date string to timestamp
+                    try:
+                        newSelectedValue = StringToTimeStamp(newSelectedValue)
+                        newSelectedValue = TimeStampToDateDict(newSelectedValue)
+                    except ValueError:
+                        RichPrintError(f"Error: {newSelectedValue} is not a valid date.")
+                        return
             # Set the value of the input item to the new value
             user_data[0].set_value(newSelectedValue)
         else:
