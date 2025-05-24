@@ -1087,7 +1087,7 @@ class TeaCategory:
                         totalScore += review.attributes["Final Score"]
                 # Divide by the number of reviews
                 if len(data.reviews) == 0:
-                    RichPrintError("No reviews found, cannot calculate total score")
+                    RichPrintWarning("No reviews found, cannot calculate total score")
                     return None, None
                 
 
@@ -1807,9 +1807,10 @@ class Window_Stash_Reviews(WindowBase):
         
         # Get the input item and the past answers
         if user_data[0]:
-            print(f"Updating {user_data} with new value: {app_data}")
             newSelectedValue = app_data.split(" - ")[1].strip()
-            newSelectedValue = newSelectedValue[1:-1]
+            # Remove parentheses if they exist
+            if newSelectedValue.startswith("(") and newSelectedValue.endswith(")"):
+                newSelectedValue = newnewSelectedValue = newSelectedValue[1:-1]
 
 
             # If typeOfValue is int or float, attempt to convert
@@ -1829,7 +1830,7 @@ class Window_Stash_Reviews(WindowBase):
                 # Convert string date to datetime object
                 try:
                     newSelectedValue = TimeStampToDateDict(StringToTimeStamp(newSelectedValue))
-                except ValueError:
+                except TypeError:
                     # Convert date string to timestamp
                     try:
                         newSelectedValue = StringToTimeStamp(newSelectedValue)
@@ -2541,9 +2542,10 @@ class Window_Stash(WindowBase):
         
         # Get the input item and the past answers
         if user_data[0]:
-            print(f"Updating {user_data} with new value: {app_data}")
             newSelectedValue = app_data.split(" - ")[1].strip()
-            newSelectedValue = newSelectedValue[1:-1]
+            # Remove parentheses if they exist
+            if newSelectedValue.startswith("(") and newSelectedValue.endswith(")"):
+                newSelectedValue = newSelectedValue[1:-1]
 
             # If typeOfValue is int or float, attempt to convert
             if typeOfValue == "int":
@@ -2561,9 +2563,8 @@ class Window_Stash(WindowBase):
             elif typeOfValue == "date" or typeOfValue == "datetime":
                 # Convert string date to datetime object
                 try:
-                    newSelectedValue = StringToTimeStamp(newSelectedValue)
                     newSelectedValue = TimeStampToDateDict(newSelectedValue)
-                except ValueError:
+                except TypeError as e:
                     # Convert date string to timestamp
                     try:
                         newSelectedValue = StringToTimeStamp(newSelectedValue)
@@ -2836,7 +2837,7 @@ class Window_Stash(WindowBase):
         if teaStashObj is None:
             RichPrintError("Error: Tea not found in stash.")
             return
-        
+                
         # Update the adjustment amount
         teaStashObj.adjustments["Standard"] = round(adjustment, 2)
         teaStashObj.finished = finished
@@ -4495,6 +4496,8 @@ def saveTeasReviews(stash, path):
         timestamp = tea.dateAdded
         if type(timestamp) == dt.datetime:
             timestamp = tea.dateAdded.timestamp()
+        # Clone adjustments
+        adjustments = tea.adjustments.copy() if tea.adjustments else {}
         teaData = {
             "_index": tea.id,
             "Name": tea.name,
@@ -4502,7 +4505,7 @@ def saveTeasReviews(stash, path):
             "attributes": teaAttributesModified,
             "attributesJson": dumpAttributesToString(tea.attributes),  # Save attributes as JSON string for easier parsing
             "reviews": [],
-            "adjustments": tea.adjustments,
+            "adjustments": adjustments,
             "finished": tea.finished,
         }
         for review in tea.reviews:
@@ -5270,7 +5273,7 @@ def main():
     globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
     # get monitor resolution
     monitor = screeninfo.get_monitors()[0]
-    print(f"Monitor resolution: {monitor.width}x{monitor.height}")
+    RichPrintInfo(f"Monitor resolution: {monitor.width}x{monitor.height}")
     WindowSize = (1920, 1600)
     Monitor_Scale = 1
     if monitor.width >= 3840:
