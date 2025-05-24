@@ -4863,7 +4863,7 @@ def LoadSettings(path=None):
         RichPrintError("Failed to load settings from YAML.")
         return False
     session["settingsPath"] = path
-    print(f"Loaded settings from {path}")
+    RichPrintSuccess(f"Loaded settings from {path}")
     return settings
 
 def hasLoadableFiles():
@@ -4897,9 +4897,9 @@ def LoadAll(baseDir=None):
     # Renumber the teas and reviews if needed
     renumberTeasAndReviews()  # Ensure all teas and reviews have unique IDs after loading
 
-    print(f"Loaded settings from {session['settingsPath']}")
+    RichPrintInfo(f"Loaded settings from {session['settingsPath']}")
     
-    print(f"Loaded {len(TeaStash)} teas and {len(TeaCategories)} categories")
+    RichPrintSuccess(f"Loaded {len(TeaStash)} teas and {len(TeaCategories)} categories")
 
 # Attributes to string, json, with special datetime handling
 def dumpAttributesToString(attributes):
