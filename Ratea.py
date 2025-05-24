@@ -22,19 +22,14 @@ import RateaTexts
 # Reminders
 '''
 Need for basic functionality: 
-TODO: Stats: Add basic stats and metrics based on remaining tea and reviews
-TODO: Features: Add in functionality for flags: isAutoCalculated, isRequiredForTea, isRequiredForAll
-TODO: Features: Calculated fields for teas and reviews
+TODO: Features: Add in functionality for flags: isRequiredForTea, isRequiredForAll
 TODO: Validation: Validate that name and other important fields are not empty
 TODO: Features: Fill out or remove review tabs
 TODO: Menus: Update settings menu with new settings
-TODO: Category: Correction for amount of tea, and amount of tea consumed/marker for finished tea
 TODO: Files: Persistant windows in settings
-TODO: Adjustment window for tea.
 TODO: fix monitor ui sizing
 TODO: Export to google sheets readable format
 TODO: Button to re-order reviews and teas based on current view
-TODO: Starting month, month to month stats, year to year stats
 TODO: Display more on category
 TODO: save table sort state
 TODO: Duplicate button for reviews too
@@ -73,6 +68,7 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.5.8): Calculate Start day and consumed/day
 Feat(0.5.8): Added adjustments window for teas
 Feat(0.5.7): Table filters by name search
 Feat(0.5.7): Stopwatch, combine stop/start button
@@ -183,6 +179,8 @@ def getFontName(size=1, bold=False, fontName=None):
             return f"{fontName}Bold{size}"
         else:
             return f"{fontName}Regular{size}"
+        
+
 
 
 def parseDTToStringWithFallback(stringOrDT, fallbackString):
@@ -3120,6 +3118,30 @@ F -- 0.0
 
 # Stats functions
 
+# Get Start day will use the start day from the settings, or default the earliest date it can find
+def statsgetStartDayTimestamp():
+    startDay = None
+    if "START_DAY" in settings and settings["START_DAY"] is not None and settings["START_DAY"] != "":
+        startDay = settings["START_DAY"]
+        return AnyDTFormatToTimeStamp(startDay)
+    # If no start day is set, find the earliest date in the stash
+    earliestDate = None
+    for tea in TeaStash:
+        if tea.dateAdded is not None:
+            dateAddedTimestamp = AnyDTFormatToTimeStamp(tea.dateAdded)
+            if earliestDate is None or dateAddedTimestamp < earliestDate:
+                earliestDate = dateAddedTimestamp
+        # Also check date purchased if it exists
+        if "date" in tea.attributes and tea.attributes["date"] is not None:
+            datePurchasedTimestamp = AnyDTFormatToTimeStamp(tea.attributes["date"])
+            if earliestDate is None or datePurchasedTimestamp < earliestDate:
+                earliestDate = datePurchasedTimestamp
+    if earliestDate is not None:
+        return earliestDate
+    # If no teas are in the stash, return the current time
+    RichPrintWarning("No start day set and no teas in the stash. Defaulting to current time.")
+    return dt.datetime.now(tz=dt.timezone.utc).timestamp()
+
 def statsNumTeas():
     # Get the number of teas in the stash
     numTeas = len(TeaStash)
@@ -3257,6 +3279,7 @@ class Window_Stats(WindowBase):
 
             dp.Separator()
 
+            
 
             if "Type" in AllTypesCategoryRoleValid:
                 # Tea Type Stats
@@ -3352,6 +3375,27 @@ class Window_Stats(WindowBase):
             else:
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
             dp.Separator()
+
+            # Start day
+            dp.Text("Start Day")
+            startDay = statsgetStartDayTimestamp()
+            dp.Text(f"Start Day (First recorded date): {dt.datetime.fromtimestamp(startDay, tz=dt.timezone.utc).strftime(settings['DATE_FORMAT'])}")
+            today = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+            numDays = (today - startDay) / (24 * 60 * 60)
+            dp.Text(f"Number of Days since Start Day: {numDays:.2f} days")
+            dp.Separator()
+
+            # Grams of tea consumed per day
+            dp.Text("Grams of Tea Consumed per Day")
+            if "Amount" in AllTypesCategoryRoleValid:
+                totalConsumed, averageConsumed = statsTotalConsumed()
+                if numDays > 0:
+                    gramsPerDay = totalConsumed / numDays
+                    dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per day: {gramsPerDay:.2f}g")
+                else:
+                    dp.Text("No valid start day or no teas consumed.")
+            else:
+                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
 
 
 
@@ -5356,6 +5400,7 @@ def main():
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
         "DEFAULT_FONT": "OpenSans",
+        "START_DAY": "" # If none, will find the earliest tea date, else will use the date set here
     }
     global settings
     settings = default_settings
