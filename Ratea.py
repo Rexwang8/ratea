@@ -169,13 +169,20 @@ def timezoneToOffset(timezone, daylightSaving=False):
 
 
 # Function yields the name of the current font and size
-def getFontName(size=1):
+def getFontName(size=1, bold=False, fontName=None):
     # Get the current font name and size
-    fontName = settings["DEFAULT_FONT"]
+    if fontName is None:
+        fontName = settings["DEFAULT_FONT"]
     if size == 1:
-        return fontName
+        if bold:
+            return f"{fontName}Bold"
+        else:
+            return f"{fontName}Regular"
     else:
-        return f"{fontName}{size}"
+        if bold:
+            return f"{fontName}Bold{size}"
+        else:
+            return f"{fontName}Regular{size}"
 
 
 def parseDTToStringWithFallback(stringOrDT, fallbackString):
@@ -1502,7 +1509,7 @@ class Window_Settings(WindowBase):
             dp.Text("Font (Need to refresh program to apply)")
             # Dropdown
             validFonts = session["validFonts"]
-            defaultFont = settings["DEFAULT_FONT"]
+            defaultFont = getFontName(1)  # Default font is the first one in the list
             dp.Combo(label="Font", items=validFonts, default_value=defaultFont, callback=self.UpdateSettings, user_data="DEFAULT_FONT")
 
     # Callback function for the input text to update the settings
@@ -1525,7 +1532,7 @@ class Window_Settings(WindowBase):
         if user_data == "DEFAULT_FONT":
             # Set the font for all windows
             dpg.set_global_font_scale(settings["UI_SCALE"])
-            dpg.bind_font(data)
+            dpg.bind_font(getFontName(1, fontName=data))  # Bind the font to the global context
 
     def UpdateDateTimeFormat(self, sender, data):
         rawDropdown = str(data)
@@ -5243,23 +5250,32 @@ def bindLoadFonts():
         dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 16, tag="MerriweatherRegular")
         dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 20, tag="MerriweatherRegular2")
         dpg.add_font("assets/fonts/Merriweather_24pt-Regular.ttf", 26, tag="MerriweatherRegular3")
+        # Merriweather 24pt bold
+        dpg.add_font("assets/fonts/Merriweather_24pt-Bold.ttf", 16, tag="MerriweatherBold")
+        dpg.add_font("assets/fonts/Merriweather_24pt-Bold.ttf", 20, tag="MerriweatherBold2")
+        dpg.add_font("assets/fonts/Merriweather_24pt-Bold.ttf", 26, tag="MerriweatherBold3")
         # Montserrat-regular
         dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 16, tag="MontserratRegular")
         dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 20, tag="MontserratRegular2")
         dpg.add_font("assets/fonts/Montserrat-Regular.ttf", 26, tag="MontserratRegular3")
+        # Montserrat-bold
+        dpg.add_font("assets/fonts/Montserrat-Bold.ttf", 16, tag="MontserratBold")
+        dpg.add_font("assets/fonts/Montserrat-Bold.ttf", 20, tag="MontserratBold2")
+        dpg.add_font("assets/fonts/Montserrat-Bold.ttf", 26, tag="MontserratBold3")
         # Opensans regular
         dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 18, tag="OpenSansRegular")
         dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 20, tag="OpenSansRegular2")
         dpg.add_font("assets/fonts/OpenSans-Regular.ttf", 26, tag="OpenSansRegular3")
+        # Opensans bold
+        dpg.add_font("assets/fonts/OpenSans-Bold.ttf", 18, tag="OpenSansBold")
+        dpg.add_font("assets/fonts/OpenSans-Bold.ttf", 20, tag="OpenSansBold2")
+        dpg.add_font("assets/fonts/OpenSans-Bold.ttf", 26, tag="OpenSansBold3")
 
-        
-
-        # Test
-        if settings["DEFAULT_FONT"] in session["validFonts"]:
-            RichPrintInfo(f"Font {settings["DEFAULT_FONT"]} loaded")
-            dpg.bind_font(settings["DEFAULT_FONT"])
+        # Set the default font to specified in settings
+        if settings["DEFAULT_FONT"] is not None and settings["DEFAULT_FONT"] in session["validFonts"]:
+            dpg.bind_font(f"{settings['DEFAULT_FONT']}Regular")
         else:
-            RichPrintError(f"Font {settings["DEFAULT_FONT"]} not found, defaulting to OpenSansRegular")
+            RichPrintError(f"Default font {settings['DEFAULT_FONT']} not found, using OpenSansRegular")
             dpg.bind_font("OpenSansRegular")
     
             
@@ -5339,7 +5355,7 @@ def main():
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
-        "DEFAULT_FONT": "OpenSansRegular",
+        "DEFAULT_FONT": "OpenSans",
     }
     global settings
     settings = default_settings
@@ -5347,7 +5363,7 @@ def main():
     session = {}
     # Get a list of all valid types for Categories
     setValidTypes()
-    session["validFonts"] = ["OpenSansRegular", "RobotoRegular", "RobotoBold", "MerriweatherRegular", "MontserratRegular"]
+    session["validFonts"] = ["OpenSans", "Roboto", "Merriweather", "Montserrat"]
     global TeaStash
     global TeaCategories
     TeaCategories = []
