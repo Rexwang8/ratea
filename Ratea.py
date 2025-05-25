@@ -2846,13 +2846,66 @@ class Window_Stash(WindowBase):
             dp.Separator()
 
             # Move index of tea placeholder
-            dp.Text(f"Tea Index: {teaCurrent.id} (0-based index) Move here, TODO: Implement moving teas in stash)")
+            dp.Text(f"Tea Index: {teaCurrent.id} (0-based index) out of {len(TeaStash)} teas in stash")
             dpg.bind_item_font(dpg.last_item(), getFontName(1, bold=False))
+            # Add a text input for the new index
+            moveInput = dp.InputInt(label="New Index, (remove -> readd)", default_value=teaCurrent.id, min_value=0, max_value=len(TeaStash)-1, width=200 * settings["UI_SCALE"])
+            # Add a button to move the tea index
+            dp.Button(label="Move Tea Index", callback=self.moveTeaIndex, user_data=(moveInput, teaCurrent))
+
+            # Add a separator
+            dp.Separator()
             dp.Text(f"Migrate reviews to new tea index, TODO: Implement moving reviews in stash)")
             dpg.bind_item_font(dpg.last_item(), getFontName(1, bold=False))
 
             # Add a button to cancel the adjustment
             dp.Button(label="Cancel", callback=self.deleteAdjustmentsWindow)
+
+    def moveTeaIndex(self, sender, app_data, user_data):
+        # Move tea index to the index below the specified index
+        # user_data[0] is the moveInput, user_data[1] is the tea object
+        # Factor in renumbering and saving the tea stash
+        moveInput = user_data[0]
+        tea = user_data[1]
+        newIndex = moveInput.get_value()
+        currentIndex = tea.id
+
+
+        # DEBUG print
+        global TeaStash
+        RichPrintInfo(f"Moving tea {tea.name} to index {newIndex} from current index {currentIndex}")
+        
+
+        # Check if the new index is valid
+        if newIndex < 0 or newIndex >= len(TeaStash):
+            RichPrintError(f"Error: Invalid index {newIndex}. Must be between 0 and {len(TeaStash)-1}.")
+            return
+        # Check if the tea is already at the new index
+        if tea.id == newIndex:
+            RichPrintWarning(f"Warning: Tea {tea.name} is already at index {newIndex}. No changes made.")
+            return
+        # Remove the tea from the stash
+        teaStashObj = None
+        for i, teaStash in enumerate(TeaStash):
+            if teaStash.id == tea.id:
+                teaStashObj = teaStash
+                break
+        if teaStashObj is None:
+            RichPrintError("Error: Tea not found in stash.")
+            return
+        # Remove the tea from the stash
+        TeaStash.remove(teaStashObj)
+        # Insert the tea at the new index
+        TeaStash = TeaStash[:newIndex] + [teaStashObj] + TeaStash[newIndex:]
+        # Renumber the tea ids
+        for i, teaStash in enumerate(TeaStash):
+            teaStash.id = i
+        # Save the tea stash to file
+        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        RichPrintSuccess(f"Moved tea {tea.name} to index {newIndex} from current index {currentIndex}, renumbered stash.")
+        # Refresh the window
+        self.deleteAdjustmentsWindow()
+        self.refresh()
 
     def greyOutAdjustmentInput(self, sender, app_data, user_data):
         # If the tea is finished, grey out the adjustment input
