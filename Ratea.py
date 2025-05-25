@@ -1717,7 +1717,7 @@ class Window_Stash_Reviews(WindowBase):
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
     
                 elif cat.categoryType == "float":
-                    catItem = dp.InputFloat(default_value=float(defaultValue))
+                    catItem = dp.InputFloat(default_value=float(defaultValue), step=1.0, format="%.2f")
 
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
@@ -2479,7 +2479,7 @@ class Window_Stash(WindowBase):
                         # Create a dropdown with the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
                 elif cat.categoryType == "float":
-                    catItem = dp.InputFloat(default_value=float(defaultValue), width=480 * settings["UI_SCALE"])
+                    catItem = dp.InputFloat(default_value=float(defaultValue), width=480 * settings["UI_SCALE"], step=1.0, format="%.2f")
                     if shouldShowDropdown:
                         # Create a dropdown with the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
@@ -2826,7 +2826,7 @@ class Window_Stash(WindowBase):
 
                 # Add a text input for the adjustment
                 dp.Text("Adjustment:")
-                adjustmentInput = dp.InputFloat(default_value=currentAdjustmentAmt, enabled=not finished)
+                adjustmentInput = dp.InputFloat(default_value=currentAdjustmentAmt, enabled=not finished, step=1.0, format="%.2f")
 
                 self.addTeaList["Adjustment"] = adjustmentInput
 
@@ -3466,7 +3466,7 @@ class Window_Stats(WindowBase):
                 dp.Text(f"Total Remaining: {totalRemaining:.2f}g, Average Remaining per tea: {averageRemaining:.2f}g")
             else:
                 dp.Text("Required Category role 'Remaining' for Tea is not enabled.")
-                
+
 
 
             dp.Separator()
