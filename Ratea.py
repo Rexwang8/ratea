@@ -2842,6 +2842,15 @@ class Window_Stash(WindowBase):
                 dp.Text("Error: Tea does not have the required attributes for adjustments.")
                 dp.Text("Required attributes: Amount, Remaining")
 
+            # Add a separator
+            dp.Separator()
+
+            # Move index of tea placeholder
+            dp.Text(f"Tea Index: {teaCurrent.id} (0-based index) Move here, TODO: Implement moving teas in stash)")
+            dpg.bind_item_font(dpg.last_item(), getFontName(1, bold=False))
+            dp.Text(f"Migrate reviews to new tea index, TODO: Implement moving reviews in stash)")
+            dpg.bind_item_font(dpg.last_item(), getFontName(1, bold=False))
+
             # Add a button to cancel the adjustment
             dp.Button(label="Cancel", callback=self.deleteAdjustmentsWindow)
 
@@ -3201,14 +3210,14 @@ def statsNumReviews():
 def statsTotalVolume():
     # Guard if no attributes are present
     validCategories, _  = getValidCategoryRolesList()
-    if "Remaining" not in validCategories:
-        RichPrintError("Error: No 'Remaining' attribute found in Tea Categories.")
+    if "Amount" not in validCategories:
+        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
         return 0, 0
     numTeas = statsNumTeas()
     totalVolume = 0
     for tea in TeaStash:
-        if "Remaining" in tea.attributes:
-            totalVolume += tea.attributes["Remaining"]
+        if "Amount" in tea.attributes:
+            totalVolume += tea.attributes["Amount"]
     if numTeas > 0:
         averageVolume = totalVolume / numTeas
     else:
@@ -3253,7 +3262,7 @@ def statsWeightedAverageCost():
 def statsTotalConsumed():
     # Guard if no attributes are present
     validCategories, _ = getValidCategoryRolesList()
-    if "Amount" not in validCategories:
+    if "Remaining" not in validCategories:
         RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
         return 0, 0
     
@@ -3278,6 +3287,37 @@ def statsTotalConsumed():
         averageConsumed = 0
     
     return totalConsumed, averageConsumed
+
+# Get total remaining by summing all remaining amounts after applying autocalculations
+def statsTotalRemaining():
+    # Guard if no attributes are present
+    validCategories, _ = getValidCategoryRolesList()
+    if "Remaining" not in validCategories:
+        RichPrintError("Error: No 'Remaining' attribute found in Tea Categories.")
+        return 0, 0
+    
+    numTeas = statsNumTeas()
+    totalRemaining = 0
+
+    remainingCategory = None
+    for cat in TeaCategories:
+        if cat.categoryRole == "Remaining":
+            remainingCategory = cat
+            break
+    
+    for tea in TeaStash:
+        currentRemaining, exp = remainingCategory.autocalculate(tea)
+        if currentRemaining is None:
+            currentRemaining = 0.0
+        totalRemaining += currentRemaining
+
+    # Calculate the average remaining
+    if numTeas > 0:
+        averageRemaining = totalRemaining / numTeas
+    else:
+        averageRemaining = 0
+    
+    return totalRemaining, averageRemaining
 
 
 def Menu_Stats():
@@ -3418,8 +3458,18 @@ class Window_Stats(WindowBase):
                 dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per tea: {averageConsumed:.2f}g")
             else:
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
-            dp.Separator()
 
+            # Total remaining by summing all remaining amounts after applying autocalculations
+            dp.Text("Total Remaining")
+            if "Remaining" in AllTypesCategoryRoleValid:
+                totalRemaining, averageRemaining = statsTotalRemaining()
+                dp.Text(f"Total Remaining: {totalRemaining:.2f}g, Average Remaining per tea: {averageRemaining:.2f}g")
+            else:
+                dp.Text("Required Category role 'Remaining' for Tea is not enabled.")
+                
+
+
+            dp.Separator()
             # Start day
             dp.Text("Start Day")
             startDay = statsgetStartDayTimestamp()
