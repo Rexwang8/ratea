@@ -3361,6 +3361,10 @@ def statsTotalConsumedExcludingAdjustments():
             # Directly add total purchase volume
             if "Amount" in tea.attributes:
                 totalConsumed += tea.attributes["Amount"]
+
+            # Less adjustments, assuming they are not part of the consumed amount
+            if "Standard" in tea.adjustments:
+                totalConsumed -= tea.adjustments["Standard"]
     if numTeas > 0:
         averageConsumed = totalConsumed / numTeas
     else:
@@ -3535,8 +3539,8 @@ class Window_Stats(WindowBase):
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
             dp.Separator()
 
-            # Total consumed excluding adjustments (including finished teas)
-            dp.Text("Total Consumed Excluding Adjustments, including Finished Teas")
+            # Total consumed excluding adjustments
+            dp.Text("Total Consumed Excluding Adjustments")
             if "Amount" in AllTypesCategoryRoleValid:
                 totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingAdjustments()
                 dp.Text(f"Total Consumed Excluding Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
