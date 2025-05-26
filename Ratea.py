@@ -3427,21 +3427,24 @@ class Window_Stats(WindowBase):
 
             # Display enabled categories
             dp.Text("Tea Categories:")
-            for cat in AllTypesCategoryRole:
-                if cat in AllTypesCategoryRoleValid:
-                    dp.Text(f"{cat}")
-                else:
-                    dp.Text(f"{cat} - Not Enabled")
+            # Foldable tab
+            with dp.CollapsingHeader(label="Enabled Categories", default_open=False):
+                for cat in AllTypesCategoryRole:
+                    if cat in AllTypesCategoryRoleValid:
+                        dp.Text(f"{cat}")
+                    else:
+                        dp.Text(f"{cat} - Not Enabled")
 
             dp.Separator()
             dp.Text("Review Categories:")
-            for cat in allTypesCategoryRoleReviews:
-                if cat in allTypesCategoryRoleReviewsValid:
-                    dp.Text(f"{cat}")
-                else:
-                    dp.Text(f"{cat} - Not Enabled")
+            with dp.CollapsingHeader(label="Enabled Review Categories", default_open=False):
+                for cat in allTypesCategoryRoleReviews:
+                    if cat in allTypesCategoryRoleReviewsValid:
+                        dp.Text(f"{cat}")
+                    else:
+                        dp.Text(f"{cat} - Not Enabled")
 
-            dp.Separator()
+                dp.Separator()
 
             
 
@@ -3449,14 +3452,15 @@ class Window_Stats(WindowBase):
                 # Tea Type Stats
                 dp.Text("Tea Type Stats")
                 teaTypeStats = {}
-                for tea in TeaStash:
-                    if "Type" in tea.attributes:
-                        teaType = tea.attributes["Type"]
-                        if teaType not in teaTypeStats:
-                            teaTypeStats[teaType] = 0
-                        teaTypeStats[teaType] += 1
-                for teaType, count in teaTypeStats.items():
-                    dp.Text(f"{teaType}: {count}")
+                with dp.CollapsingHeader(label="Tea Type Stats", default_open=False):
+                    for tea in TeaStash:
+                        if "Type" in tea.attributes:
+                            teaType = tea.attributes["Type"]
+                            if teaType not in teaTypeStats:
+                                teaTypeStats[teaType] = 0
+                            teaTypeStats[teaType] += 1
+                    for teaType, count in teaTypeStats.items():
+                        dp.Text(f"{teaType}: {count}")
             else:
                 dp.Text("Required Category role 'Type' for Tea is not enabled.")
             dp.Separator()
@@ -3530,7 +3534,7 @@ class Window_Stats(WindowBase):
             else:
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
             dp.Separator()
-            
+
             # Total consumed excluding adjustments (including finished teas)
             dp.Text("Total Consumed Excluding Adjustments, including Finished Teas")
             if "Amount" in AllTypesCategoryRoleValid:
