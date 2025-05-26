@@ -33,6 +33,8 @@ TODO: Button to re-order reviews and teas based on current view
 TODO: Display more on category
 TODO: save table sort state
 TODO: Duplicate button for reviews too
+TODO: Sold: Support adjustment
+TODO: Optional refresh on add tea/ review
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -45,7 +47,7 @@ TODO: Slider for textbox size for notepad, wrap too
 TODO: Confirmation window for deleting tea/review
 TODO: Terminal window to print out debug info
 TODO: Grades support for scores
-TODO: operation: Merge reviews
+TODO: operation: Link reviews
 
 
 
@@ -2122,15 +2124,19 @@ class Window_Stash_Reviews(WindowBase):
                         dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
         
         # disable autosize to prevent flickering or looping
-        # 3 frame delay is the fastest it can do this properly
-        dpg.set_frame_callback(dpg.get_frame_count()+3, self.afterWindowDefintion, user_data=window)
+        delay = 2 + statsNumTeas() // 100
+        dpg.set_frame_callback(dpg.get_frame_count()+delay, self.afterWindowDefintion, user_data=window)
 
     def afterWindowDefintion(self, sender, app_data, user_data):
         RichPrintInfo(f"Finished window definition for {user_data.tag}")
         window = user_data
         dpg.configure_item(window, autosize=False)
-        minHeight = 640 * settings["UI_SCALE"]
-        dpg.set_item_height(window.tag, minHeight)
+        minHeight = 480 * settings["UI_SCALE"]
+        estHeight = statsNumReviews() * 30 * settings["UI_SCALE"]
+        maxHeight = 930 * settings["UI_SCALE"]
+
+        height = min(max(estHeight, minHeight), maxHeight)
+        dpg.set_item_height(window.tag, height)
 
     def deleteEditReviewWindow(self):
         # If window is open, close it first
@@ -2143,7 +2149,7 @@ class Window_Stash_Reviews(WindowBase):
 
 def Menu_Stash():
     w = 500 * settings["UI_SCALE"]
-    h = 960 * settings["UI_SCALE"]
+    h = 940 * settings["UI_SCALE"]
     stash = Window_Stash("Stash", w, h, exclusive=True)
 
 class Window_Stash(WindowBase):
@@ -2326,16 +2332,20 @@ class Window_Stash(WindowBase):
             dp.Separator()
         
         # disable autosize to prevent flickering or looping
-        # 3 frame delay is the fastest it can do this properly
-        dpg.set_frame_callback(dpg.get_frame_count()+3, self.afterWindowDefintion, user_data=window)
+        delay = 2 + statsNumTeas() // 100
+        dpg.set_frame_callback(dpg.get_frame_count()+delay, self.afterWindowDefintion, user_data=window)
 
 
     def afterWindowDefintion(self, sender, app_data, user_data):
         RichPrintInfo(f"Finished window definition for {user_data.tag}")
         window = user_data
         dpg.configure_item(window, autosize=False)
-        minHeight = 640 * settings["UI_SCALE"]
-        dpg.set_item_height(window.tag, minHeight)
+        minHeight = 480 * settings["UI_SCALE"]
+        estHeight = statsNumTeas() * 30 * settings["UI_SCALE"]
+        maxHeight = 930 * settings["UI_SCALE"]
+
+        height = min(max(estHeight, minHeight), maxHeight)
+        dpg.set_item_height(window.tag, height)
 
 
 
@@ -3502,7 +3512,7 @@ def statsTotalRemaining():
 
 
 def Menu_Stats():
-    w = 480 * settings["UI_SCALE"]
+    w = 540 * settings["UI_SCALE"]
     h = 720 * settings["UI_SCALE"]
     stats = Window_Stats("Stats", w, h, exclusive=True)
 
