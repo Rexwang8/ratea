@@ -1047,6 +1047,7 @@ class TeaCategory:
                 adjustmentsAmount = 0
                 try:
                     adjustmentsAmount += data.adjustments["Standard"]
+                    adjustmentsAmount += data.adjustments["Gift"]
                 except:
                     RichPrintWarning("No adjustments found, skipping")
 
@@ -2818,6 +2819,15 @@ class Window_Stash(WindowBase):
                     if currentAdjustmentAmt is None:
                         currentAdjustmentAmt = 0.0
                 dp.Text(f"Current Adjustment: {currentAdjustmentAmt:.3f}g")
+                # Current Gift Adjustment in the tea dict
+                currentGiftAdjustmentAmt = 0
+                currentGiftAdjustmentDict = teaCurrent.adjustments
+                if currentGiftAdjustmentDict is not None:
+                    # Try to get gift adjustment
+                    currentGiftAdjustmentAmt = currentGiftAdjustmentDict.get("Gift", None)
+                    if currentGiftAdjustmentAmt is None:
+                        currentGiftAdjustmentAmt = 0.0
+                dp.Text(f"Current Gift Adjustment: {currentGiftAdjustmentAmt:.3f}g")
                 # Add a checkbox to mark the tea as finished
                 dp.Separator()
                 finished = teaCurrent.finished
@@ -2835,8 +2845,14 @@ class Window_Stash(WindowBase):
 
                 # Add a button to confirm the adjustment
                 dp.Separator()
-                dp.Button(label="Confirm Adjustment", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, adjustmentInput, finsihedCheckbox))
+                dp.Button(label="Confirm Adjustment", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, adjustmentInput, finsihedCheckbox, "Standard"))
 
+                # Adjust gift amount, adjustment that doesnt count towards consumption
+                dp.Text("Gift Adjustment (Does not count towards consumption):")
+                giftAdjustmentInput = dp.InputFloat(default_value=currentGiftAdjustmentAmt, step=1.0, format="%.2f")
+                self.addTeaList["Gift Adjustment"] = giftAdjustmentInput
+                # Add a button to confirm the gift adjustment
+                dp.Button(label="Confirm Gift Adjustment", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, giftAdjustmentInput, finsihedCheckbox, "Gift"))
             else:
                 # If the tea does not have the required attributes, show an error message
                 dp.Text("Error: Tea does not have the required attributes for adjustments.")
@@ -2934,6 +2950,7 @@ class Window_Stash(WindowBase):
         adjustment = adjustmentInput.get_value()
         finishedCheckbox = user_data[2]
         finished = finishedCheckbox.get_value()
+        typeOfAdjustment = user_data[3]
         # Check if the adjustment is a valid number
         try:
             adjustment = float(adjustment)
@@ -2951,7 +2968,7 @@ class Window_Stash(WindowBase):
             return
                 
         # Update the adjustment amount
-        teaStashObj.adjustments["Standard"] = round(adjustment, 2)
+        teaStashObj.adjustments[typeOfAdjustment] = round(adjustment, 2)
         teaStashObj.finished = finished
         # Save the tea stash to file
         saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
@@ -3342,7 +3359,7 @@ def statsTotalConsumed():
     return totalConsumed, averageConsumed
 
 # Get total consumed, excluding adjustments
-def statsTotalConsumedExcludingAdjustments():
+def statsTotalConsumedExcludingGiftAdj():
     # Guard if no attributes are present
     validCategories, _ = getValidCategoryRolesList()
     if "Remaining" not in validCategories:
@@ -3362,15 +3379,86 @@ def statsTotalConsumedExcludingAdjustments():
             if "Amount" in tea.attributes:
                 totalConsumed += tea.attributes["Amount"]
 
-            # Less adjustments, assuming they are not part of the consumed amount
-            if "Standard" in tea.adjustments:
-                totalConsumed -= tea.adjustments["Standard"]
+        # Add the adjustments, but only the standard ones
+        if "Standard" in tea.adjustments:
+            totalConsumed += tea.adjustments["Standard"]
+
+        # Less Gift adjustments, assuming they are not part of the consumed amount
+        if "Gift" in tea.adjustments:
+            totalConsumed -= tea.adjustments["Gift"]
     if numTeas > 0:
         averageConsumed = totalConsumed / numTeas
     else:
         averageConsumed = 0
     
     return totalConsumed, averageConsumed
+
+# Get total consumed by summing all reviews, adjustments, and finished teas
+def statsTotalConsumedExcludingAdj():
+    # Guard if no attributes are present
+    validCategories, _ = getValidCategoryRolesList()
+    if "Remaining" not in validCategories:
+        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
+        return 0, 0
+    
+    numTeas = statsNumTeas()
+    totalConsumed = 0
+    for tea in TeaStash:
+        if not tea.finished:
+            # If the tea is not finished, add the amount from the reviews
+            for review in tea.reviews:
+                if "Amount" in review.attributes:
+                    totalConsumed += review.attributes["Amount"]
+        else:
+            # Directly add total purchase volume
+            if "Amount" in tea.attributes:
+                totalConsumed += tea.attributes["Amount"]
+    if numTeas > 0:
+        averageConsumed = totalConsumed / numTeas
+    else:
+        averageConsumed = 0
+    
+    return totalConsumed, averageConsumed
+
+def statsAllStandardAdjustmentsSum():
+    # Guard if no attributes are present
+    validCategories, _ = getValidCategoryRolesList()
+    if "Remaining" not in validCategories:
+        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
+        return 0, 0
+    
+    numTeas = statsNumTeas()
+    totalStandardAdjustments = 0
+    for tea in TeaStash:
+        if "Standard" in tea.adjustments:
+            totalStandardAdjustments += tea.adjustments["Standard"]
+    
+    if numTeas > 0:
+        averageStandardAdjustments = totalStandardAdjustments / numTeas
+    else:
+        averageStandardAdjustments = 0
+    
+    return totalStandardAdjustments, averageStandardAdjustments
+
+def statsAllGiftAdjustmentsSum():
+    # Guard if no attributes are present
+    validCategories, _ = getValidCategoryRolesList()
+    if "Remaining" not in validCategories:
+        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
+        return 0, 0
+    
+    numTeas = statsNumTeas()
+    totalGiftAdjustments = 0
+    for tea in TeaStash:
+        if "Gift" in tea.adjustments:
+            totalGiftAdjustments += tea.adjustments["Gift"]
+    
+    if numTeas > 0:
+        averageGiftAdjustments = totalGiftAdjustments / numTeas
+    else:
+        averageGiftAdjustments = 0
+    
+    return totalGiftAdjustments, averageGiftAdjustments
 
 # Get total remaining by summing all remaining amounts after applying autocalculations
 def statsTotalRemaining():
@@ -3385,11 +3473,13 @@ def statsTotalRemaining():
 
     remainingCategory = None
     for cat in TeaCategories:
+        cat: TeaCategory
         if cat.categoryRole == "Remaining":
             remainingCategory = cat
             break
     
     for tea in TeaStash:
+        tea: StashedTea
         currentRemaining, exp = remainingCategory.autocalculate(tea)
         if currentRemaining is None:
             currentRemaining = 0.0
@@ -3531,7 +3621,7 @@ class Window_Stats(WindowBase):
 
             dp.Separator()
             # Total consumed by summing all reviews, adjustments, and finished teas
-            dp.Text("Total Consumed")
+            dp.Text("Total Consumed Including Adjustments")
             if "Amount" in AllTypesCategoryRoleValid:
                 totalConsumed, averageConsumed = statsTotalConsumed()
                 dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per tea: {averageConsumed:.2f}g")
@@ -3539,13 +3629,34 @@ class Window_Stats(WindowBase):
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
             dp.Separator()
 
-            # Total consumed excluding adjustments
-            dp.Text("Total Consumed Excluding Adjustments")
+            # Total consumed excluding Gift adjustments
+            dp.Text("Total Consumed Excluding Gift Adjustments")
             if "Amount" in AllTypesCategoryRoleValid:
-                totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingAdjustments()
-                dp.Text(f"Total Consumed Excluding Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
+                totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingGiftAdj()
+                dp.Text(f"Total Consumed Excluding Gift Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
             else:
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+            dp.Separator()
+
+            # Total consumed excluding all adjustments
+            dp.Text("Total Consumed Excluding All Adjustments")
+            if "Amount" in AllTypesCategoryRoleValid:
+                totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingAdj()
+                dp.Text(f"Total Consumed Excluding All Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
+            else:
+                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+            dp.Separator()
+
+            # Total standard adjustments, Total gift adjustments
+            dp.Text("Total Standard Adjustments")
+            totalStandardAdjustments, averageStandardAdjustments = statsAllStandardAdjustmentsSum()
+            dp.Text(f"Total Standard Adjustments: {totalStandardAdjustments:.2f}g, Average Standard Adjustments per tea: {averageStandardAdjustments:.2f}g")
+
+            dp.Separator()
+            dp.Text("Total Gift Adjustments")
+            totalGiftAdjustments, averageGiftAdjustments = statsAllGiftAdjustmentsSum()
+            dp.Text(f"Total Gift Adjustments: {totalGiftAdjustments:.2f}g, Average Gift Adjustments per tea: {averageGiftAdjustments:.2f}g")
+
             dp.Separator()
 
             # Total remaining by summing all remaining amounts after applying autocalculations
