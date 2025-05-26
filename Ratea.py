@@ -45,6 +45,7 @@ TODO: Slider for textbox size for notepad, wrap too
 TODO: Confirmation window for deleting tea/review
 TODO: Terminal window to print out debug info
 TODO: Grades support for scores
+TODO: operation: Merge reviews
 
 
 
@@ -2818,6 +2819,8 @@ class Window_Stash(WindowBase):
                     currentAdjustmentAmt = currentAdjustmentDict.get("Standard", None)
                     if currentAdjustmentAmt is None:
                         currentAdjustmentAmt = 0.0
+                dp.Text(f"Adjustments to the remaining total amount:")
+                dpg.bind_item_font(dpg.last_item(), getFontName(2, bold=True))
                 dp.Text(f"Current Adjustment: {currentAdjustmentAmt:.3f}g")
                 # Current Gift Adjustment in the tea dict
                 currentGiftAdjustmentAmt = 0
@@ -2862,6 +2865,8 @@ class Window_Stash(WindowBase):
             dp.Separator()
 
             # Move index of tea placeholder
+            dp.Text("Operations on Tea Stash")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2, bold=True))
             dp.Text(f"Tea Index: {teaCurrent.id} (0-based index) out of {len(TeaStash)} teas in stash")
             dpg.bind_item_font(dpg.last_item(), getFontName(1, bold=False))
             # Add a text input for the new index
@@ -2871,7 +2876,9 @@ class Window_Stash(WindowBase):
 
             # Add a separator
             dp.Separator()
+            dp.Text(f"TODO: Move to end, Move to Top, Move down 1, Move up 1")
             dp.Text(f"Migrate reviews to new tea index, TODO: Implement moving reviews in stash)")
+            dp.Text(f"TODO: Merge teas of two indexes into one, combining reviews as well, delete the other tea")
             dpg.bind_item_font(dpg.last_item(), getFontName(1, bold=False))
 
             # Add a button to cancel the adjustment
