@@ -2849,7 +2849,7 @@ class Window_Stash(WindowBase):
             dp.Text(f"Tea Index: {teaCurrent.id} (0-based index) out of {len(TeaStash)} teas in stash")
             dpg.bind_item_font(dpg.last_item(), getFontName(1, bold=False))
             # Add a text input for the new index
-            moveInput = dp.InputInt(label="New Index, (remove -> readd)", default_value=teaCurrent.id, min_value=0, max_value=len(TeaStash)-1, width=200 * settings["UI_SCALE"])
+            moveInput = dp.InputInt(label="New Index, (Adds below current index)", default_value=teaCurrent.id, min_value=0, max_value=len(TeaStash)-1, width=200 * settings["UI_SCALE"])
             # Add a button to move the tea index
             dp.Button(label="Move Tea Index", callback=self.moveTeaIndex, user_data=(moveInput, teaCurrent))
 
@@ -3341,6 +3341,33 @@ def statsTotalConsumed():
     
     return totalConsumed, averageConsumed
 
+# Get total consumed, excluding adjustments
+def statsTotalConsumedExcludingAdjustments():
+    # Guard if no attributes are present
+    validCategories, _ = getValidCategoryRolesList()
+    if "Remaining" not in validCategories:
+        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
+        return 0, 0
+    
+    numTeas = statsNumTeas()
+    totalConsumed = 0
+    for tea in TeaStash:
+        if not tea.finished:
+            # If the tea is not finished, add the amount from the reviews
+            for review in tea.reviews:
+                if "Amount" in review.attributes:
+                    totalConsumed += review.attributes["Amount"]
+        else:
+            # Directly add total purchase volume
+            if "Amount" in tea.attributes:
+                totalConsumed += tea.attributes["Amount"]
+    if numTeas > 0:
+        averageConsumed = totalConsumed / numTeas
+    else:
+        averageConsumed = 0
+    
+    return totalConsumed, averageConsumed
+
 # Get total remaining by summing all remaining amounts after applying autocalculations
 def statsTotalRemaining():
     # Guard if no attributes are present
@@ -3450,15 +3477,6 @@ class Window_Stats(WindowBase):
                 dp.Text("Required Category role 'Type' for Review is not enabled.")
             dp.Separator()
 
-            # Total volume of remaining tea (Tea-remaining-sum, average)
-            dp.Text("Total Volume of Remaining Tea")
-            if "Remaining" in AllTypesCategoryRoleValid:
-                sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Remaining", False)
-                dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
-            else:
-                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
-            dp.Separator()
-
             # Total volume of consumed tea (Review-remaining-stats)
             dp.Text("Total Volume of Consumed Tea")
             if "Amount" in allTypesCategoryRoleReviewsValid:
@@ -3511,6 +3529,16 @@ class Window_Stats(WindowBase):
                 dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per tea: {averageConsumed:.2f}g")
             else:
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+            dp.Separator()
+            
+            # Total consumed excluding adjustments (including finished teas)
+            dp.Text("Total Consumed Excluding Adjustments, including Finished Teas")
+            if "Amount" in AllTypesCategoryRoleValid:
+                totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingAdjustments()
+                dp.Text(f"Total Consumed Excluding Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
+            else:
+                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+            dp.Separator()
 
             # Total remaining by summing all remaining amounts after applying autocalculations
             dp.Text("Total Remaining")
