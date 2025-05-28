@@ -5712,9 +5712,14 @@ def main():
     global globalTimeLastSave
     globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
     # get monitor resolution
-    monitor = screeninfo.get_monitors()[0]
-    RichPrintInfo(f"Monitor resolution: {monitor.width}x{monitor.height}")
-    WindowSize = (1920, 1600)
+    monitors = screeninfo.get_monitors()
+    monitor = monitors[0] if len(monitors) == 1 else None
+    if monitor is None:
+        # Find based on primary monitor
+        for m in monitors:
+            if m.is_primary:
+                monitor = m
+                break
     Monitor_Scale = 1
     if monitor.width >= 3840:
         Monitor_Scale = 2.0
@@ -5726,6 +5731,7 @@ def main():
         Monitor_Scale = 1.0
     elif monitor.width < 1280:
         Monitor_Scale = 0.75
+    print(f"Monitor scale set to {Monitor_Scale} based on resolution {monitor.width}x{monitor.height}")
     baseDir = os.path.dirname(os.path.abspath(__file__))
     
 
