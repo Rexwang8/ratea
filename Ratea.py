@@ -3223,23 +3223,23 @@ Type:
 Amount: 
 Pot/Temperature: 100C/212F
 Date: DATE
+
+
 Times Steeped:
 Grade/Rating: 
 Notes: 
 
 
+
+
 Reference Scale:
-S+ -- 5.0
-S -- 4.5
-A+ -- 4.0
-A -- 3.5
-B+ -- 3.0
-B -- 2.5
-C+ -- 2.0
-C -- 1.5
-D+ -- 1.0
-D -- 0.5
-F -- 0.0
++ / / -
+S -- (5.0, 4.5, 4.25)
+A -- (4.0, 3.5, 3.25)
+B -- (3.0, 2.5, 2.25)
+C -- (2.0, 1.5, 1.25)
+D -- (1.0, 0.5, 0.25)
+F -- (0.0, 0.0, 0.0)
 
 
 ---
@@ -5709,6 +5709,8 @@ def debugPrintPolledTime():
 
 def main():
     RichPrintInfo("Starting Tea Tracker")
+    print("RaTea - Tea Tracker")
+    timestartLoad = dt.datetime.now(tz=dt.timezone.utc)
     global globalTimeLastSave
     globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
     # get monitor resolution
@@ -5836,6 +5838,12 @@ def main():
     # Move the viewport to the to top left corner
     dp.Viewport.x_pos = 0
     dp.Viewport.y_pos = 0
+
+    timeEndLoad = dt.datetime.now(tz=dt.timezone.utc)
+    timeDiff = timeEndLoad - timestartLoad
+    timeDiffSeconds = timeDiff.total_seconds()
+    RichPrintSuccess(f"Loaded RaTea in {timeDiffSeconds:.2f} seconds")
+    print(f"Loaded RaTea in {timeDiffSeconds:.2f} seconds")
 
     dp.Runtime.start()
 
