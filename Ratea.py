@@ -4751,6 +4751,20 @@ class Window_Welcome(WindowBase):
             
             dp.Button(label="OK", callback=window.delete)
 
+# Userguide window
+def Menu_UserGuide():
+    w = 640 * settings["UI_SCALE"]
+    h = 480 * settings["UI_SCALE"]
+    userGuide = Window_UserGuide("User Guide", w, h, exclusive=True)
+
+class Window_UserGuide(WindowBase):
+    def windowDefintion(self, window):
+        with window:
+            dp.Text("User Guide")
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
+            dp.Text("This is a simple user guide for Ratea.")
+            dp.Text("You can find more information on the GitHub page:")
+
 # Terminal window
 def Menu_Terminal():
     w = 640 * settings["UI_SCALE"]
@@ -5619,8 +5633,9 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Import Persistant Windows", callback=windowManager.importPersistantWindowWrapper)
             dp.Button(label="Export Persistant Windows", callback=windowManager.exportPersistantWindowWrapper)
         with dp.Menu(label="Help(TODO)", callback=print_me):
+            dp.Button(label="User Guide", callback=Menu_UserGuide)
+            dp.Button(label="About", callback=print_me)
             with dp.Menu(label="Library(TODO)"):
-                dp.Checkbox(label="Pick Me", callback=print_me)
                 dp.Button(label="Press Me", callback=print_me)
         with dp.Menu(label="Debug"):
             dp.Button(label="Demo", callback=demo.show_demo)
