@@ -114,6 +114,8 @@ COLOR_INVALID_EMPTY_TABLE_CELL = (100, 0, 0, 100)
 COLOR_REQUIRED_TEXT = (255, 0, 0, 200)
 # green
 COLOR_AUTO_CALCULATED_TEXT = (0, 255, 0, 200)
+
+CONSTANT_DELAY_MULTIPLIER = 125 # +1frame per X items for the table
 #endregion
 
 #region Global Variables
@@ -2132,7 +2134,7 @@ class Window_Stash_Reviews(WindowBase):
                         dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
         
         # disable autosize to prevent flickering or looping
-        delay = 2 + statsNumTeas() // 100
+        delay = 2 + statsNumTeas() // CONSTANT_DELAY_MULTIPLIER
         dpg.set_frame_callback(dpg.get_frame_count()+delay, self.afterWindowDefintion, user_data=window)
 
     def afterWindowDefintion(self, sender, app_data, user_data):
@@ -2340,7 +2342,7 @@ class Window_Stash(WindowBase):
             dp.Separator()
         
         # disable autosize to prevent flickering or looping
-        delay = 2 + statsNumTeas() // 100
+        delay = 2 + statsNumTeas() // CONSTANT_DELAY_MULTIPLIER
         dpg.set_frame_callback(dpg.get_frame_count()+delay, self.afterWindowDefintion, user_data=window)
 
 
