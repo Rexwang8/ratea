@@ -48,6 +48,7 @@ TODO: Confirmation window for deleting tea/review
 TODO: Terminal window to print out debug info
 TODO: Grades support for scores
 TODO: operation: Link reviews
+TODO: Optional non-refreshing table updates, limit number of items on first load
 
 
 
@@ -1383,10 +1384,11 @@ class Window_Timer(WindowBase):
             # add it in reverse order sop latest is at the top
             reversedTimes = self.previousTimes[::-1]
             dp.Text(f"Previous Times ({len(reversedTimes)})")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             for i, time in enumerate(reversedTimes):
                 with dp.Group(horizontal=True):
                     dp.Button(label="Remove", callback=self.removeOneTime, user_data=i)
-                    dp.Text(f"{i+1}: {self.formatTimeDisplay(time)}")
+                    dp.Text(f"{len(reversedTimes) - i}: {self.formatTimeDisplay(time)}", color=(100, 255, 100, 255))
         
     def startOrStopTimer(self, sender, app_data):
         # Starts or stops the timer, changes the button label
@@ -1414,6 +1416,7 @@ class Window_Timer(WindowBase):
         self.timerRunning = False
         self.display.set_value(self.formatTimeDisplay(self.timer))
         self.previousTimes = []
+        self.buttonObject.label = "Start"
         self.updateChildWindow()
         self.updateDefaultValueDisplay()
 
@@ -1846,7 +1849,12 @@ class Window_Stash_Reviews(WindowBase):
         
         # Get the input item and the past answers
         if user_data[0]:
-            newSelectedValue = app_data.split(" - ")[1].strip()
+            splits = app_data.split(" - ")
+            if len(splits) > 2:
+                newSelectedValue = splits[1:]
+                newSelectedValue = " - ".join(newSelectedValue).strip()
+            else:
+                newSelectedValue = splits[1].strip()
             # Remove parentheses if they exist
             if newSelectedValue.startswith("(") and newSelectedValue.endswith(")"):
                 newSelectedValue = newnewSelectedValue = newSelectedValue[1:-1]
@@ -1998,7 +2006,7 @@ class Window_Stash_Reviews(WindowBase):
                 # Add review popup
                 w = 900 * settings["UI_SCALE"]
                 h = 500 * settings["UI_SCALE"]
-                self.reviewsWindow = dp.Window(label="Reviews", width=w, height=h, show=False, modal=True)
+                self.reviewsWindow = dp.Window(label="Reviews", width=w, height=h, show=False, modal=False)
                 with self.reviewsWindow:
                     addReviewGroup = dp.Group(horizontal=False)
                     with addReviewGroup:
@@ -2595,7 +2603,12 @@ class Window_Stash(WindowBase):
         
         # Get the input item and the past answers
         if user_data[0]:
-            newSelectedValue = app_data.split(" - ")[1].strip()
+            splits = app_data.split(" - ")
+            if len(splits) > 2:
+                newSelectedValue = splits[1:]
+                newSelectedValue = " - ".join(newSelectedValue).strip()
+            else:
+                newSelectedValue = splits[1].strip()
             # Remove parentheses if they exist
             if newSelectedValue.startswith("(") and newSelectedValue.endswith(")"):
                 newSelectedValue = newSelectedValue[1:-1]
@@ -3199,7 +3212,8 @@ class Window_Notepad(WindowBase):
         self.text = wrappedText
     def setTemplate(self, sender, app_data, user_data):
         # Sets the value to a simple template for notes
-        template = '''Template for notes
+        template = '''
+Template for notes
 ---
 Name: 
 Producer: 
