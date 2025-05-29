@@ -1238,6 +1238,7 @@ class WindowBase:
         # triggers when the window is deleted
         
         # removes the window from the window manager
+        print(f"[DELETE] Deleting window: {self.title} with tag: {self.tag}")
         windowManager.deleteWindow(self.utitle)
 
     def DummyCallback(self, sender, data):
@@ -1631,8 +1632,10 @@ class Window_Stash_Reviews(WindowBase):
         nameReview = ""
         parentName = ""
         idReview = 0
+        
         if review is not None:
             idReview = review.id
+            nameReview = review.name
             if review.attributes == None or review.attributes == "":
                 review.attributes = {}
             if review.name == None or review.name == "":
@@ -1640,23 +1643,23 @@ class Window_Stash_Reviews(WindowBase):
                 for i, tea in enumerate(TeaStash):
                     if tea.id == review.parentID:
                         parentName = tea.name
+                        idReview = i
                         break
-            # Infer parent name and ID from parent Tea instead of review
-            if parentTea is not None:
-                nameReview = parentTea.name
-                idReview = len(parentTea.reviews)  # New review ID is the length of existing reviews
-            else:
-                nameReview = "New Review"
+        else:
+            idReview = len(parentTea.reviews)  # New review ID is the length of existing reviews
+            nameReview = parentTea.name
+        
+
 
             
         with self.editReviewWindow:
             # Add a title
             if isEdit:
-                dp.Text(f"Edit Review - {nameReview}")
-                dpg.bind_item_font(dpg.last_item(), getFontName(3))
+                dp.Text(f"Edit Review {idReview}:\n{nameReview}")
+                dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
             else:
-                dp.Text("Add New Review")
-                dpg.bind_item_font(dpg.last_item(), getFontName(3))
+                dp.Text(f"Add New Review {idReview} - Parent Tea:\n{parentTea.name}")
+                dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
 
 
             for cat in TeaReviewCategories:
@@ -1700,33 +1703,30 @@ class Window_Stash_Reviews(WindowBase):
                 if cat.categoryType == "string":
                     if cat.categoryRole == "Name":
                         # For the name, use a single line input text
-                        if nameReview is None or nameReview == "" and parentName is not None:
-                            nameReview = parentName
-                        
-                        catItem = dp.InputText(default_value=str(nameReview), width=300 * settings["UI_SCALE"])
+                        catItem = dp.InputText(default_value=str(nameReview), width=480 * settings["UI_SCALE"])
     
                     elif cat.categoryRole == "Notes (Long)" or cat.categoryRole == "Notes":
                         # For notes, allow multiline input
-                        height = 150 * settings["UI_SCALE"]
-                        catItem = dp.InputText(default_value=str(defaultValue), multiline=True, height=height)
+                        height = 180 * settings["UI_SCALE"]
+                        catItem = dp.InputText(default_value=str(defaultValue), multiline=True, height=height, width=480 * settings["UI_SCALE"])
                         
                     else:
                         # For other strings, single line input
-                        catItem = dp.InputText(default_value=defaultValue)
+                        catItem = dp.InputText(default_value=defaultValue, width=480 * settings["UI_SCALE"])
     
                         if shouldShowDropdown:
                             # Add a dropdown for the past answers
                             dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "string"))
         
                 elif cat.categoryType == "int":
-                    catItem = dp.InputInt(default_value=int(defaultValue))
+                    catItem = dp.InputInt(default_value=int(defaultValue), width=480 * settings["UI_SCALE"])
 
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
     
                 elif cat.categoryType == "float":
-                    catItem = dp.InputFloat(default_value=float(defaultValue), step=1.0, format="%.2f")
+                    catItem = dp.InputFloat(default_value=float(defaultValue), step=1.0, format="%.2f", width=480 * settings["UI_SCALE"])
 
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
@@ -1747,14 +1747,14 @@ class Window_Stash_Reviews(WindowBase):
                     else:
                         defaultValue = TimeStampToDateDict(AnyDTFormatToTimeStamp(defaultValue))
                     # If supported, display as date
-                    catItem =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue)
+                    catItem =  dp.DatePicker(level=dpg.mvDatePickerLevel_Day, label=cat.name, default_value=defaultValue, width=480 * settings["UI_SCALE"])
 
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "date"))
     
                 else:
-                    catItem = dp.InputText(default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}")
+                    catItem = dp.InputText(default_value=f"Not Supported (Assume String): {cat.categoryType}, {cat.name}", width=480 * settings["UI_SCALE"])
 
                     if shouldShowDropdown:
                         # Add a dropdown for the past answers
@@ -1769,6 +1769,7 @@ class Window_Stash_Reviews(WindowBase):
             with dp.Group(horizontal=True):
                 dp.Button(label="Save", callback=self.validateAddEditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
                 dp.Button(label="Cancel", callback=self.deleteEditReviewWindow)
+            
     
     def validateAddEditReview(self, sender, app_data, user_data):
         review = user_data[0]
@@ -1993,6 +1994,7 @@ class Window_Stash_Reviews(WindowBase):
 
         # Enable window resizing
         dpg.configure_item(window.tag, autosize=True)
+        dpg.bind_item_font(window.tag, getFontName(1))
         # create a new window for the reviews
         with window:
             hbarActionGroup = dp.Group(horizontal=True)
@@ -2189,6 +2191,7 @@ class Window_Stash(WindowBase):
         self.addTeaList = dict()
         self.addReviewList = dict()
         dpg.configure_item(window.tag, autosize=True)
+        dpg.bind_item_font(window.tag, getFontName(1))
         with window:
             dp.Separator()
             hgroupButtons = dp.Group(horizontal=True)
@@ -2427,6 +2430,14 @@ class Window_Stash(WindowBase):
             else:
                 RichPrintError("Error: No teas in stash to duplicate.")
                 return
+            
+        idTea = 0
+        if teasData is not None:
+            # If editing, get the ID of the tea
+            idTea = teasData.id
+        else:
+            # If adding, get the next ID
+            idTea = len(TeaStash)
 
         # Create a new window
         w = 580 * settings["UI_SCALE"]
@@ -2436,12 +2447,12 @@ class Window_Stash(WindowBase):
         windowManager.addSubWindow(self.teasWindow)
         with self.teasWindow:
             if operation == "add":
-                dp.Text("Add New Tea")
+                dp.Text(f"Add New Tea {idTea}")
             elif operation == "edit":
-                dp.Text(f"Edit Tea\n{teasData.name if teasData else 'Unknown name'}")
+                dp.Text(f"Edit Tea {idTea}:\n{teasData.name if teasData else 'Unknown name'}")
             elif operation == "duplicate":
                 if duplicateTea:
-                    dp.Text(f"Duplicate Tea\n{teasData.name if teasData else 'Unknown name'}")
+                    dp.Text(f"Duplicate Tea {idTea}:\n{teasData.name if teasData else 'Unknown name'}")
                 else:
                     RichPrintError("Error: No teas in stash to duplicate.")
                     return
