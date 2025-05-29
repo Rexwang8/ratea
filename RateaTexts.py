@@ -94,3 +94,101 @@ ListTextHelpMenu = dict()
 ListTextHelpMenu["menuStopwatchHelp"] = Text("This is a tool to help you time your tea sessions. Copy the times into your notes!")
 ListTextHelpMenu["menuTeaStash"] = Text("This is one of the primary windows of the app. It shows a list of all the teas in your stash. You can add, edit, and delete teas from this window. You can also filter the list of teas by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n\n Green - Autocalculated \n Red - Invalid/Empty\n")
 ListTextHelpMenu["menuTeaReviews"] = Text("This is one of the primary windows of the app. It shows a list of all the reviews in your stash. You can add, edit, and delete reviews from this window. You can also filter the list of reviews by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n\n Green - Autocalculated \n Red - Invalid/Empty\n")
+
+# User Guide Text
+ListTextUserGuide = dict()
+
+ListTextUserGuide["userGuide"] = Text('''
+Welcome to RateaTea, the tea tracking app that helps you keep track of your tea stash, reviews, and more! 
+This user guide will help you get started with the app and explain how to use its features.
+                                      
+Adding Teas
+To add a new tea to your stash, go to the "Tea Stash" window and click the "Add Tea" button.
+You can also click "Duplicate Tea" to create a copy of the last tea in your stash. (Usually your last tea added)
+Null/Invalid values are red.
+                                      
+Editing Teas
+To edit a tea, select it from the list and click the "Edit Tea" button.
+                                                                                                                  
+Free Tea and Samples
+Add a tea but keep the price at 0 or 0.1 to indicate that it is a free tea or sample.
+
+Grouping Teas
+You can group teas purchased together by adding it to the notes and duplicating it to each tea.
+This will allow you to see the group of teas together in the "Tea Stash" window.
+                                      
+Adjusting Teas:
+The standard adjustment assumes that you drank the tea but didn't record it.
+The "Gift" adjustment assumes that you gave the tea away, so it will remove the tea from your stash but won't count it as drunk.
+The "Sold" adjustment assumes that you sold the tea, so it will remove the tea from your stash and count the cost as negative.
+If you mark the tea as "Finished" the remaining is counted as "Standard" aka drunk.
+You can move a tea around by index. If you want to move a tea to ID=10, it will place it after the old ID=10 and renumber it as the new ID=10
+                                      
+Logging a Trade
+You should log a trade by logging a sale at fair market value, and then logging a purchase at the same value.
+This will allow you to keep track of the trade and the value of the tea.
+                                      
+Filtering your teas
+You can filter your teas by name with the search bar at the top of the "Tea Stash" window.
+You can sort your teas by clicking the column headers in the "Tea Stash" window.
+Columns can be reordered, hidden, and resized by right clicking the column header.
+More methods WIP
+                                      
+Adding Reviews
+To add a new review, first add a tea to your stash.
+Then go to the "Tea Reviews" window and click the "Add Review" button.
+                                      
+----------------------
+                                      
+Tools for reviewing
+You can use the "Timer" tool to time your tea sessions.
+You can also use the "Notes" tool to write down your thoughts and observations about the tea.
+Notes can be copy-pasted into the review for a easy way to keep track of your thoughts.
+
+Cannonical rating system for RaTea
+I made the program so I call the shots. I use this system.
+The system is a 5 point float system where 5 cooresponds to S+, 4.5 to S, 4.25 to S-, 4 to A+, etc.
+The grade of the tea determines the letter grade, while supporting details like value determine the decimal.
+                                      
+Adding fees, shipping, and teaware
+Work in progress
+                                      
+Adding or Editing Categories
+To add or edit categories, go to the "Categories" window. Be careful when adding or removing categories, as this can affect your existing teas and reviews.
+This may delete data, so be sure to back up your data before making any changes.
+                                      
+Autocalcualted entries
+Some categories support autocalculation, which means that the value is automatically calculated based on other categories.
+This has to be enabled in the "Categories" window. Autocalculated categories are green and ignore their value in favor of the autocalculated value.
+                                      
+Dropdown Entries
+Some data types support dropdown entries which populate from previously entered data, by most commonly used first.
+The number of entries can be configured in "Categories" window.
+                                      
+----------------------
+                                      
+Persistant Data
+Windows that can be closed and will save their data: Work in Progress
+- Stopwatch
+- Notes
+                                      
+Saving and Backing Up Data
+Ratea will autmatically autosave everyy 15 minutes to an "autobackup" folder. You can trigger a manual backup at any time by clicking the "Backup" button in the "Settings" window.
+Saving occurs whenever a setting or tea is changed, you can trigger a save by clicking the "Save" button in the "Settings" window.
+                                      
+Restoring Data
+If you need to restore your data, delete the current data and just copy the backup file to the data folder. May or may not work, not well tested.
+                                      
+Importing and Exporting Data
+You can export your data to a CSV file by clicking the "Export" button in the "Settings" window. This is work in progress and will support more formats in the future.
+                                      
+Stats and Visualizations
+RateaTea provides various stats and visualizations to help you understand your tea drinking habits. The stats are available in the "Stats" window, where you can see your tea drinking habits, most consumed teas, and more.
+Visualizations are work in progress and will be added in the future.
+                                      
+Settings
+Settings are available in the "Settings" window. You can change the app settings, backup your data, and more. Work in progress.
+                                                                            
+                                      
+                                      
+''')
