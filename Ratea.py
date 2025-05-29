@@ -934,6 +934,11 @@ class StashedTea:
 
     def addReview(self, review):
         self.reviews.append(review)
+    def removeReview(self, reviewID):
+        # Remove review by ID
+        self.reviews = [review for review in self.reviews if review.id != reviewID]
+        # Recalculate the average rating after removing a review
+        self.calculateAverageRating()
     def calculate(self):
         # call all the calculate functions
         self.calculateAverageRating()
@@ -1570,7 +1575,9 @@ class Window_Stash_Reviews(WindowBase):
     editReviewsWindow = None
     def ShowAddReview(self, sender, app_data, user_data):
         # Call Edit review with Add
-        self.GenerateEditReviewWindow(sender, app_data, user_data=(None, "add", user_data))  # Pass None for review to indicate new review
+        tea = user_data[0]
+        operation = user_data[1]
+        self.GenerateEditReviewWindow(sender, app_data, user_data=(None, operation, tea))  # Pass None for review to indicate new review
     def AddReview(self, sender, app_data, user_data):
         # Add a review to the tea
         allAttributes = {}
@@ -1615,16 +1622,36 @@ class Window_Stash_Reviews(WindowBase):
         editReviewWindowItems = dict()
         review = user_data[0]
         parentTea = user_data[2]
-        isEdit = user_data[1] if len(user_data) > 1 else False
-        if isEdit != "edit":
-            isEdit = False
-        else:
-            isEdit = True
-        if not isEdit:
+        operation = user_data[1]  # "edit" or "add"
+
+
+        if operation != "edit":
             # Assume add, drop review data if provided
             review = None
 
-        windowName = "Edit Review" if isEdit else "Add New Review"
+        windowName = ""
+        if operation == "edit":
+            windowName = f"Edit Review {review.id} - {parentTea.name}"
+        elif operation == "add":
+            windowName = f"Add Review - {parentTea.name}"
+        elif operation == "duplicate":
+            # Get last review
+            lastReview = parentTea.reviews[-1] if parentTea.reviews else None
+            if lastReview is not None:
+                review = Review(lastReview.id, lastReview.name, lastReview.dateAdded, lastReview.attributes.copy(), lastReview.rating)
+                review.id = len(parentTea.reviews)  # New review ID is the length of existing reviews
+                windowName = f"Duplicate Review {review.id} - {parentTea.name}"
+            # Duplicate the review, but don't save it yet
+            else:
+                # Change operation to add if no last review
+                operation = "add"
+                windowName = f"Add Review (No reviews to duplicate) - {parentTea.name}"
+           
+           
+            # Set the ID to the length of the existing reviews
+            review.id = len(parentTea.reviews)  # New review ID is the length of existing reviews
+
+
         self.editReviewWindow = dp.Window(label=windowName, width=w, height=h, modal=True, show=True)
         dpg.bind_item_font(dpg.last_item(), getFontName(2))
         windowManager.addSubWindow(self.editReviewWindow)
@@ -1654,10 +1681,15 @@ class Window_Stash_Reviews(WindowBase):
             
         with self.editReviewWindow:
             # Add a title
-            if isEdit:
+            if operation == "edit":
                 dp.Text(f"Edit Review {idReview}:\n{nameReview}")
                 dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
-            else:
+            elif operation == "duplicate":
+                # Add a title for duplicating the review
+                dp.Text(f"Duplicate Review {idReview}:\n{nameReview}")
+                dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
+            elif operation == "add":
+                # Add a title for adding a new review
                 dp.Text(f"Add New Review {idReview} - Parent Tea:\n{parentTea.name}")
                 dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
 
@@ -1764,17 +1796,39 @@ class Window_Stash_Reviews(WindowBase):
                 if catItem is not None:
                     editReviewWindowItems[cat.categoryRole] = catItem
                     
-            # Final Score input
+            # Button to add the review
             dp.Separator()
             with dp.Group(horizontal=True):
-                dp.Button(label="Save", callback=self.validateAddEditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, isEdit))
+                dpg.bind_item_font(dpg.last_item(), getFontName(3))
+                buttonLabel = "Add Review"
+                if operation == "edit":
+                    buttonLabel = "Save Changes"
+                elif operation == "duplicate":
+                    buttonLabel = "Duplicate Review"
+                dp.Button(label=buttonLabel, callback=self.validateAddEditReview, user_data=(review, editReviewWindowItems, self.editReviewWindow, operation))
+                if operation == "edit":
+                    dp.Button(label="Delete Review", callback=self.deleteReview, user_data=(review, parentTea))
                 dp.Button(label="Cancel", callback=self.deleteEditReviewWindow)
+
+    def deleteReview(self, sender, app_data, user_data):
+        # Delete the review from the tea
+        review = user_data[0]
+        tea = user_data[1]
+        if review is not None:
+            tea: StashedTea
+            tea.reviews = [r for r in tea.reviews if r.id != review.id]
+            # Remove the review from the stash
+            RichPrintSuccess(f"Deleted review {review.id} from tea {tea.name}")
+            renumberTeasAndReviews(save=True)
+
+        # Close the edit review window
+        dpg.configure_item(self.editReviewWindow.tag, show=False)
+        self.refresh()
             
     
     def validateAddEditReview(self, sender, app_data, user_data):
         review = user_data[0]
         editReviewWindowItems = user_data[1]
-        isEdit = user_data[3]  # Check if it's an edit or add operation
 
         isValid = True
 
@@ -1794,6 +1848,7 @@ class Window_Stash_Reviews(WindowBase):
                     break
             else:
             # If review is None, we are adding a new review, so set the parent tea to the current tea
+                print("Parent tea not found, setting to current tea")
                 parentTea = self.tea
 
         
@@ -1899,8 +1954,8 @@ class Window_Stash_Reviews(WindowBase):
         review = user_data[0]
         teaId = review.parentID if review else None
         editReviewWindowItems = user_data[1]
-        isEdit = user_data[3]  # Check if it's an edit or add operation
-        if not isEdit:
+        operation = user_data[3]  # Check if it's an edit or add operation
+        if operation != "edit":
             review = None
             teaId = self.tea.id
             
@@ -1948,7 +2003,8 @@ class Window_Stash_Reviews(WindowBase):
         
 
         newReview = Review(teaId, reviewName, allAttributes["dateAdded"], allAttributes, allAttributes["Final Score"])
-        if isEdit:
+        hasModified = False
+        if operation == "edit":
             # Transfer the reviews
             for i, tea in enumerate(TeaStash):
                 if tea.id == teaId:
@@ -1956,17 +2012,22 @@ class Window_Stash_Reviews(WindowBase):
                     for j, rev in enumerate(tea.reviews):
                         if rev == review:
                             TeaStash[i].reviews[j] = newReview
+                            hasModified = True
                             break
+                    if hasModified:
+                        break
+            if not hasModified:
+                RichPrintError(f"Review with ID {review.id} not found in tea {teaId}. Cannot edit review.")
+                return
         else:
             # Append to the tea's reviews if it's a new review
             for i, tea in enumerate(TeaStash):
                 if tea.id == teaId:
                     TeaStash[i].addReview(newReview)
-                    print(f"Teastash I is now {TeaStash[i]}, added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
+                    RichPrintSuccess(f"Teastash I is now {TeaStash[i]}, added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
                     break
         
         # Renumber and Save
-        
         RichPrintSuccess(f"Added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
 
         # Save to file
@@ -1978,7 +2039,7 @@ class Window_Stash_Reviews(WindowBase):
         self.deleteEditReviewWindow()
         # Refresh the window
         self.refresh()
-        self.parentWindow.refresh()
+        #self.parentWindow.refresh()
         # Close the edit review window
         if self.editReviewWindow is not None:
             self.editReviewWindow.delete()
@@ -1999,7 +2060,8 @@ class Window_Stash_Reviews(WindowBase):
         with window:
             hbarActionGroup = dp.Group(horizontal=True)
             with hbarActionGroup:
-                dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=tea)
+                dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=(tea, "add"))
+                dp.Button(label="Duplicate Last Review", callback=self.ShowAddReview, user_data=(tea, "duplicate"))
                 
                 # Tooltip
                 dp.Button(label="?")
@@ -2025,7 +2087,8 @@ class Window_Stash_Reviews(WindowBase):
                         notesItem = dp.InputText(label="Notes", default_value="Good tea")
                         self.addReviewList.append(notesItem)
                     # Add buttons
-                    dp.Button(label="Add", callback=self.AddReview, user_data=tea)
+                    dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=(tea, "add"))
+                    dp.Button(label="Duplicate Last Review", callback=self.ShowAddReview, user_data=(tea, "duplicate"))
             dp.Separator()
             # Add a table with reviews
             _filter_table_id = dpg.generate_uuid()
