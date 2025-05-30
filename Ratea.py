@@ -30,11 +30,12 @@ TODO: Files: Persistant windows in settings
 TODO: fix monitor ui sizing
 TODO: Export to google sheets readable format
 TODO: Button to re-order reviews and teas based on current view
-TODO: Display more on category
 TODO: save table sort state
-TODO: Duplicate button for reviews too
 TODO: Sold: Support adjustment
 TODO: Optional refresh on add tea/ review
+TODO: Section off autocalculate functions, account for remaining=0 or naegative values
+TODO: renumber review button
+TODO: review window
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -72,6 +73,9 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.5.8): Duplicate reviews button
+Feat(0.5.8): Gift adjustment
+Feat(0.5.8): Adjustment move tea index
 Feat(0.5.8): Overhaul ui a bit with bigger fonts, refresh button
 Feat(0.5.8): Calculate Start day and consumed/day
 Feat(0.5.8): Added adjustments window for teas
@@ -1055,26 +1059,34 @@ class TeaCategory:
                         reviewAmount += review.attributes["Amount"]
 
                 # Get adjustments amount
-                adjustmentsAmount = 0
+                adjustmentsAmountTotal, adjustmentsGift, adjustmentsStandard = 0, 0, 0
                 try:
-                    adjustmentsAmount += data.adjustments["Standard"]
-                    adjustmentsAmount += data.adjustments["Gift"]
+                    adjustmentsStandard += data.adjustments["Standard"]
+                    adjustmentsGift += data.adjustments["Gift"]
                 except:
                     RichPrintWarning("No adjustments found, skipping")
 
                 originalAmount = data.attributes["Amount"]
                 # Remaining = Original Amount - Sum of all review Amounts
-                remaining = originalAmount - reviewAmount - adjustmentsAmount
+                remaining = originalAmount - reviewAmount - adjustmentsStandard - adjustmentsGift
+                adjustmentsAmount = adjustmentsStandard + adjustmentsGift
 
                 # Also check if finished
                 finished = data.finished
 
                 # Explanation
                 if not finished:
-                    explanation = f"Remaining = Purchased Amount - Sum of all review Amounts - Adjustments\n{originalAmount:.2f} - {reviewAmount:.2f} - {adjustmentsAmount:.2f} = {remaining:.2f}"
+                    explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= {remaining:.2f}g Remaining"
+                    if remaining < 0:
+                        explanation += " (Overdrawn)"
+                    elif remaining == 0:
+                        explanation += " (Finished)"
+                    else:
+                        explanation += " (Not Finished)"
                     return remaining, explanation
                 else:
-                    explanation = f"[Finished] Remaining = Purchased Amount - Sum of all review Amounts - Adjustments\n{originalAmount:.2f} - {reviewAmount:.2f} - {remaining:.2f} = 0"
+                    explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= {remaining:.2f}g Remaining (Finished)"
+                    return remaining, explanation
                     return 0, explanation
             else:
                 RichPrintError("Amount not found in categories, cannot calculate remaining")
@@ -1089,7 +1101,7 @@ class TeaCategory:
                 amount = data.attributes["Amount"]
                 pricePerGram = cost / amount
                 # Explanation
-                explanation = f"Price per gram = Cost / Amount\n{cost:.2f} / {amount:.2f} = {pricePerGram:.2f}"
+                explanation = f"${cost:.2f} Cost\n/ {amount:.2f} Amount\n= ${pricePerGram:.2f} Price per gram"
                 return pricePerGram, explanation
             else:
                 RichPrintError("Cost or Amount not found in categories, cannot calculate price per gram")
@@ -1113,7 +1125,7 @@ class TeaCategory:
                 avrgScore = totalScore / len(data.reviews)
 
                 # Explanation
-                explanation = f"Total score = Average of all review scores\n{totalScore:.2f} / {len(data.reviews)} = {avrgScore:.2f}"
+                explanation = f"{totalScore:.2f} Total Score\n/ {len(data.reviews)} Number of reviews\n= {avrgScore:.2f} Average Score"
                 return avrgScore, explanation
             else:
                 RichPrintError("Score not found in review categories, cannot calculate total score")
