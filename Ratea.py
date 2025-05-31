@@ -36,6 +36,7 @@ TODO: Optional refresh on add tea/ review
 TODO: Section off autocalculate functions, account for remaining=0 or naegative values
 TODO: renumber review button
 TODO: review window
+TODO: move delete category to popup or add confirmation
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -1207,7 +1208,7 @@ class TeaCategory:
                 # Divide by the number of reviews
                 if len(data.reviews) == 0:
                     RichPrintWarning("No reviews found, cannot calculate total score")
-                    return None, None
+                    return -1, None
                 
 
                 avrgScore = totalScore / len(data.reviews)
@@ -1845,7 +1846,7 @@ class Window_Stash_Reviews(WindowBase):
     
                     elif cat.categoryRole == "Notes (Long)" or cat.categoryRole == "Notes":
                         # For notes, allow multiline input
-                        height = 180 * settings["UI_SCALE"]
+                        height = 220 * settings["UI_SCALE"]
                         catItem = dp.InputText(default_value=str(defaultValue), multiline=True, height=height, width=480 * settings["UI_SCALE"])
                         
                     else:
@@ -2173,6 +2174,11 @@ class Window_Stash_Reviews(WindowBase):
         dpg.bind_item_font(window.tag, getFontName(1))
         # create a new window for the reviews
         with window:
+            # Title
+            dp.Text(f"Reviews for idx {tea.id} - {tea.name}")
+            dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
+            # Add a horizontal bar with buttons to add or duplicate reviews
+            dp.Separator()
             hbarActionGroup = dp.Group(horizontal=True)
             with hbarActionGroup:
                 dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=(tea, "add"))
@@ -2273,9 +2279,10 @@ class Window_Stash_Reviews(WindowBase):
                             # If category is autocalculatable and the autocalculated value is not None, use that
                             usingAutocalculatedValue = False
                             exp = None
+                            val = None
                             if cat.isAutoCalculated:
                                 val, exp = cat.autocalculate(tea)
-                                if val is not None:
+                                if val is not None and val != -1:
                                     displayValue = val
                                     if type(val) == float:
                                         displayValue = round(val, 3)
@@ -2301,12 +2308,18 @@ class Window_Stash_Reviews(WindowBase):
 
                                 if ("Score" in cat.categoryRole) and cat.gradingDisplayAsLetter:
                                     # If the category is a rating, display as letter grade
-                                    if usingAutocalculatedValue:
-                                        displayValue = getGradeLetterFuzzy(val)
+                                    if val != None and val == -1:
+                                        displayValue = "---"
+                                        cellInvalidOrEmpty = False
+                                        exp = "No score available"
+                                        usingAutocalculatedValue = False
                                     else:
-                                        displayValue = getGradeLetterFuzzy(float(displayValue))
-                                    if usingAutocalculatedValue:
-                                        exp += f"\n\nAutocalculated as letter grade: {displayValue}"
+                                        if usingAutocalculatedValue:
+                                            displayValue = getGradeLetterFuzzy(val)
+                                        else:
+                                            displayValue = getGradeLetterFuzzy(float(displayValue))
+                                        if usingAutocalculatedValue:
+                                            exp += f"\n\nAutocalculated as letter grade: {displayValue}"
 
                                 dp.Text(default_value=displayValue)    
                             elif cat.categoryType == "bool":
@@ -2414,9 +2427,24 @@ class Window_Stash(WindowBase):
 
             dp.Separator()
 
-            # Table with collapsable rows for reviews
             _filter_table_id = dpg.generate_uuid()
+            filterAdvDropdown = None
+            tableRows = list()
             dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)))
+            with dp.CollapsingHeader(label="Advanced filtering/sorting", default_open=False, border=True):
+                # Add a filter input text
+                
+                # Add a sort combo box
+                filterOptions = ["Name"]
+                for cat in TeaCategories:
+                    if cat.categoryRole not in filterOptions:
+                        filterOptions.append(cat.categoryRole)
+                filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value="Name", user_data=(None), callback=self._UpdateTableRowFilterKeys)
+                dp.Separator()
+
+            # Table with collapsable rows for reviews
+            #_filter_table_id = dpg.generate_uuid()
+            #dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)))
             teasTable = dp.Table(header_row=True, no_host_extendX=True,
                                 borders_innerH=True, borders_outerH=True, borders_innerV=True,
                                 borders_outerV=True, row_background=True, hideable=True, reorderable=True,
@@ -2437,6 +2465,7 @@ class Window_Stash(WindowBase):
                 # Add rows
                 for i, tea in enumerate(TeaStash):
                     tableRow = dp.TableRow(filter_key=tea.name)
+                    tableRows.append((tea, tableRow))
                     with tableRow:
                         # Add ID index based on position in list
                         dp.Text(label=f"{i}", default_value=f"{i}")
@@ -2483,7 +2512,7 @@ class Window_Stash(WindowBase):
                             exp = None
                             if cat.isAutoCalculated:
                                 val, exp = cat.autocalculate(tea)
-                                if val is not None:
+                                if val is not None and val != -1:
                                     displayValue = val
                                     if type(val) == float:
                                         displayValue = round(val, 3)
@@ -2508,13 +2537,19 @@ class Window_Stash(WindowBase):
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
 
                                 if ("Score" in cat.categoryRole) and cat.gradingDisplayAsLetter:
-                                    # If the category is a rating, display as letter grade
-                                    if usingAutocalculatedValue:
-                                        displayValue = getGradeLetterFuzzy(val)
+                                    if val != None and val == -1:
+                                        displayValue = "---"
+                                        cellInvalidOrEmpty = False
+                                        exp = "No score available"
+                                        usingAutocalculatedValue = False
                                     else:
-                                        displayValue = getGradeLetterFuzzy(float(displayValue))
-                                    if usingAutocalculatedValue:
-                                        exp += f"\n\nAutocalculated as letter grade: {displayValue}"
+                                        # If the category is a rating, display as letter grade
+                                        if usingAutocalculatedValue:
+                                            displayValue = getGradeLetterFuzzy(val)
+                                        else:
+                                            displayValue = getGradeLetterFuzzy(float(displayValue))
+                                        if usingAutocalculatedValue:
+                                            exp += f"\n\nAutocalculated as letter grade: {displayValue}"
                                 dp.Text(default_value=displayValue)
                                 if usingAutocalculatedValue:
                                     # Give tooltip for autocalculated value
@@ -2556,6 +2591,53 @@ class Window_Stash(WindowBase):
         # disable autosize to prevent flickering or looping
         delay = 2 + statsNumTeas() // CONSTANT_DELAY_MULTIPLIER
         dpg.set_frame_callback(dpg.get_frame_count()+delay, self.afterWindowDefintion, user_data=window)
+
+        dpg.set_item_user_data(filterAdvDropdown, tableRows)  # Set initial filter key to Name
+
+    def _UpdateTableRowFilterKeys(self, sender, app_data, user_data, rowList):
+        # Update the filter keys for the table rows
+        rowList = user_data
+        catAttr = app_data  # The category attribute to filter by
+        for row in rowList:
+            # Get the tea object from the row
+            tea = row[0]
+            row = row[1]
+            
+            cat = None
+            # Look up category by category role
+            for c in TeaCategories:
+                if c.categoryRole == catAttr:
+                    cat = c
+                    break
+
+            row: dp.TableRow
+            cat: TeaCategory
+            filterKey = tea.name  # Default filter key is the tea name
+            # Get the filter key from the category attribute
+
+            # Run autocalculate if needed
+            if cat.isAutoCalculated:
+                val, exp = cat.autocalculate(tea)
+                if val is not None and val != -1:
+                    filterKey = str(val)
+                    if type(val) == float:
+                        filterKey = f"{val:.{cat.rounding}f}"
+                    if ("Score" in cat.categoryRole) and cat.gradingDisplayAsLetter:
+                        filterKey = getGradeLetterFuzzy(val) + f" ({val})"
+                elif val is not None:
+                    filterKey = "0.0"  # If autocalculated value is None, set to 0.0
+                else:
+                    filterKey = tea.name  # Default filter key is the tea name
+            else:
+                # Get the filter key from the tea attributes
+                if cat.categoryRole in tea.attributes:
+                    filterKey = tea.attributes[cat.categoryRole]
+                else:
+                    # If the attribute is not found, set to default
+                    filterKey = tea.name  # Default filter key is the tea name
+            
+            # Set the filter key for the row
+            row.filter_key = filterKey
 
 
     def afterWindowDefintion(self, sender, app_data, user_data):
@@ -2707,7 +2789,7 @@ class Window_Stash(WindowBase):
                 if cat.categoryType == "string":
                     # For notes, allow multiline input if it's a note
                     if cat.categoryRole == "Notes (short)" or cat.categoryRole == "Notes (Long)":
-                        height = 150 * settings["UI_SCALE"]
+                        height = 220 * settings["UI_SCALE"]
                         catItem = dp.InputText(default_value=str(defaultValue), multiline=True, height=height, width=480 * settings["UI_SCALE"])
                     else:
                         
@@ -5485,6 +5567,18 @@ def loadTeaReviewCategories(path):
         if "isAutoCalculated" in categoryData:
             category.isAutoCalculated = categoryData["isAutoCalculated"]
 
+        if "rounding" in categoryData:
+            category.rounding = int(categoryData["rounding"])
+
+        if "prefix" in categoryData:
+            category.prefix = categoryData["prefix"]
+
+        if "suffix" in categoryData:
+            category.suffix = categoryData["suffix"]
+
+        if "maxItems" in categoryData:
+            category.dropdownMaxLength = int(categoryData["maxItems"])
+
         if "gradingDisplayAsLetter" in categoryData:
             category.gradingDisplayAsLetter = categoryData["gradingDisplayAsLetter"]
         else:
@@ -5529,7 +5623,7 @@ def saveTeaReviewCategories(categories, path):
             "rounding": int(category.rounding),
             "prefix": category.prefix,
             "suffix": category.suffix,
-            "maxItems": int(category.dropdownMaxLength),
+            "maxItems": category.dropdownMaxLength,
             "gradingDisplayAsLetter": category.gradingDisplayAsLetter,
         }
         allData.append(categoryData)
