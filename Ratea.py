@@ -116,8 +116,10 @@ COLOR_AUTOCALCULATED_TABLE_CELL = (0, 100, 0, 60)
 COLOR_INVALID_EMPTY_TABLE_CELL = (100, 0, 0, 100)
 # Red
 COLOR_REQUIRED_TEXT = (255, 0, 0, 200)
+COLOR_RED_TEXT = (255, 0, 0, 200)
 # green
 COLOR_AUTO_CALCULATED_TEXT = (0, 255, 0, 200)
+COLOR_GREEN_TEXT = (0, 255, 0, 200)
 
 CONSTANT_DELAY_MULTIPLIER = 125 # +1frame per X items for the table
 #endregion
@@ -800,6 +802,9 @@ def getGradeLetterFuzzy(value):
     # If out of range
     if value < 0 or value > 5:
         return None
+    
+    # Round value to 3 decimal places
+    value = round(value, 3)
     
     for grade in gradingOptions:
         gradeLettersOnly = grade.split(" (")[0]  # Get the letter part of the grade
@@ -3780,33 +3785,48 @@ class Window_Stats(WindowBase):
 
 
             # Display enabled categories
-            dp.Text("Tea Categories:")
             # Foldable tab
             with dp.CollapsingHeader(label="Enabled Categories", default_open=False):
-                for cat in AllTypesCategoryRole:
-                    if cat in AllTypesCategoryRoleValid:
-                        dp.Text(f"{cat}")
-                    else:
-                        dp.Text(f"{cat} - Not Enabled")
-
-            dp.Separator()
-            dp.Text("Review Categories:")
-            with dp.CollapsingHeader(label="Enabled Review Categories", default_open=False):
-                for cat in allTypesCategoryRoleReviews:
-                    if cat in allTypesCategoryRoleReviewsValid:
-                        dp.Text(f"{cat}")
-                    else:
-                        dp.Text(f"{cat} - Not Enabled")
+                with dp.CollapsingHeader(label="Tea Categories", default_open=False, indent=20 * settings["UI_SCALE"]):
+                    for cat in AllTypesCategoryRole:
+                        if cat in AllTypesCategoryRoleValid:
+                            dp.Text(f"{cat}", color=COLOR_GREEN_TEXT)
+                        else:
+                            dp.Text(f"{cat} - Not Enabled", color=COLOR_RED_TEXT)
 
                 dp.Separator()
+                # Review categories
+                with dp.CollapsingHeader(label="Enabled Review Categories", default_open=False, indent=20 * settings["UI_SCALE"]):
+                    for cat in allTypesCategoryRoleReviews:
+                        if cat in allTypesCategoryRoleReviewsValid:
+                            dp.Text(f"{cat}", color=COLOR_GREEN_TEXT)
+                        else:
+                            dp.Text(f"{cat} - Not Enabled", color=COLOR_RED_TEXT)
 
-            
+                    dp.Separator()
 
-            if "Type" in AllTypesCategoryRoleValid:
-                # Tea Type Stats
-                dp.Text("Tea Type Stats")
-                teaTypeStats = {}
-                with dp.CollapsingHeader(label="Tea Type Stats", default_open=False):
+            # Type counts
+            with dp.CollapsingHeader(label="Type", default_open=False):
+                if "Type" in AllTypesCategoryRoleValid:
+                    # Tea Type Stats
+                    teaTypeStats = {}
+                    with dp.CollapsingHeader(label="Tea Type Stats", default_open=False):
+                        for tea in TeaStash:
+                            if "Type" in tea.attributes:
+                                teaType = tea.attributes["Type"]
+                                if teaType not in teaTypeStats:
+                                    teaTypeStats[teaType] = 0
+                                teaTypeStats[teaType] += 1
+                        for teaType, count in teaTypeStats.items():
+                            dp.Text(f"{teaType}: {count}")
+                else:
+                    dp.Text("Required Category role 'Type' for Tea is not enabled.")
+                dp.Separator()
+
+                dp.Text("Review Type Stats")
+                if "Type" in allTypesCategoryRoleReviewsValid:
+                    # Tea Type Stats
+                    teaTypeStats = {}
                     for tea in TeaStash:
                         if "Type" in tea.attributes:
                             teaType = tea.attributes["Type"]
@@ -3815,141 +3835,165 @@ class Window_Stats(WindowBase):
                             teaTypeStats[teaType] += 1
                     for teaType, count in teaTypeStats.items():
                         dp.Text(f"{teaType}: {count}")
-            else:
-                dp.Text("Required Category role 'Type' for Tea is not enabled.")
-            dp.Separator()
+                else:
+                    dp.Text("Required Category role 'Type' for Review is not enabled.")
+                dp.Separator()
 
-            dp.Text("Review Type Stats")
-            if "Type" in allTypesCategoryRoleReviewsValid:
-                # Tea Type Stats
-                teaTypeStats = {}
-                for tea in TeaStash:
-                    if "Type" in tea.attributes:
-                        teaType = tea.attributes["Type"]
-                        if teaType not in teaTypeStats:
-                            teaTypeStats[teaType] = 0
-                        teaTypeStats[teaType] += 1
-                for teaType, count in teaTypeStats.items():
-                    dp.Text(f"{teaType}: {count}")
-            else:
-                dp.Text("Required Category role 'Type' for Review is not enabled.")
-            dp.Separator()
+            with dp.CollapsingHeader(label="Date", default_open=False):
+                # Start day
+                dp.Text("Start Day")
+                startDay = statsgetStartDayTimestamp()
+                dp.Text(f"Start Day: {dt.datetime.fromtimestamp(startDay, tz=dt.timezone.utc).strftime(settings['DATE_FORMAT'])}")
+                dp.Separator()
 
-            # Total volume of consumed tea (Review-remaining-stats)
-            dp.Text("Total Volume of Consumed Tea")
-            if "Amount" in allTypesCategoryRoleReviewsValid:
-                sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Amount", True)
-                dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
-            else:
-                dp.Text("Required Category role 'Amount' for Review is not enabled.")
-            dp.Separator()
+                # Total days since start day
+                totalDays = (dt.datetime.now(tz=dt.timezone.utc).timestamp() - startDay) / (24 * 60 * 60)
+                dp.Text(f"Total Days Since Start Day: {totalDays:.2f} days")
+                dp.Separator()
 
-            # Total steeps (Review-steep-count-stats)
-            dp.Text("Total Steeps")
-            if "Steeps" in allTypesCategoryRoleReviewsValid:
-                sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Steeps", True)
-                dp.Text(f"Sum: {sum} steeps, Average: {avrg} steeps, Count: {count}")
-            else:
-                dp.Text("Required Category role 'Steeps' for Review is not enabled.")
-            dp.Separator()
-
-            # Teaware size (Reviews-Vessel Size-stats)
-            dp.Text("Teaware Size by Review")
-            if "Vessel size" in allTypesCategoryRoleReviewsValid:
-                sum, avrg, count, unique, uniqueDict = getStatsOnCategoryByRole("Vessel size", True)
-                dp.Text(f"Sum: {sum}ml, Average: {avrg}ml, Count: {count}")
-
-                dp.Text("Unique Sizes by Review:")
-                for size, count in uniqueDict.items():
-                    dp.Text(f"{size}: {count}")
-
-            else:
-                dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
-            dp.Separator()
-
-            # Total volume Purchased, total cost, and weighted average cost
-            if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
-                dp.Text("Total Volume and Cost")
+            # Stash amounts
+            with dp.CollapsingHeader(label="Stash Amounts", default_open=False):
+                # Total volume of all teas in the stash
+                dp.Text("Total Volume of All Teas in Stash")
                 totalVolume, averageVolume = statsTotalVolume()
                 dp.Text(f"Total Volume: {totalVolume:.2f}g, Average Volume: {averageVolume:.2f}g")
+                dp.Separator()
+
+                # Total cost of all teas in the stash
+                dp.Text("Total Cost of All Teas in Stash")
                 totalCost, averageCost = statsTotalAverageCost()
                 dp.Text(f"Total Cost: ${totalCost:.2f}, Average Cost: ${averageCost:.2f}")
                 weightedAverageCost = statsWeightedAverageCost()
                 dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
-            else:
-                dp.Text("Required Category role 'Cost' or 'Amount' for Tea is not enabled.")
+                dp.Separator()
 
-            dp.Separator()
+            # Consumed amounts
+            with dp.CollapsingHeader(label="Consumed Amounts", default_open=False):
             # Total consumed by summing all reviews, adjustments, and finished teas
-            dp.Text("Total Consumed Including Adjustments")
-            if "Amount" in AllTypesCategoryRoleValid:
-                totalConsumed, averageConsumed = statsTotalConsumed()
-                dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per tea: {averageConsumed:.2f}g")
-            else:
-                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
-            dp.Separator()
 
-            # Total consumed excluding Gift adjustments
-            dp.Text("Total Consumed Excluding Gift Adjustments")
-            if "Amount" in AllTypesCategoryRoleValid:
-                totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingGiftAdj()
-                dp.Text(f"Total Consumed Excluding Gift Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
-            else:
-                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
-            dp.Separator()
-
-            # Total consumed excluding all adjustments
-            dp.Text("Total Consumed Excluding All Adjustments")
-            if "Amount" in AllTypesCategoryRoleValid:
-                totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingAdj()
-                dp.Text(f"Total Consumed Excluding All Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
-            else:
-                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
-            dp.Separator()
-
-            # Total standard adjustments, Total gift adjustments
-            dp.Text("Total Standard Adjustments")
-            totalStandardAdjustments, averageStandardAdjustments = statsAllStandardAdjustmentsSum()
-            dp.Text(f"Total Standard Adjustments: {totalStandardAdjustments:.2f}g, Average Standard Adjustments per tea: {averageStandardAdjustments:.2f}g")
-
-            dp.Separator()
-            dp.Text("Total Gift Adjustments")
-            totalGiftAdjustments, averageGiftAdjustments = statsAllGiftAdjustmentsSum()
-            dp.Text(f"Total Gift Adjustments: {totalGiftAdjustments:.2f}g, Average Gift Adjustments per tea: {averageGiftAdjustments:.2f}g")
-
-            dp.Separator()
-
-            # Total remaining by summing all remaining amounts after applying autocalculations
-            dp.Text("Total Remaining")
-            if "Remaining" in AllTypesCategoryRoleValid:
-                totalRemaining, averageRemaining = statsTotalRemaining()
-                dp.Text(f"Total Remaining: {totalRemaining:.2f}g, Average Remaining per tea: {averageRemaining:.2f}g")
-            else:
-                dp.Text("Required Category role 'Remaining' for Tea is not enabled.")
-
-
-
-            dp.Separator()
-            # Start day
-            dp.Text("Start Day")
-            startDay = statsgetStartDayTimestamp()
-            dp.Text(f"Start Day (First recorded date): {dt.datetime.fromtimestamp(startDay, tz=dt.timezone.utc).strftime(settings['DATE_FORMAT'])}")
-            today = dt.datetime.now(tz=dt.timezone.utc).timestamp()
-            numDays = (today - startDay) / (24 * 60 * 60)
-            dp.Text(f"Number of Days since Start Day: {numDays:.2f} days")
-            dp.Separator()
-
-            # Grams of tea consumed per day
-            dp.Text("Grams of Tea Consumed per Day")
-            if "Amount" in AllTypesCategoryRoleValid:
-                totalConsumed, averageConsumed = statsTotalConsumed()
-                if numDays > 0:
-                    gramsPerDay = totalConsumed / numDays
-                    dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per day: {gramsPerDay:.2f}g")
+                # Total volume of consumed tea (Review-remaining-stats)
+                dp.Text("Total Volume of Consumed Tea")
+                if "Amount" in allTypesCategoryRoleReviewsValid:
+                    sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Amount", True)
+                    dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
                 else:
-                    dp.Text("No valid start day or no teas consumed.")
-            else:
-                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+                    dp.Text("Required Category role 'Amount' for Review is not enabled.")
+                dp.Separator()
+
+            # Steeps and water consumption
+            with dp.CollapsingHeader(label="Steeps and Water Consumption", default_open=False):
+                # Total steeps (Review-steep-count-stats)
+                dp.Text("Total Steeps")
+                if "Steeps" in allTypesCategoryRoleReviewsValid:
+                    sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Steeps", True)
+                    dp.Text(f"Sum: {sum} steeps, Average: {avrg} steeps, Count: {count}")
+                else:
+                    dp.Text("Required Category role 'Steeps' for Review is not enabled.")
+                dp.Separator()
+
+            # Teaware size (Reviews-Vessel Size-stats)
+            with dp.CollapsingHeader(label="Teaware Size", default_open=False):
+                if "Vessel size" in allTypesCategoryRoleReviewsValid:
+                    sum, avrg, count, unique, uniqueDict = getStatsOnCategoryByRole("Vessel size", True)
+                    dp.Text(f"Sum: {sum}ml, Average: {avrg}ml, Count: {count}")
+
+                    dp.Text("Unique Sizes by Review:")
+                    for size, count in uniqueDict.items():
+                        dp.Text(f"{size}: {count}")
+
+                else:
+                    dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
+                dp.Separator()
+
+            with dp.CollapsingHeader(label="Volume, costs, adjustments", default_open=False):
+                # Total volume Purchased, total cost, and weighted average cost
+                if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
+                    dp.Text("Total Volume and Cost")
+                    totalVolume, averageVolume = statsTotalVolume()
+                    dp.Text(f"Total Volume: {totalVolume:.2f}g, Average Volume: {averageVolume:.2f}g")
+                    totalCost, averageCost = statsTotalAverageCost()
+                    dp.Text(f"Total Cost: ${totalCost:.2f}, Average Cost: ${averageCost:.2f}")
+                    weightedAverageCost = statsWeightedAverageCost()
+                    dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
+                else:
+                    dp.Text("Required Category role 'Cost' or 'Amount' for Tea is not enabled.")
+
+                dp.Separator()
+                # Total consumed by summing all reviews, adjustments, and finished teas
+                dp.Text("Total Consumed Including Adjustments")
+                if "Amount" in AllTypesCategoryRoleValid:
+                    totalConsumed, averageConsumed = statsTotalConsumed()
+                    dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per tea: {averageConsumed:.2f}g")
+                else:
+                    dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+                dp.Separator()
+
+                # Total consumed excluding Gift adjustments
+                dp.Text("Total Consumed Excluding Gift Adjustments")
+                if "Amount" in AllTypesCategoryRoleValid:
+                    totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingGiftAdj()
+                    dp.Text(f"Total Consumed Excluding Gift Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
+                else:
+                    dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+                dp.Separator()
+
+                # Total consumed excluding all adjustments
+                dp.Text("Total Consumed Excluding All Adjustments")
+                if "Amount" in AllTypesCategoryRoleValid:
+                    totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingAdj()
+                    dp.Text(f"Total Consumed Excluding All Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
+                else:
+                    dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+                dp.Separator()
+
+                # Total standard adjustments, Total gift adjustments
+                dp.Text("Total Standard Adjustments")
+                totalStandardAdjustments, averageStandardAdjustments = statsAllStandardAdjustmentsSum()
+                dp.Text(f"Total Standard Adjustments: {totalStandardAdjustments:.2f}g, Average Standard Adjustments per tea: {averageStandardAdjustments:.2f}g")
+
+                dp.Separator()
+                dp.Text("Total Gift Adjustments")
+                totalGiftAdjustments, averageGiftAdjustments = statsAllGiftAdjustmentsSum()
+                dp.Text(f"Total Gift Adjustments: {totalGiftAdjustments:.2f}g, Average Gift Adjustments per tea: {averageGiftAdjustments:.2f}g")
+
+                dp.Separator()
+
+                # Total remaining by summing all remaining amounts after applying autocalculations
+                dp.Text("Total Remaining")
+                if "Remaining" in AllTypesCategoryRoleValid:
+                    totalRemaining, averageRemaining = statsTotalRemaining()
+                    dp.Text(f"Total Remaining: {totalRemaining:.2f}g, Average Remaining per tea: {averageRemaining:.2f}g")
+                else:
+                    dp.Text("Required Category role 'Remaining' for Tea is not enabled.")
+
+
+
+                dp.Separator()
+                # Start day
+                dp.Text("Start Day")
+                startDay = statsgetStartDayTimestamp()
+                dp.Text(f"Start Day (First recorded date): {dt.datetime.fromtimestamp(startDay, tz=dt.timezone.utc).strftime(settings['DATE_FORMAT'])}")
+                today = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+                numDays = (today - startDay) / (24 * 60 * 60)
+                dp.Text(f"Number of Days since Start Day: {numDays:.2f} days")
+                dp.Separator()
+    
+                # Grams of tea consumed per day
+                dp.Text("Grams of Tea Consumed per Day")
+                if "Amount" in AllTypesCategoryRoleValid:
+                    totalConsumed, averageConsumed = statsTotalConsumed()
+                    if numDays > 0:
+                        gramsPerDay = totalConsumed / numDays
+                        dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per day: {gramsPerDay:.2f}g")
+                    else:
+                        dp.Text("No valid start day or no teas consumed.")
+                else:
+                    dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+
+            # Ratings and Grades
+            with dp.CollapsingHeader(label="Ratings and Grades", default_open=False):
+                # filler
+                dp.Text("Ratings and Grades")
 
 
 
@@ -5894,7 +5938,7 @@ def UI_CreateViewPort_MenuBar():
             dp.MenuItem(label="Edit Categories", callback=Menu_EditCategories)
         with dp.Menu(label="Stats"):
             dp.MenuItem(label="Reviews(TODO)", callback=Menu_ReviewsTable)
-            dp.MenuItem(label="Stats(WIP)", callback=Menu_Stats)
+            dp.MenuItem(label="Stats", callback=Menu_Stats)
             dp.MenuItem(label="Summary(WIP)", callback=Menu_Summary)
             with dp.Menu(label="Graphs(TODO)"):
                 dp.MenuItem(label="Graph 1(TODO)", callback=print_me)
