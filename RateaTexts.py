@@ -89,6 +89,8 @@ ListTextCategory["CategoryType"] = Text("The type of category. This is used to d
 
 ListTextCategory["CategoryRole"] = Text("The role of the category. This is used to determine how the category data is used for stats and visualizations. To ignore this category, select 'UNUSED'.\n")
 
+ListTextCategory["gradingAsLetter"] = Text("If enabled, and this is a grading-related category, it will be displayed and entered as a letter grade using the grading system. It will still be treated as a float for calculations. If not, it will be displayed and entered as a float.")
+
 # Text used for the menu/Window help text
 ListTextHelpMenu = dict()
 ListTextHelpMenu["menuStopwatchHelp"] = Text("This is a tool to help you time your tea sessions. Copy the times into your notes!")

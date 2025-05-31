@@ -756,6 +756,86 @@ def renumberTeasAndReviews(save=True):
         saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
         RichPrintSuccess("Saved renumbered teas and reviews to file.")
 
+# Grade letter functions
+
+def getGradeList():
+    return ["S+ (5.0)", "S (4.5)", "S- (4.25)", "A+ (4.0)", "A (3.5)", "A- (3.25)", "B+ (3.0)", "B (2.5)", "B- (2.25)", "C+ (2.0)", "C (1.5)", "C- (1.25)", "D+ (1.0)", "D (0.5)", "D- (0.25)", "F (0)"]
+
+def getGradeValue(grade):
+    # Get the value of a grade
+    if grade is None or grade == "":
+        RichPrintError("Grade is None or empty")
+        return None
+    gradingOptions = getGradeList()
+    if grade in gradingOptions:
+        return float(grade.split("(")[1].split(")")[0])
+    else:
+        RichPrintError(f"Grade {grade} not found in grading options")
+        return None
+    
+def getGradeNumericalList():
+    # Get a list of numerical values for the grades
+    return [getGradeValue(grade) for grade in getGradeList() if getGradeValue(grade) is not None]
+
+def getGradeLetter(value):
+    # Get the letter grade for a value
+    if value is None or value == "":
+        return value
+    gradingOptions = getGradeList()
+    for grade in gradingOptions:
+        if getGradeValue(grade) == value:
+            return grade
+    RichPrintError(f"Value {value} not found in grading options")
+    return None
+
+def getGradeLetterFuzzy(value):
+    # Gets letter based on fuzzy range in the format
+    # Letter (actual value)
+    # Letters start at defined range and end right above the next range
+    # IE S+ is from 4.51 to 5.0, S is from 4.26 to 4.5, etc.
+    if value is None or value == "":
+        return None
+    gradingOptions = getGradeList()
+    
+    # If out of range
+    if value < 0 or value > 5:
+        return None
+    
+    for grade in gradingOptions:
+        gradeLettersOnly = grade.split(" (")[0]  # Get the letter part of the grade
+        # If exact match, return grade
+        if getGradeValue(grade) == value:
+            return grade
+        
+        upperBound = getGradeValue(grade)
+        lowerBound = upperBound - 0.5  # Assuming each grade has a range of 0.25
+        if "+" not in grade:
+            # If grade has a plus, it is the upper bound of the range
+            lowerBound = upperBound - 0.25
+        if grade == "F (0)":
+            # F is a special case, it is always 0
+            lowerBound = 0
+            upperBound = 0.25
+
+        if lowerBound < value <= upperBound:
+            # If value is in range, return grade
+            return f"{gradeLettersOnly} ({value})"  # Return grade with value in format "Grade (value)"
+
+                
+    # If no grade found, return None
+    RichPrintError(f"Value {value} not found in grading options")
+    return None
+
+def getGradeDropdownValueByFloat(value):
+    # Get the dropdown value for a float value
+    gradingOptions = getGradeList()
+    for grade in gradingOptions:
+        if getGradeValue(grade) == value:
+            return grade
+    RichPrintError(f"Value {value} not found in grading options")
+    return None
+
+
 # Defines valid categories, and role as categories
 # Also defines the types of role
 
@@ -1019,7 +1099,10 @@ class TeaCategory:
     prefix = ""
     suffix = ""
     rounding = 2
+    
+    # Specific options
     dropdownMaxLength = 5
+    gradingDisplayAsLetter = False  # If the category is a grading category, like "Score" or "Final Score", it will be a letter grade (A, B, C, D, F) instead of a number
 
 
     def __init__(self, name, categoryType):
@@ -1166,7 +1249,10 @@ class ReviewCategory:
     prefix = ""
     suffix = ""
     rounding = 2
+
+    # Special options
     dropdownMaxLength = 5
+    gradingDisplayAsLetter = False
 
     def __init__(self, name, categoryType):
         self.name = name
@@ -1607,6 +1693,9 @@ class Window_Stash_Reviews(WindowBase):
                 if type(val) == str:
                     if k == "Notes (Long)":
                         val = RateaTexts.sanitizeInputMultiLineString(val)
+                    elif "Score" in k:
+                        # Stored as a float, but displayed as a letter grade
+                        val = getGradeValue(val)
                     else:
                         val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
@@ -1770,11 +1859,17 @@ class Window_Stash_Reviews(WindowBase):
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
     
                 elif cat.categoryType == "float":
-                    catItem = dp.InputFloat(default_value=float(defaultValue), step=1.0, format="%.2f", width=480 * settings["UI_SCALE"])
+                    if ("Score" in cat.categoryRole) and cat.gradingDisplayAsLetter:
+                        # For grading, use a predefined dropdown and then convert to float upon entry
+                        gradingOptions = getGradeList()
+                        defaultValue = getGradeDropdownValueByFloat(float(defaultValue))
+                        catItem = dp.Combo(items=gradingOptions, default_value=defaultValue)
+                    else:
+                        catItem = dp.InputFloat(default_value=float(defaultValue), step=1.0, format="%.2f", width=480 * settings["UI_SCALE"])
 
-                    if shouldShowDropdown:
-                        # Add a dropdown for the past answers
-                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
+                        if shouldShowDropdown:
+                            # Add a dropdown for the past answers
+                            dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
     
                 elif cat.categoryType == "bool":
                     if defaultValue == "True" or defaultValue == True:
@@ -1990,6 +2085,9 @@ class Window_Stash_Reviews(WindowBase):
                 if type(val) == str:
                     if k == "Notes (Long)":
                         val = RateaTexts.sanitizeInputMultiLineString(val)
+                    elif "Score" in k:
+                        # Stored as a float, but displayed as a letter grade
+                        val = getGradeValue(val)
                     else:
                         val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
@@ -2167,6 +2265,18 @@ class Window_Stash_Reviews(WindowBase):
                                 displayValue = "N/A"
                                 cellInvalidOrEmpty = True
 
+                            # If category is autocalculatable and the autocalculated value is not None, use that
+                            usingAutocalculatedValue = False
+                            exp = None
+                            if cat.isAutoCalculated:
+                                val, exp = cat.autocalculate(tea)
+                                if val is not None:
+                                    displayValue = val
+                                    if type(val) == float:
+                                        displayValue = round(val, 3)
+                                    usingAutocalculatedValue = True
+                                    cellInvalidOrEmpty = False
+
                             if not cellInvalidOrEmpty and (cat.categoryType == "string"):
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
@@ -2183,6 +2293,16 @@ class Window_Stash_Reviews(WindowBase):
                                     displayValue = displayValue = f"{displayValue:.{cat.rounding}f}"
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
+
+                                if ("Score" in cat.categoryRole) and cat.gradingDisplayAsLetter:
+                                    # If the category is a rating, display as letter grade
+                                    if usingAutocalculatedValue:
+                                        displayValue = getGradeLetterFuzzy(val)
+                                    else:
+                                        displayValue = getGradeLetterFuzzy(float(displayValue))
+                                    if usingAutocalculatedValue:
+                                        exp += f"\n\nAutocalculated as letter grade: {displayValue}"
+
                                 dp.Text(default_value=displayValue)    
                             elif cat.categoryType == "bool":
                                 if displayValue == "True" or displayValue == True:
@@ -2381,6 +2501,15 @@ class Window_Stash(WindowBase):
                                     displayValue = f"{displayValue:.{cat.rounding}f}"
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
+
+                                if ("Score" in cat.categoryRole) and cat.gradingDisplayAsLetter:
+                                    # If the category is a rating, display as letter grade
+                                    if usingAutocalculatedValue:
+                                        displayValue = getGradeLetterFuzzy(val)
+                                    else:
+                                        displayValue = getGradeLetterFuzzy(float(displayValue))
+                                    if usingAutocalculatedValue:
+                                        exp += f"\n\nAutocalculated as letter grade: {displayValue}"
                                 dp.Text(default_value=displayValue)
                                 if usingAutocalculatedValue:
                                     # Give tooltip for autocalculated value
@@ -2587,10 +2716,16 @@ class Window_Stash(WindowBase):
                         # Create a dropdown with the past answers
                         dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "int"))
                 elif cat.categoryType == "float":
-                    catItem = dp.InputFloat(default_value=float(defaultValue), width=480 * settings["UI_SCALE"], step=1.0, format="%.2f")
-                    if shouldShowDropdown:
-                        # Create a dropdown with the past answers
-                        dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
+                    if ("Score" in cat.categoryRole) and cat.gradingDisplayAsLetter:
+                        # For grading, use a predefined dropdown and then convert to float upon entry
+                        gradingOptions = getGradeList()
+                        defaultValue = getGradeDropdownValueByFloat(float(defaultValue))
+                        catItem = dp.Combo(items=gradingOptions, default_value=defaultValue)
+                    else:
+                        catItem = dp.InputFloat(default_value=float(defaultValue), step=1.0, format="%.2f", width=480 * settings["UI_SCALE"])
+                        if shouldShowDropdown:
+                            # Add a dropdown for the past answers
+                            dp.Combo(items=pastAnswersTextList, default_value="Past Answers", callback=self.UpdateInputWithDropdownSelelction, user_data=(catItem, pastAnswersList, "float"))
                 elif cat.categoryType == "bool":
                     if defaultValue == "True" or defaultValue == True:
                         defaultValue = True
@@ -3115,6 +3250,9 @@ class Window_Stash(WindowBase):
                 if type(val) == str:
                     if k == "Notes (Long)":
                         val = RateaTexts.sanitizeInputMultiLineString(val)
+                    elif "Score" in k:
+                        # Stored as a float, but displayed as a letter grade
+                        val = getGradeValue(val)
                     else:
                         val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
@@ -3160,6 +3298,9 @@ class Window_Stash(WindowBase):
                 if type(val) == str:
                     if k == "Notes (Long)":
                         val = RateaTexts.sanitizeInputMultiLineString(val)
+                    elif "Score" in k:
+                        # Stored as a float, but displayed as a letter grade
+                        val = getGradeValue(val)
                     else:
                         val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
@@ -4060,6 +4201,8 @@ class Window_EditCategories(WindowBase):
                 toolTipTxt = RateaTexts.ListTextCategory["isAutoCalculated"].wrap()
                 dp.Text(toolTipTxt)
 
+            
+
             dp.Separator()
 
             # Prefix, rounding, etc
@@ -4076,6 +4219,12 @@ class Window_EditCategories(WindowBase):
             dp.Text("Dropdown - Max Items")
             maxItemsItem = dp.SliderInt(default_value=5, min_value=3, max_value=20, format="%d")
             addCategoryWindowItems["maxItems"] = maxItemsItem
+
+            gradingAsLetterItem = dp.Checkbox(label="Grading as Letter", default_value=False)
+            addCategoryWindowItems["gradingAsLetter"] = gradingAsLetterItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["gradingAsLetter"].wrap()
+                dp.Text(toolTipTxt)
 
 
                 
@@ -4203,6 +4352,13 @@ class Window_EditCategories(WindowBase):
             dp.Text("Dropdown - Max Items")
             maxItemsItem = dp.SliderInt(default_value=5, min_value=3, max_value=20, format="%d")
             addReviewCategoryWindowItems["maxItems"] = maxItemsItem
+
+            # Grading as letter
+            gradingAsLetterItem = dp.Checkbox(label="Grading as Letter", default_value=False)
+            addReviewCategoryWindowItems["gradingAsLetter"] = gradingAsLetterItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["gradingAsLetter"].wrap()
+                dp.Text(toolTipTxt)
             
             dp.Separator()
 
@@ -4261,6 +4417,7 @@ class Window_EditCategories(WindowBase):
         newCategory.prefix = allAttributes["prefix"]
         newCategory.suffix = allAttributes["suffix"]
         newCategory.dropdownMaxLength = int(allAttributes["maxItems"])
+        newCategory.gradingDisplayAsLetter = allAttributes["gradingAsLetter"]
 
         
         TeaReviewCategories.append(newCategory)
@@ -4384,6 +4541,13 @@ class Window_EditCategories(WindowBase):
             dp.Text("Dropdown - Max Items")
             maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
             editCategoryWindowItems["maxItems"] = maxItemsItem
+            # Grading as letter
+            dp.Text("Grading as Letter")
+            gradingAsLetterItem = dp.Checkbox(label="Grading as Letter", default_value=category.gradingDisplayAsLetter)
+            editCategoryWindowItems["gradingAsLetter"] = gradingAsLetterItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["gradingAsLetter"].wrap()
+                dp.Text(toolTipTxt)
 
 
             dp.Separator()
@@ -4465,6 +4629,7 @@ class Window_EditCategories(WindowBase):
         category.prefix = allAttributes["prefix"].get_value()
         category.suffix = allAttributes["suffix"].get_value()
         category.dropdownMaxLength = int(allAttributes["maxItems"].get_value())
+        category.gradingDisplayAsLetter = allAttributes["gradingAsLetter"].get_value()
         print(f"{category.__dict__}")
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
@@ -4587,6 +4752,14 @@ class Window_EditCategories(WindowBase):
             maxItemsItem = dp.SliderInt(default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
             editReviewCategoryWindowItems["maxItems"] = maxItemsItem
 
+            # Grading as letter
+            dp.Text("Grading as Letter")
+            gradingAsLetterItem = dp.Checkbox(label="Grading as Letter", default_value=category.gradingDisplayAsLetter)
+            editReviewCategoryWindowItems["gradingAsLetter"] = gradingAsLetterItem
+            with dpg.tooltip(dpg.last_item()):
+                toolTipTxt = RateaTexts.ListTextCategory["gradingAsLetter"].wrap()
+                dp.Text(toolTipTxt)
+
             dp.Separator()
 
             editReviewCategoryWindowItems["Type"].user_data = (editReviewCategoryWindowItems["Type"], roleItem)
@@ -4635,6 +4808,7 @@ class Window_EditCategories(WindowBase):
         category.prefix = allAttributes["prefix"].get_value()
         category.suffix = allAttributes["suffix"].get_value()
         category.dropdownMaxLength = int(allAttributes["maxItems"].get_value())
+        category.gradingDisplayAsLetter = allAttributes["gradingAsLetter"].get_value()
 
 
         RichPrintInfo(f"Editing review category: {category.name} ({category.categoryType}, Flags: {category.isRequiredForAll}, {category.isRequiredForTea}, {category.isAutoCalculated}, {category.isDropdown})")
@@ -4709,6 +4883,7 @@ class Window_EditCategories(WindowBase):
         newCategory.prefix = allAttributes["prefix"]
         newCategory.suffix = allAttributes["suffix"]
         newCategory.dropdownMaxLength = int(allAttributes["maxItems"])
+        newCategory.gradingDisplayAsLetter = allAttributes["gradingAsLetter"]
 
         # Log
         RichPrintInfo(f"Adding category: {newCategory.name} ({newCategory.categoryType}, Flags: {newCategory.isRequiredForAll}, {newCategory.isRequiredForTea}, {newCategory.isAutoCalculated}, {newCategory.isDropdown})")
@@ -5142,6 +5317,7 @@ def saveTeaCategories(categories, path):
     # Save as one file in yml format
     allData = []
     for category in categories:
+        category: TeaCategory
         categoryData = {
             "Name": category.name,
             "categoryType": category.categoryType,
@@ -5154,7 +5330,8 @@ def saveTeaCategories(categories, path):
             "rounding": int(category.rounding),
             "prefix": category.prefix,
             "suffix": category.suffix,
-            "maxItems": int(category.dropdownMaxLength)
+            "maxItems": int(category.dropdownMaxLength),
+            "gradingDisplayAsLetter": category.gradingDisplayAsLetter,
         }
         allData.append(categoryData)
 
@@ -5217,6 +5394,11 @@ def loadTeaCategories(path):
         else:
             category.dropdownMaxLength = 5
 
+        if "gradingDisplayAsLetter" in categoryData:
+            category.gradingDisplayAsLetter = categoryData["gradingDisplayAsLetter"]
+        else:
+            category.gradingDisplayAsLetter = False
+
     return TeaCategories
 
 def loadTeaReviewCategories(path):
@@ -5259,6 +5441,11 @@ def loadTeaReviewCategories(path):
         if "isAutoCalculated" in categoryData:
             category.isAutoCalculated = categoryData["isAutoCalculated"]
 
+        if "gradingDisplayAsLetter" in categoryData:
+            category.gradingDisplayAsLetter = categoryData["gradingDisplayAsLetter"]
+        else:
+            category.gradingDisplayAsLetter = False
+
 
     return TeaReviewCategories
 
@@ -5285,6 +5472,7 @@ def saveTeaReviewCategories(categories, path):
     # Save as one file in yml format
     allData = []
     for category in categories:
+        category: ReviewCategory
         categoryData = {
             "Name": category.name,
             "categoryType": category.categoryType,
@@ -5297,7 +5485,8 @@ def saveTeaReviewCategories(categories, path):
             "rounding": int(category.rounding),
             "prefix": category.prefix,
             "suffix": category.suffix,
-            "maxItems": int(category.dropdownMaxLength)
+            "maxItems": int(category.dropdownMaxLength),
+            "gradingDisplayAsLetter": category.gradingDisplayAsLetter,
         }
         allData.append(categoryData)
 
