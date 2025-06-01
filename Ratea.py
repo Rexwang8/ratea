@@ -1042,6 +1042,41 @@ class StashedTea:
         else:
             self.calculated["averageRating"] = 0
 
+    def getLatestReview(self):
+        # Get the latest review by date added
+        if len(self.reviews) == 0:
+            return None
+        latestReview = max(self.reviews, key=lambda r: r.dateAdded)
+        return latestReview
+    def getEarliestReview(self):
+        # Get the earliest review by date added
+        if len(self.reviews) == 0:
+            return None
+        earliestReview = min(self.reviews, key=lambda r: r.dateAdded)
+        return earliestReview
+    def getEstimatedConsumedByReviews(self):
+        # Get the estimated consumed amount by reviews
+        if len(self.reviews) == 0:
+            return 0
+        consumed = 0
+        for review in self.reviews:
+            if "Amount" in review.attributes:
+                consumed += review.attributes["Amount"]
+        return consumed
+    
+    def getEstimatedRemaining(self):
+        remainingCat = None
+        for cat in TeaCategories:
+            if cat.categoryRole == "Remaining":
+                remainingCat = cat
+                break
+        if remainingCat is None:
+            RichPrintError("No Remaining category found, cannot autocalculate")
+            return None, None
+        val, exp = remainingCat.autocalculate(self)
+        if val is not None:
+            return val, exp
+
 # Defines a review for a tea
 class Review:
     attempt = 0
@@ -1219,6 +1254,10 @@ class TeaCategory:
             else:
                 RichPrintError("Score not found in review categories, cannot calculate total score")
                 return None, None
+    
+    
+
+        
                     
 
 # Themes for coloring
@@ -2168,6 +2207,7 @@ class Window_Stash_Reviews(WindowBase):
 
     def windowDefintion(self, window):
         tea = self.tea
+        tea: StashedTea
 
         # Enable window resizing
         dpg.configure_item(window.tag, autosize=True)
@@ -2175,11 +2215,20 @@ class Window_Stash_Reviews(WindowBase):
         # create a new window for the reviews
         with window:
             # Title
-            dp.Text(f"Reviews for idx {tea.id} - {tea.name}")
+            dp.Text(f"Reviews for idx {tea.id}:  {tea.name}")
             dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
+            dp.Text(f"Total Reviews: {len(tea.reviews)}, Last Review date: {TimeStampToString(tea.getLatestReview().dateAdded) if tea.getLatestReview() else 'N/A'}")
+            val, exp = tea.getEstimatedRemaining()
+            dp.Text(f"Estimated consumed by reviews: {tea.getEstimatedConsumedByReviews()}g")
+            dp.Text(f"Estimated remaining: {val}g")
+            with dp.Tooltip(dpg.last_item()):
+                dp.Text(f"Estimated remaining: {val}g")
+                if exp is not None:
+                    dp.Text(f"{exp}")
             # Add a horizontal bar with buttons to add or duplicate reviews
             dp.Separator()
             hbarActionGroup = dp.Group(horizontal=True)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             with hbarActionGroup:
                 dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=(tea, "add"))
                 dp.Button(label="Duplicate Last Review", callback=self.ShowAddReview, user_data=(tea, "duplicate"))
@@ -2189,31 +2238,22 @@ class Window_Stash_Reviews(WindowBase):
                 with dpg.tooltip(dpg.last_item()):
                     tooltipText = RateaTexts.ListTextHelpMenu["menuTeaReviews"].wrap()
                     dp.Text(tooltipText)
-                # Add a button to open the reviews window
-                # Add review popup
-                w = 900 * settings["UI_SCALE"]
-                h = 500 * settings["UI_SCALE"]
-                self.reviewsWindow = dp.Window(label="Reviews", width=w, height=h, show=False, modal=False)
-                with self.reviewsWindow:
-                    addReviewGroup = dp.Group(horizontal=False)
-                    with addReviewGroup:
-                        dp.Text("Add Review")
-                        dp.Text("Attributes")
-                        AttributesItem = dp.InputText(label="Attributes", default_value="{'Type': 'Raw Puerh', 'Region': 'Yunnan'}")
-                        self.addReviewList.append(AttributesItem)
-                        dp.Text("Rating")
-                        RatingItem = dp.InputText(label="Rating", default_value="90")
-                        self.addReviewList.append(RatingItem)
-                        dp.Text("Notes")
-                        notesItem = dp.InputText(label="Notes", default_value="Good tea")
-                        self.addReviewList.append(notesItem)
-                    # Add buttons
-                    dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=(tea, "add"))
-                    dp.Button(label="Duplicate Last Review", callback=self.ShowAddReview, user_data=(tea, "duplicate"))
             dp.Separator()
             # Add a table with reviews
             _filter_table_id = dpg.generate_uuid()
+            filterAdvDropdown = None
+            tableRows = list()
             dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)))
+            with dp.CollapsingHeader(label="Advanced filtering/sorting", default_open=False, border=True):
+                # Add a filter input text
+                
+                # Add a sort combo box
+                filterOptions = ["Name"]
+                for cat in TeaReviewCategories:
+                    if cat.categoryRole not in filterOptions:
+                        filterOptions.append(cat.categoryRole)
+                filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value="Name", user_data=(None), callback=self._UpdateTableRowFilterKeys)
+                dp.Separator()
             reviewsTable = dp.Table(header_row=True, no_host_extendX=True,
                                 borders_innerH=True, borders_outerH=True, borders_innerV=True,
                                 borders_outerV=True, row_background=True, hideable=True, reorderable=True,
@@ -2233,6 +2273,7 @@ class Window_Stash_Reviews(WindowBase):
                 # Add rows
                 for i, review in enumerate(tea.reviews):
                     tableRow = dp.TableRow(filter_key=review.name)
+                    tableRows.append((review, tableRow))  # Store the review and the row for later filtering
                     with tableRow:
 
                         # Add ID index based on position in list
@@ -2351,6 +2392,54 @@ class Window_Stash_Reviews(WindowBase):
         # disable autosize to prevent flickering or looping
         delay = 2 + statsNumTeas() // CONSTANT_DELAY_MULTIPLIER
         dpg.set_frame_callback(dpg.get_frame_count()+delay, self.afterWindowDefintion, user_data=window)
+
+        dpg.set_item_user_data(filterAdvDropdown, tableRows)  # Set initial filter key to Name
+
+    def _UpdateTableRowFilterKeys(self, sender, app_data, user_data, rowList):
+        # Update the filter keys for the table rows
+        rowList = user_data
+        catAttr = app_data  # The category attribute to filter by
+        for row in rowList:
+            # Get the tea object from the row
+            review = row[0]
+            row = row[1]
+            
+            cat = None
+            # Look up category by category role
+            for c in TeaReviewCategories:
+                c: ReviewCategory
+                if c.categoryRole == catAttr:
+                    cat = c
+                    break
+
+            row: dp.TableRow
+            cat: ReviewCategory
+            filterKey = review.name  # Default filter key is the tea name
+            # Get the filter key from the category attribute
+
+            # Run autocalculate if needed
+            if cat.isAutoCalculated:
+                val, exp = cat.autocalculate(review)
+                if val is not None and val != -1:
+                    filterKey = str(val)
+                    if type(val) == float:
+                        filterKey = f"{val:.{cat.rounding}f}"
+                    if ("Score" in cat.categoryRole) and cat.gradingDisplayAsLetter:
+                        filterKey = getGradeLetterFuzzy(val) + f" ({val})"
+                elif val is not None:
+                    filterKey = "0.0"  # If autocalculated value is None, set to 0.0
+                else:
+                    filterKey = review.name  # Default filter key is the review name
+            else:
+                # Get the filter key from the review attributes
+                if cat.categoryRole in review.attributes:
+                    filterKey = review.attributes[cat.categoryRole]
+                else:
+                    # If the attribute is not found, set to default
+                    filterKey = review.name  # Default filter key is the review name
+            
+            # Set the filter key for the row
+            row.filter_key = filterKey
 
     def afterWindowDefintion(self, sender, app_data, user_data):
         RichPrintInfo(f"Finished window definition for {user_data.tag}")
