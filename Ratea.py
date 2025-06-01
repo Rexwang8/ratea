@@ -2188,6 +2188,8 @@ class Window_Stash_Reviews(WindowBase):
         # Save to file
         renumberTeasAndReviews(save=True)  # Renumber teas and reviews to keep IDs consistent
         #saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        # Add a button to open the reviews window
+        
 
         # hide the popup
         dpg.configure_item(self.reviewsWindow.tag, show=False)
@@ -2238,6 +2240,11 @@ class Window_Stash_Reviews(WindowBase):
                 with dpg.tooltip(dpg.last_item()):
                     tooltipText = RateaTexts.ListTextHelpMenu["menuTeaReviews"].wrap()
                     dp.Text(tooltipText)
+            # Add add review popup
+            w = 900 * settings["UI_SCALE"]
+            h = 500 * settings["UI_SCALE"]
+            self.reviewsWindow = dp.Window(label="Reviews", width=w, height=h, show=False, modal=False)
+            # --
             dp.Separator()
             # Add a table with reviews
             _filter_table_id = dpg.generate_uuid()
