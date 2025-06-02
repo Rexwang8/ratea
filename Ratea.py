@@ -3953,7 +3953,15 @@ def Menu_Stats():
     stats = Window_Stats("Stats", w, h, exclusive=True)
 
 class Window_Stats(WindowBase):
-    def windowDefintion(self, window):
+    win = None
+    def softRefresh(self):
+        # Clear the window and regenerate it
+        if self.win is not None:
+            dpg.delete_item(self.win.tag, children_only=True)
+            self.generateWindow()
+            RichPrintSuccess("Stats window refreshed.")
+    def generateWindow(self):
+        window = self.win
         with window:
             dp.Text("Stats")
 
@@ -3965,6 +3973,10 @@ class Window_Stats(WindowBase):
             dp.Text(f"Number of Teas: {numTeas}")
             numReviews = statsNumReviews()
             dp.Text(f"Number of Reviews: {numReviews}")
+            dp.Separator()
+
+            # Refresh button
+            dp.Button(label="Refresh", callback=self.softRefresh, width=100 * settings["UI_SCALE"])
             dp.Separator()
 
             # All stats should only be displayed if the coorsponding category is enabled
@@ -4182,6 +4194,10 @@ class Window_Stats(WindowBase):
             with dp.CollapsingHeader(label="Ratings and Grades", default_open=False):
                 # filler
                 dp.Text("Ratings and Grades")
+    def windowDefintion(self, window):
+        self.win = window
+        self.generateWindow()
+        
 
 
 
