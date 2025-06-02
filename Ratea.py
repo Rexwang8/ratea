@@ -51,6 +51,7 @@ TODO: Terminal window to print out debug info
 TODO: Grades support for scores
 TODO: operation: Link reviews
 TODO: Optional non-refreshing table updates, limit number of items on first load
+TODO: Change log
 
 
 
@@ -5276,8 +5277,24 @@ class Window_UserGuide(WindowBase):
         with window:
             dp.Text("User Guide")
             dpg.bind_item_font(dpg.last_item(), getFontName(3))
-            dp.Text("This is a simple user guide for Ratea.")
-            dp.Text("You can find more information on the GitHub page:")
+            text = RateaTexts.ListTextUserGuide["userGuide"].wrap()
+
+            dp.Text(text)
+
+# About window
+def Menu_About():
+    w = 640 * settings["UI_SCALE"]
+    h = 480 * settings["UI_SCALE"]
+    about = Window_About("About", w, h, exclusive=True)
+
+class Window_About(WindowBase):
+    def windowDefintion(self, window):
+        with window:
+            dp.Text("About Ratea")
+            dpg.bind_item_font(dpg.last_item(), getFontName(3))
+            dp.Text(f"Ratea - Tea Stash Manager (V{settings['APP_VERSION']})")
+            text = RateaTexts.ListTextUserGuide["About"].wrap()
+            dp.Text(text)
 
 # Terminal window
 def Menu_Terminal():
@@ -6172,9 +6189,9 @@ def UI_CreateViewPort_MenuBar():
             dp.Button(label="Sort Windows", callback=windowManager.sortWindows)
             dp.Button(label="Import Persistant Windows", callback=windowManager.importPersistantWindowWrapper)
             dp.Button(label="Export Persistant Windows", callback=windowManager.exportPersistantWindowWrapper)
-        with dp.Menu(label="Help(TODO)", callback=print_me):
+        with dp.Menu(label="Help"):
             dp.Button(label="User Guide", callback=Menu_UserGuide)
-            dp.Button(label="About", callback=print_me)
+            dp.Button(label="About", callback=Menu_About)
             with dp.Menu(label="Library(TODO)"):
                 dp.Button(label="Press Me", callback=print_me)
         with dp.Menu(label="Debug"):
@@ -6319,7 +6336,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.5.8", # Updates to most recently loaded
+        "APP_VERSION": "0.5.9", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",

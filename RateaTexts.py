@@ -100,6 +100,15 @@ ListTextHelpMenu["menuTeaReviews"] = Text("This is one of the primary windows of
 # User Guide Text
 ListTextUserGuide = dict()
 
+ListTextUserGuide["About"] = Text('''
+RateaTea is a tea tracking app that helps you keep track of your tea stash, reviews, and more.
+It is designed to be easy to use and customizable, so you can track your tea drinking habits in a way that works for you.
+It is written in Python and uses the dearpygui library for the GUI.
+It is open source and available on GitHub at https://github.com/Rexwang8/ratea
+                                  
+Find me on discord at bts_bighit (Don't ask, i don't watch kpop)
+''')
+
 ListTextUserGuide["userGuide"] = Text('''
 Welcome to RateaTea, the tea tracking app that helps you keep track of your tea stash, reviews, and more! 
 This user guide will help you get started with the app and explain how to use its features.
