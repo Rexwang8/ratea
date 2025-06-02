@@ -75,6 +75,7 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.5.9): basic about and userguide
 Feat(0.5.8): Duplicate reviews button
 Feat(0.5.8): Gift adjustment
 Feat(0.5.8): Adjustment move tea index
@@ -107,6 +108,7 @@ Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 # INFO - Informational messages that are not errors
 # WARNING - Warning messages that may indicate a problem or alteration
 # ERROR - Error messages that indicate a problem
+# (SUCCESS) - Success messages that indicate a successful operation, minor for operation that is part of a larger operation 
 # CRITICAL - Critical error messages that indicate a serious problem that may cause the program to crash
 DEBUG_LEVEL = "ERROR"  # ALL, INFO, WARNING, ERROR, CRITICAL
 
@@ -140,18 +142,18 @@ def MakeFilePath(path):
     # Make sure the folder exists
     if not os.path.exists(path):
         os.makedirs(path)
-        RichPrintSuccess(f"Made {path} folder")
+        RichPrintSuccessMinor(f"Made {path} folder")
     else:
         RichPrintWarning(f"{path} folder already exists")
         
 def WriteFile(path, content):
     with open(path, "w") as file:
         file.write(content)
-    RichPrintSuccess(f"Written {path} to file")
+    RichPrintSuccessMinor(f"Written {path} to file")
     
 def ReadFile(path):
     with open(path, "r") as file:
-        RichPrintSuccess(f"Read {path} from file")
+        RichPrintSuccessMinor(f"Read {path} from file")
         return file.read()
 
 def ListFiles(path):
@@ -160,11 +162,11 @@ def ListFiles(path):
 def WriteYaml(path, data):
     with open(path, "w") as file:
         yaml.dump(data, file)
-    RichPrintSuccess(f"Written {path} to file")
+    RichPrintSuccessMinor(f"Written {path} to file")
 
 def ReadYaml(path):
     with open(path, "r") as file:
-        RichPrintSuccess(f"Read {path} from file")
+        RichPrintSuccessMinor(f"Read {path} from file")
         return yaml.load(file, Loader=yaml.FullLoader)
     
 def timezoneToOffset(timezone, daylightSaving=False):
@@ -397,10 +399,13 @@ def RichPrintError(text):
         RichPrint(text, "bold red")
 def RichPrintInfo(text):
     if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
-        RichPrint(text, "bold blue")
+        RichPrint(text, "blue")
 def RichPrintSuccess(text):
-    if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
+    if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "ALL":
         RichPrint(text, "bold green")
+def RichPrintSuccessMinor(text):
+    if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "ALL":
+        RichPrint(text, "dark_green")
 def RichPrintWarning(text):
     if DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "INFO":
         RichPrint(text, "bold yellow")
@@ -413,8 +418,8 @@ def print_me(sender, data, user_data):
     print(sender, data, user_data)
 
 def Settings_SaveCurrentSettings():
-    RichPrintSuccess("Saving settings")
     WriteYaml(session["settingsPath"], settings)
+    RichPrintSuccessMinor("Saved current settings to file")
 
 # Fast print the ID and names of all teas and reviews in a tree
 def printTeasAndReviews():
@@ -460,7 +465,6 @@ def getAlLCategoryEntriesByID(categoryID, review=False):
     else:
         catName = TeaCategories[categoryID].name
         catRole = TeaCategories[categoryID].categoryRole
-    #RichPrintInfo(f"Getting all entries of category {catName} by ID: {categoryID}, review={review}")
     
     if review:
         for tea in TeaStash:
@@ -477,7 +481,6 @@ def getAlLCategoryEntriesByID(categoryID, review=False):
                 returnList.append(tea.attributes[catRole])
 
 
-    #RichPrintSuccess(f"Found {len(returnList)} entries for category {catName} by ID: {categoryID}, name={catName}, role={catRole}, review={review}")
     return returnList
 
 # Get all entries and uses function provided on the category to get the value
@@ -752,7 +755,7 @@ def renumberTeasAndReviews(save=True):
             review.id = j
             review.parentID = tea.id  # Ensure parent ID is correct
 
-    RichPrintSuccess("Renumbering complete.")
+    RichPrintSuccessMinor("Completed renumbering Teas and Reviews.")
     printTeasAndReviews()  # Print the updated teas and reviews for verification
 
     if save:
@@ -989,7 +992,7 @@ def searchPreviousAnswers(categoryName, data="Tea", topX=5):
         if isinstance(answer[0], dt.datetime):
             topAnswers[i] = (answer[0].strftime(settings["DATE_FORMAT"]), answer[1])
     topAnswersList = [answer[0] for answer in topAnswers]
-    RichPrintSuccess(f"Top {topX} answers for {categoryName} in {data}: {topAnswers}")
+    RichPrintInfo(f"Top {topX} answers for {categoryName} in {data}: {topAnswers}")
     return topAnswers, topAnswersList
 
 
@@ -2064,7 +2067,7 @@ class Window_Stash_Reviews(WindowBase):
 
         # Act on the result
         if isValid:
-            RichPrintSuccess("Review edit/add passed validation.")
+            RichPrintSuccessMinor("Review edit/add passed validation.")
             self.EditAddReview(sender, app_data, user_data)
         else:
             RichPrintError("Review is not valid. Please check the fields.")
@@ -2201,7 +2204,7 @@ class Window_Stash_Reviews(WindowBase):
             for i, tea in enumerate(TeaStash):
                 if tea.id == teaId:
                     TeaStash[i].addReview(newReview)
-                    RichPrintSuccess(f"Teastash I is now {TeaStash[i]}, added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
+                    RichPrintSuccess(f"Teastash ID is now {TeaStash[i]}, added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
                     break
         
         # Renumber and Save
@@ -2209,7 +2212,7 @@ class Window_Stash_Reviews(WindowBase):
 
         # Save to file
         renumberTeasAndReviews(save=True)  # Renumber teas and reviews to keep IDs consistent
-        #saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
         # Add a button to open the reviews window
         
 
@@ -3112,9 +3115,6 @@ class Window_Stash(WindowBase):
         # Convert to JSON string
         jsonString = json.dumps(allAttributes)
         pyperclip.copy(jsonString)
-        RichPrintSuccess(f"Copied Tea Values: {jsonString}")
-
-
         RichPrintSuccess(f"Copied Tea Values: {jsonString}")
 
 
@@ -5400,7 +5400,7 @@ class Manager_Windows:
         if not os.path.exists(filePath):
             RichPrintWarning(f"Path {filePath} does not exist, please create it")
             os.makedirs(filePath, exist_ok=True)
-            RichPrintSuccess(f"Path {filePath} created")
+            RichPrintSuccessMinor(f"Path {filePath} created")
         if not os.path.isfile(filePath):
             RichPrintWarning(f"Path {filePath} is not a file, please create it")
             return
