@@ -368,7 +368,7 @@ def AnyDTFormatToTimeStamp(unknownDT):
     if type(unknownDT) is dt.datetime:
         return DateTimeToTimeStamp(unknownDT)
     elif isinstance(unknownDT, str):
-        return DateDictToTimeStamp(parseStringToDT(unknownDT))
+        return DateDictToTimeStamp(parseStringToDT(unknownDT, silent=True))
     elif isinstance(unknownDT, dict):
         return DateDictToTimeStamp(DateDictToDT(unknownDT))
     elif isinstance(unknownDT, int) or isinstance(unknownDT, float):
@@ -1046,13 +1046,19 @@ class StashedTea:
         # Get the latest review by date added
         if len(self.reviews) == 0:
             return None
-        latestReview = max(self.reviews, key=lambda r: r.dateAdded)
+        if "date" not in self.reviews[0].attributes:
+            RichPrintError("No date attribute found in reviews, cannot get latest review. (DATEADDED)")
+            return None
+        latestReview = max(self.reviews, key=lambda r: r.attributes["date"])
         return latestReview
     def getEarliestReview(self):
         # Get the earliest review by date added
         if len(self.reviews) == 0:
             return None
-        earliestReview = min(self.reviews, key=lambda r: r.dateAdded)
+        if "date" not in self.reviews[0].attributes:
+            RichPrintError("No date attribute found in reviews, cannot get earliest review. (DATEADDED)")
+            return None
+        earliestReview = min(self.reviews, key=lambda r: r.attributes["date"])
         return earliestReview
     def getEstimatedConsumedByReviews(self):
         # Get the estimated consumed amount by reviews
@@ -1207,11 +1213,13 @@ class TeaCategory:
                         explanation += " (Finished)"
                     else:
                         explanation += " (Not Finished)"
+
+                    remaining = round(remaining, 2)
                     return remaining, explanation
                 else:
                     explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= {remaining:.2f}g Remaining (Finished)"
+                    remaining = round(remaining, 2)
                     return remaining, explanation
-                    return 0, explanation
             else:
                 RichPrintError("Amount not found in categories, cannot calculate remaining")
                 return None, None
@@ -1250,6 +1258,7 @@ class TeaCategory:
 
                 # Explanation
                 explanation = f"{totalScore:.2f} Total Score\n/ {len(data.reviews)} Number of reviews\n= {avrgScore:.2f} Average Score"
+                avrgScore = round(avrgScore, 2)
                 return avrgScore, explanation
             else:
                 RichPrintError("Score not found in review categories, cannot calculate total score")
@@ -2219,7 +2228,8 @@ class Window_Stash_Reviews(WindowBase):
             # Title
             dp.Text(f"Reviews for idx {tea.id}:  {tea.name}")
             dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
-            dp.Text(f"Total Reviews: {len(tea.reviews)}, Last Review date: {TimeStampToString(tea.getLatestReview().dateAdded) if tea.getLatestReview() else 'N/A'}")
+            dateString = f"Date Added: {TimeStampToString(tea.getLatestReview().attributes['date'])}" if tea.getLatestReview() else "No reviews yet"
+            dp.Text(f"Total Reviews: {len(tea.reviews)}, Last Review date: {dateString}")
             val, exp = tea.getEstimatedRemaining()
             dp.Text(f"Estimated consumed by reviews: {tea.getEstimatedConsumedByReviews()}g")
             dp.Text(f"Estimated remaining: {val}g")
