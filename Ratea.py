@@ -1381,6 +1381,15 @@ class WindowBase:
         dpg.delete_item(self.tag)
         self.create()
 
+    def softRefresh(self):
+        # soft refresh the window, does not delete the window, just refreshes the content
+        RichPrintInfo(f"[SOFT REFRESH] Soft refreshing window tag: {self.tag} title: {self.title}")
+        if self.dpgWindow is not None and self.dpgWindow.exists():
+            dpg.delete_item(self.tag, children_only=True)  # Delete only the children of the window
+            self.onSoftRefresh()
+            self.windowDefintion(self.dpgWindow)  # Recreate the window content
+            
+
     def onCreateFirstTime(self):
         # triggers when the window is created for the first time
         pass
@@ -1390,6 +1399,9 @@ class WindowBase:
         pass
     def onRefresh(self):
         # triggers when the window is refreshed
+        pass
+    def onSoftRefresh(self):
+        # triggers when the window is soft refreshed
         pass
     def onDelete(self):
         # triggers when the window is deleted
@@ -3954,13 +3966,9 @@ def Menu_Stats():
 
 class Window_Stats(WindowBase):
     win = None
-    def softRefresh(self):
-        # Clear the window and regenerate it
-        if self.win is not None:
-            dpg.delete_item(self.win.tag, children_only=True)
-            self.generateWindow()
-            RichPrintSuccess("Stats window refreshed.")
-    def generateWindow(self):
+        
+    def windowDefintion(self, window):
+        self.win = window
         window = self.win
         with window:
             dp.Text("Stats")
@@ -4194,9 +4202,6 @@ class Window_Stats(WindowBase):
             with dp.CollapsingHeader(label="Ratings and Grades", default_open=False):
                 # filler
                 dp.Text("Ratings and Grades")
-    def windowDefintion(self, window):
-        self.win = window
-        self.generateWindow()
         
 
 
