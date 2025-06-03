@@ -160,6 +160,7 @@ Cannonical rating system for RaTea
 I made the program so I call the shots. I use this system.
 The system is a 5 point float system where 5 cooresponds to S+, 4.5 to S, 4.25 to S-, 4 to A+, etc.
 The grade of the tea determines the letter grade, while supporting details like value determine the decimal.
+I personally grade the tea based on the Letter than add the + or - based on value.
                                       
 Adding fees, shipping, and teaware
 Work in progress

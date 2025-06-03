@@ -200,7 +200,7 @@ def getFontName(size=1, bold=False, fontName=None):
 
 
 
-def parseDTToStringWithFallback(stringOrDT, fallbackString):
+def parseDTToStringWithFallback(stringOrDT, fallbackString, quiet=False):
     output = None
     try:
         output = parseDTToString(stringOrDT)
@@ -365,7 +365,7 @@ def TimeStampToStringWithHoursMinutes(timestamp):
 def TimeStampToStringWithFallback(timestamp, fallbackString):
     # Convert timestamp to string with fallback
     datetime = TimeStampToDateTime(timestamp)
-    return parseDTToStringWithFallback(datetime, fallbackString=fallbackString)
+    return parseDTToStringWithFallback(datetime, fallbackString=fallbackString, quiet=True)
 def AnyDTFormatToTimeStamp(unknownDT):
     # Convert any datetime format to timestamp
     if type(unknownDT) is dt.datetime:
@@ -1072,6 +1072,8 @@ class StashedTea:
         for review in self.reviews:
             if "Amount" in review.attributes:
                 consumed += review.attributes["Amount"]
+
+        consumed = round(consumed, 2)  # Round to 2 decimal places
         return consumed
     
     def getEstimatedRemaining(self):
@@ -2367,7 +2369,7 @@ class Window_Stash_Reviews(WindowBase):
                                 # Prefix, suffix
                                 displayValue = cat.prefix + str(displayValue) + cat.suffix
                                 dp.Text(default_value=RateaTexts.truncateString(displayValue, 70))
-                                if cat.categoryRole == "Notes (Long)":
+                                if cat.categoryRole == "Notes (Long)" or cat.categoryRole == "Notes (Short)":
                                     # Add a tooltip for long notes
                                     with dp.Tooltip(dpg.last_item()):
                                         # Wrap the text to a specified width
@@ -5455,7 +5457,7 @@ def generateBackup():
     # Use the alternate backup path and generate a folder containing all backed up files, add datetime to path
     backupPath = f"{settings['BACKUP_PATH']}/{parseDTToStringWithHoursMinutes(dt.datetime.now(tz=dt.timezone.utc))}"
     os.makedirs(backupPath, exist_ok=True)
-    SaveAll(backupPath)
+    SaveAll(backupPath, savCSV=False)
     RichPrintSuccess(f"Backup generated at {backupPath}")
 
 def saveTeasReviews(stash, path):
@@ -5748,7 +5750,7 @@ def verifyCategoriesReviewCategories():
     RichPrintInfo(f"Number of Review Categories: {len(TeaReviewCategories)}")
 
     # Save the categories again
-    SaveAll()
+    SaveAll(savCSV=False)
 
 def saveTeaReviewCategories(categories, path):
     # Save as one file in yml format
@@ -5774,7 +5776,7 @@ def saveTeaReviewCategories(categories, path):
 
     WriteYaml(path, allData)
 
-def SaveAll(altPath=None):
+def SaveAll(altPath=None, saveCSV=True):
     # ignore sender and app_data
     if type(altPath) != str and altPath is not None:
         altPath = None
@@ -5790,7 +5792,9 @@ def SaveAll(altPath=None):
         RichPrintSuccess(f"All data saved to {newBaseDirectory}")
 
         # CSVs
-        teaStashToCSV(f"{newBaseDirectory}/tea.csv", f"{newBaseDirectory}/review.csv")
+        if saveCSV:
+            teaStashToCSV(f"{newBaseDirectory}/tea.csv", f"{newBaseDirectory}/review.csv")
+            RichPrintSuccess(f"CSV files saved to {newBaseDirectory}")
         return
     saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
     saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
@@ -5799,7 +5803,10 @@ def SaveAll(altPath=None):
     windowManager.exportPersistantWindows(settings["PERSISTANT_WINDOWS_PATH"])
 
     # CSVs
-    teaStashToCSV(settings["CSV_OUTPUT_TEA_PATH"], settings["CSV_OUTPUT_REVIEW_PATH"])
+    if saveCSV:
+        # CSVs are slow to save due to file serialization, so only save if specified
+        teaStashToCSV(settings["CSV_OUTPUT_TEA_PATH"], settings["CSV_OUTPUT_REVIEW_PATH"])
+        RichPrintSuccess(f"CSV files saved to {settings['CSV_OUTPUT_TEA_PATH']} and {settings['CSV_OUTPUT_REVIEW_PATH']}")
 
 
 # Start Backup Thread
@@ -5846,7 +5853,7 @@ def pollAndAutosaveIfNeeded():
         if autoBackupPath != None and autoBackupPath != "":
             if not os.path.exists(autoBackupPath):
                 os.makedirs(autoBackupPath, exist_ok=True)
-            SaveAll(autoBackupPath)
+            SaveAll(autoBackupPath, savCSV=False)
             global globalTimeLastSave
             globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
             timeLastSave = pollTimeSinceStartMinutes()
