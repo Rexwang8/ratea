@@ -1750,6 +1750,7 @@ class Window_Stash_Reviews(WindowBase):
         self.GenerateEditReviewWindow(sender, app_data, user_data=(None, operation, tea))  # Pass None for review to indicate new review
     def AddReview(self, sender, app_data, user_data):
         # Add a review to the tea
+        timeStartAdd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         allAttributes = {}
         teaID = user_data.id
         for k, v in self.addReviewList.items():
@@ -1786,6 +1787,8 @@ class Window_Stash_Reviews(WindowBase):
         # close the popup
         dpg.configure_item(self.reviewsWindow.tag, show=False)
         self.refresh()
+        timeEndAdd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+        RichPrintSuccess(f"Added review for {user_data.name} in {timeEndAdd - timeStartAdd:.2f}s")
 
     def GenerateEditReviewWindow(self, sender, app_data, user_data):
         # Create a new window for editing the review
@@ -2130,6 +2133,7 @@ class Window_Stash_Reviews(WindowBase):
 
     def EditAddReview(self, sender, app_data, user_data):
         # Get the tea from the stash
+        startAddEdit = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         review = user_data[0]
         teaId = review.parentID if review else None
         editReviewWindowItems = user_data[1]
@@ -2163,6 +2167,7 @@ class Window_Stash_Reviews(WindowBase):
                     else:
                         val = RateaTexts.sanitizeInputLineString(val)
                 allAttributes[k] = val
+
 
         # Infer name from allAttributes if avaliable, review or parent else
         reviewName = ""
@@ -2206,16 +2211,10 @@ class Window_Stash_Reviews(WindowBase):
             for i, tea in enumerate(TeaStash):
                 if tea.id == teaId:
                     TeaStash[i].addReview(newReview)
-                    RichPrintSuccess(f"Teastash ID is now {TeaStash[i]}, added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
                     break
         
         # Renumber and Save
-        RichPrintSuccess(f"Added new review: {newReview.name} with ID {newReview.id} to tea {teaId}")
-
-        # Save to file
         renumberTeasAndReviews(save=True)  # Renumber teas and reviews to keep IDs consistent
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
-        # Add a button to open the reviews window
         
 
         # hide the popup
@@ -2223,11 +2222,12 @@ class Window_Stash_Reviews(WindowBase):
         self.deleteEditReviewWindow()
         # Refresh the window
         self.refresh()
-        #self.parentWindow.refresh()
         # Close the edit review window
         if self.editReviewWindow is not None:
             self.editReviewWindow.delete()
             self.editReviewWindow = None
+        endAddEdit = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+        RichPrintSuccess(f"Added/Edited review in {endAddEdit - startAddEdit:.2f}s for {newReview.name} with ID {newReview.id}")
 
     def __init__(self, title, width, height, exclusive=False, parentWindow=None, tea=None):
         self.parentWindow = parentWindow
@@ -5457,7 +5457,7 @@ def generateBackup():
     # Use the alternate backup path and generate a folder containing all backed up files, add datetime to path
     backupPath = f"{settings['BACKUP_PATH']}/{parseDTToStringWithHoursMinutes(dt.datetime.now(tz=dt.timezone.utc))}"
     os.makedirs(backupPath, exist_ok=True)
-    SaveAll(backupPath, savCSV=False)
+    SaveAll(backupPath, savCSV=True)
     RichPrintSuccess(f"Backup generated at {backupPath}")
 
 def saveTeasReviews(stash, path):
@@ -5853,7 +5853,7 @@ def pollAndAutosaveIfNeeded():
         if autoBackupPath != None and autoBackupPath != "":
             if not os.path.exists(autoBackupPath):
                 os.makedirs(autoBackupPath, exist_ok=True)
-            SaveAll(autoBackupPath, savCSV=False)
+            SaveAll(autoBackupPath, savCSV=True)
             global globalTimeLastSave
             globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
             timeLastSave = pollTimeSinceStartMinutes()
