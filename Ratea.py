@@ -933,6 +933,7 @@ def _table_sort_callback(sender, sortSpec):
     
     unsortableItems = []
     cleanSortableItems = []
+    RichPrintSuccessMinor(f"Found {len(sortableItems)} sortable items and {len(unsortableItems)} unsortable items")
     # Remove N/A from the list
     if len(sortableItems) > 1:
         for i, item in enumerate(sortableItems):
@@ -941,10 +942,11 @@ def _table_sort_callback(sender, sortSpec):
             else:
                 cleanSortableItems.append(item)
     cleanSortableItems.sort(key=sort_key, reverse=not ascending)
-    RichPrintInfo(f"Found {len(cleanSortableItems)} sortable items and {len(unsortableItems)} unsortable items")
+    
     if len(cleanSortableItems) < 2:
         RichPrintError("Not enough sortable items to sort")
         return
+    RichPrintSuccessMinor(f"Found {len(sortableItems)} sortable items and {len(unsortableItems)} unsortable items")
     # Re-add the unsortable items to the end of the list
     for item in unsortableItems:
         cleanSortableItems.append(item)
@@ -5457,7 +5459,7 @@ def generateBackup():
     # Use the alternate backup path and generate a folder containing all backed up files, add datetime to path
     backupPath = f"{settings['BACKUP_PATH']}/{parseDTToStringWithHoursMinutes(dt.datetime.now(tz=dt.timezone.utc))}"
     os.makedirs(backupPath, exist_ok=True)
-    SaveAll(backupPath, savCSV=True)
+    SaveAll(backupPath, saveCSV=True)
     RichPrintSuccess(f"Backup generated at {backupPath}")
 
 def saveTeasReviews(stash, path):
@@ -5750,7 +5752,7 @@ def verifyCategoriesReviewCategories():
     RichPrintInfo(f"Number of Review Categories: {len(TeaReviewCategories)}")
 
     # Save the categories again
-    SaveAll(savCSV=False)
+    SaveAll(saveCSV=False)
 
 def saveTeaReviewCategories(categories, path):
     # Save as one file in yml format
@@ -5853,7 +5855,7 @@ def pollAndAutosaveIfNeeded():
         if autoBackupPath != None and autoBackupPath != "":
             if not os.path.exists(autoBackupPath):
                 os.makedirs(autoBackupPath, exist_ok=True)
-            SaveAll(autoBackupPath, savCSV=True)
+            SaveAll(autoBackupPath, saveCSV=True)
             global globalTimeLastSave
             globalTimeLastSave = dt.datetime.now(tz=dt.timezone.utc)
             timeLastSave = pollTimeSinceStartMinutes()
