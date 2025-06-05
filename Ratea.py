@@ -3963,6 +3963,35 @@ def statsTotalRemaining():
     
     return totalRemaining, averageRemaining
 
+def statsCountTeasTriedTotal():
+    # Teas with reviews
+    numTeasTried = 0
+    for tea in TeaStash:
+        tea: StashedTea
+        if len(tea.reviews) > 0:
+            numTeasTried += 1
+
+    return numTeasTried, len(TeaStash)
+
+def statsCountTeasTriedPerType():
+    # Count the number of teas tried per type
+    teasTriedPerType = {}
+    teasNotTriedPerType = {}
+    for tea in TeaStash:
+        tea: StashedTea
+        if len(tea.reviews) > 0:
+            teaType = tea.attributes.get("Type", "Unknown")
+            if teaType not in teasTriedPerType:
+                teasTriedPerType[teaType] = 0
+            teasTriedPerType[teaType] += 1
+        else:
+            teaType = tea.attributes.get("Type", "Unknown")
+            if teaType not in teasNotTriedPerType:
+                teasNotTriedPerType[teaType] = 0
+            teasNotTriedPerType[teaType] += 1
+
+    return teasTriedPerType, teasNotTriedPerType
+
 
 def Menu_Stats():
     w = 540 * settings["UI_SCALE"]
@@ -4207,6 +4236,21 @@ class Window_Stats(WindowBase):
             with dp.CollapsingHeader(label="Ratings and Grades", default_open=False):
                 # filler
                 dp.Text("Ratings and Grades")
+                # Teas tried total
+                dp.Text("Teas Tried Total")
+                numTeasTried, totalTeas = statsCountTeasTriedTotal()
+                dp.Text(f"Number of Teas Tried: {numTeasTried} out of {totalTeas} total teas")
+                dp.Text(f"Percentage of Teas Tried: {numTeasTried / totalTeas * 100:.2f}%")
+
+                # Teas tried per type
+                dp.Text("Teas Tried per Type")
+                with dp.CollapsingHeader(label="Teas Tried per Type", default_open=False):
+                    teasTriedPerType, teasNotTriedPerType = statsCountTeasTriedPerType()
+                    dp.Text("Teas Tried:")
+                    # iterate both dictionaries
+                    for teaType, count in teasTriedPerType.items():
+                        dp.Text(f"{teaType}: {count}/ {teasTriedPerType.get(teaType, 0) + teasNotTriedPerType.get(teaType, 0)}, {count / (teasTriedPerType.get(teaType, 0) + teasNotTriedPerType.get(teaType, 0)) * 100:.2f}%")
+                    dp.Separator()
         
 
 
