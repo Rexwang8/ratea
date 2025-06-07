@@ -78,6 +78,7 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.7.0): Notepad and timer now have save and load buttons that call persist
 Feat(0.6.0): Move to end or top buttons for adjustments
 < Semantic change, any feature will get it's own minor version >
 Feat(0.5.9): StatsTeas Tried
@@ -1378,7 +1379,6 @@ class WindowBase:
         self.dpgWindow.height = self.height
         self.tag = self.dpgWindow.tag
         # Bind resize callback
-        #dpg.add_item_resize_handler(callback=self.onResizedWindow, user_data=self.tag, parent=self.tag)
         self.windowDefintion(self.dpgWindow)
 
         RichPrintInfo(f"Created window: {self.title} with tag: {self.tag} and exclusive: {self.exclusive}")
@@ -1520,8 +1520,6 @@ class Window_Timer(WindowBase):
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
                     tooltipText = RateaTexts.ListTextHelpMenu["menuStopwatchHelp"].wrap()
-                    #tooltipText = '''Timer for timing tea steeps. Copy times to clipboard with the clipboard button.
-                    #\nPersist will save the timer between sessions (WIP)'''
                     dp.Text(tooltipText)
 
             # Group that contains an input text raw and a button to copy to clipboard
@@ -1530,6 +1528,10 @@ class Window_Timer(WindowBase):
                 width = 125 * settings["UI_SCALE"]
                 self.rawDisplay = dp.InputText(default_value="Raw Times", readonly=True, callback=self.updateDefaultValueDisplay, width=width)
                 
+            # Save and load buttons
+            with dp.Group(horizontal=True):
+                dp.Button(label="Import", callback=self.importPersistedData)
+                dp.Button(label="Save", callback=self.savePersistedData)
 
         # child window logging up to 30 previous times
         self.updateChildWindow()
@@ -1559,6 +1561,20 @@ class Window_Timer(WindowBase):
         # copy to clipboard with pyperclip
         pyperclip.copy(times)
         RichPrintSuccess(f"Copied Timer times: {times} to clipboard")
+
+    def importPersistedData(self, sender, app_data, user_data):
+        # Call window manager to get data, then call importYML to set the text input value
+        data = windowManager.importOneWindow(sender, app_data, "Timer")
+        if data is not None:
+            self.importYML(data)
+        else:
+            RichPrintError("No persisted data found for Notepad.")
+            return
+        
+    def savePersistedData(self, sender, app_data, user_data):
+        # Call global export persisted data function to save the notepad text
+        if self.persist and self.text != "":
+            windowManager.exportOneWindow(sender, app_data, "Timer")
         
 
     def updateChildWindow(self):
@@ -1660,7 +1676,12 @@ class Window_Timer(WindowBase):
         self.titleTextObject.set_value(self.titleText)
         self.updateChildWindow()
         self.updateDefaultValueDisplay()
-        #self.refresh()
+
+        # set the label to not run the timer
+        if self.timerRunning:
+            self.timerRunning = False
+            self.buttonObject.label = "Start"
+            RichPrintInfo("Imported timer data, stopped the timer.")
 
 
 def Menu_Settings():
@@ -2277,6 +2298,9 @@ class Window_Stash_Reviews(WindowBase):
                     dp.Button(label="Duplicate Last Review", callback=self.ShowAddReview, user_data=(tea, "duplicate"))
                 else:
                     dp.Button(label="No Reviews to Duplicate", enabled=False)
+
+                # Reorder reviews button
+                dp.Button(label="Reorder Reviews", callback=self.DummyCallback, user_data=None)
                 
                 # Tooltip
                 dp.Button(label="?")
@@ -2558,6 +2582,7 @@ class Window_Stash(WindowBase):
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export All (TODO)", callback=self.DummyCallback)
+                dp.Button(label="Reorder by purchase date (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Refresh", callback=self.refresh)
                 
 
@@ -3639,6 +3664,23 @@ class Window_Notepad(WindowBase):
     def onCreate(self):
         self.persist = True
         return super().onCreate()
+    def _enableSaveReminder(self):
+        # Enables the save reminder for the notepad window
+        if self.persist and self.text != "":
+            # If persist is enabled, set the save reminder to True
+            self.dpgWindow.unsaved_document = True
+        else:
+            # If persist is disabled, set the save reminder to False
+            self.dpgWindow.unsaved_document = False
+
+    def _disableSaveReminder(self):
+        # Disables the save reminder for the notepad window
+        self.dpgWindow.unsaved_document = False
+    def savePersistedData(self, sender, app_data, user_data):
+        # Call global export persisted data function to save the notepad text
+        if self.persist and self.text != "":
+            windowManager.exportOneWindow(sender, app_data, "Notepad")
+        self._disableSaveReminder()
     def windowDefintion(self, window):
         with window:
             dp.Text("Notepad")
@@ -3650,6 +3692,8 @@ class Window_Notepad(WindowBase):
                 dp.Button(label="Template", callback=self.setTemplate)
                 dp.Button(label="Format/Wrap", callback=self.wrapText)
                 dp.Checkbox(label="Persist", default_value=self.persist, callback=self.updatePersist)
+                dp.Button(label="Save", callback=self.savePersistedData, user_data=self)
+                dp.Button(label="Load", callback=self.importPersistedData, user_data=self)
                 #tooltip
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
@@ -3668,10 +3712,23 @@ class Window_Notepad(WindowBase):
 
     def clearNotepad(self, sender, data):
         self.textInput.set_value("")
+        self.text = ""
+        self._disableSaveReminder()
     def copyNotepad(self, sender, data):
         pyperclip.copy(self.text)
     def updatePersist(self, sender, data):
         self.persist = data
+        if not self.persist:
+            self._disableSaveReminder()
+    def importPersistedData(self, sender, app_data, user_data):
+        # Call window manager to get data, then call importYML to set the text input value
+        data = windowManager.importOneWindow(sender, app_data, "Notepad")
+        self._disableSaveReminder()
+        if data is not None:
+            self.importYML(data)
+        else:
+            RichPrintError("No persisted data found for Notepad.")
+            return
     def wrapLongLines(self, text, breakwidth=70):
         # Wraps long lines of text to a specified width
         lines = text.split("\n")
@@ -3727,6 +3784,7 @@ F -- (0.0, 0.0, 0.0)
         self.text = template
     def updateText(self, sender, app_data, user_data):
         self.text = app_data
+        self._enableSaveReminder()
 
     def exportYML(self):
         windowVars = {
@@ -3737,7 +3795,12 @@ F -- (0.0, 0.0, 0.0)
         return windowVars
     
     def importYML(self, data):
-        self.text = data["text"]
+        text = data.get("text", "")
+        text = text.replace("\r", "")  # Remove carriage returns
+        text = text.replace("\\n", "\n")  # Replace escaped newlines with actual newlines
+        text.replace("\n", '''
+''')  # Replace newlines with double newlines for better formatting
+        self.text = text
         self.width = data["width"]
         self.height = data["height"]
         self.textInput.set_value(self.text)
@@ -5519,6 +5582,61 @@ class Manager_Windows:
         WriteYaml(filePath, allData)
         return allData
     
+    def exportOneWindow(self, sender, app_data, user_data):
+        # Export one window to a file
+        # Get the window title from user_data
+        title = user_data
+        window = None
+        for key, value in self.windows.items():
+            if title in key:
+                window = value
+                break
+        if window is None:
+            RichPrintError(f"Window {title} not found")
+            return
+        
+        filePath = f"{settings['PERSISTANT_WINDOWS_PATH']}"
+        # First get the rest of the data
+        allData = ReadYaml(filePath)
+        # Check if the window already exists in the file
+        for windowData in allData:
+            title = list(windowData.keys())[0]
+            if title == window.title:
+                RichPrintInfo(f"Window {title} already exists in {filePath}, overwriting")
+                allData.remove(windowData)
+        
+        # Now add the window data
+        windowyml = window.exportYML()
+        allData.append({window.title: windowyml})
+        # Write the data to the file
+        WriteYaml(filePath, allData)
+        RichPrintSuccess(f"Exported window {window.title} to {filePath}")
+
+    def importOneWindow(self, sender, app_data, user_data):
+        # Import one window from a file
+        # Get the window title from user_data
+        title = user_data
+        filePath = f"{settings['PERSISTANT_WINDOWS_PATH']}"
+        if not os.path.exists(filePath):
+            RichPrintError(f"Path {filePath} does not exist, please create it")
+            return
+        if not os.path.isfile(filePath):
+            RichPrintError(f"Path {filePath} is not a file, please create it")
+            return
+        
+        allData = ReadYaml(filePath)
+        winDat = None
+        for windowData in allData:
+            if title in windowData:
+                winDat = windowData[title]
+                break
+        if winDat is None:
+            RichPrintError(f"Window {title} not found in {filePath}")
+            return
+        
+        # Return yaml
+        return winDat
+    
     def importPersistantWindowWrapper(self, sender, app_data, user_data):
         # default to path defined in settings, error otherwise
         filePath = settings["PERSISTANT_WINDOWS_PATH"]
@@ -6440,7 +6558,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.6.0", # Updates to most recently loaded
+        "APP_VERSION": "0.7.0", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
