@@ -3333,6 +3333,10 @@ class Window_Stash(WindowBase):
             # Add a button to move the tea index
             dp.Button(label="Move Tea Index", callback=self.moveTeaIndex, user_data=(moveInput, teaCurrent))
 
+            # Add buttons to move the tea index to the end or top of the stash
+            dp.Button(label="Move Tea to End", callback=self.moveTeaIndexToEnd, user_data=(moveInput, teaCurrent))
+            dp.Button(label="Move Tea to Top", callback=self.moveTeaIndexToTop, user_data=(moveInput, teaCurrent))
+
             # Add a separator
             dp.Separator()
             dp.Text(f"TODO: Move to end, Move to Top, Move down 1, Move up 1")
@@ -3343,13 +3347,32 @@ class Window_Stash(WindowBase):
             # Add a button to cancel the adjustment
             dp.Button(label="Cancel", callback=self.deleteAdjustmentsWindow)
 
+    def moveTeaIndexToEnd(self, sender, app_data, user_data):
+        # Wrapper around moveTeaIndex to move the tea to the end of the stash
+        # user_data[0] is the moveinput object, overwrite this with the integer length of the stash
+        # user_data[1] is the tea object
+        moveInput = len(TeaStash) - 1  # Move to the end of the stash
+        tea = user_data[1]
+        self.moveTeaIndex(sender, app_data, user_data=(moveInput, tea))
+
+    def moveTeaIndexToTop(self, sender, app_data, user_data):
+        # Wrapper around moveTeaIndex to move the tea to the top of the stash
+        # user_data[0] is the moveinput object, overwrite this with 0
+        # user_data[1] is the tea object
+        moveInput = 0  # Move to the top of the stash
+        tea = user_data[1]
+        self.moveTeaIndex(sender, app_data, user_data=(moveInput, tea))
+
     def moveTeaIndex(self, sender, app_data, user_data):
         # Move tea index to the index below the specified index
         # user_data[0] is the moveInput, user_data[1] is the tea object
         # Factor in renumbering and saving the tea stash
         moveInput = user_data[0]
         tea = user_data[1]
-        newIndex = moveInput.get_value()
+        if moveInput is type(dp.InputInt):
+            newIndex = moveInput.get_value()
+        else:
+            newIndex = moveInput
         currentIndex = tea.id
 
 
@@ -4246,7 +4269,6 @@ class Window_Stats(WindowBase):
                 dp.Text(f"Percentage of Teas Tried: {numTeasTried / totalTeas * 100:.2f}%")
 
                 # Teas tried per type
-                dp.Text("Teas Tried per Type")
                 with dp.CollapsingHeader(label="Teas Tried per Type", default_open=False):
                     teasTriedPerType, teasNotTriedPerType = statsCountTeasTriedPerType()
                     # iterate both dictionaries
