@@ -52,6 +52,9 @@ TODO: Grades support for scores
 TODO: operation: Link reviews
 TODO: Optional non-refreshing table updates, limit number of items on first load
 TODO: Change log
+TODO: Windows list to manage open windows
+TODO: Reset to default buttons
+TODO: Grey out duplicate button if nothing to duplicate
 
 
 
@@ -125,7 +128,7 @@ COLOR_RED_TEXT = (255, 0, 0, 200)
 COLOR_AUTO_CALCULATED_TEXT = (0, 255, 0, 200)
 COLOR_GREEN_TEXT = (0, 255, 0, 200)
 
-CONSTANT_DELAY_MULTIPLIER = 125 # +1frame per X items for the table
+CONSTANT_DELAY_MULTIPLIER = 120 # +1frame per X items for the table
 #endregion
 
 #region Global Variables
@@ -1830,7 +1833,7 @@ class Window_Stash_Reviews(WindowBase):
             review.id = len(parentTea.reviews)  # New review ID is the length of existing reviews
 
 
-        self.editReviewWindow = dp.Window(label=windowName, width=w, height=h, modal=True, show=True)
+        self.editReviewWindow = dp.Window(label=windowName, width=w, height=h, modal=False, show=True)
         dpg.bind_item_font(dpg.last_item(), getFontName(2))
         windowManager.addSubWindow(self.editReviewWindow)
 
@@ -4246,10 +4249,23 @@ class Window_Stats(WindowBase):
                 dp.Text("Teas Tried per Type")
                 with dp.CollapsingHeader(label="Teas Tried per Type", default_open=False):
                     teasTriedPerType, teasNotTriedPerType = statsCountTeasTriedPerType()
-                    dp.Text("Teas Tried:")
                     # iterate both dictionaries
                     for teaType, count in teasTriedPerType.items():
-                        dp.Text(f"{teaType}: {count}/ {teasTriedPerType.get(teaType, 0) + teasNotTriedPerType.get(teaType, 0)}, {count / (teasTriedPerType.get(teaType, 0) + teasNotTriedPerType.get(teaType, 0)) * 100:.2f}%")
+                        numNotTried = teasNotTriedPerType.get(teaType, 0)
+                        numTried = teasTriedPerType.get(teaType, 0)
+                        numTotal = numTried + numNotTried
+                        rightpartstr = f"{count}/ {numTotal}, {(count / numTotal) * 100:.2f}%"
+                        teaType = teaType.ljust(20)
+                        if len(teaType) > 20:
+                            teaType = teaType[:17] + "..."
+                        
+                        if count > 0:
+                            with dp.Group(horizontal=True):
+                                dp.Text(f"{teaType}")
+                                dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                                dp.Text(f"{rightpartstr}", color=COLOR_GREEN_TEXT)
+                                if numNotTried > 0:
+                                    dp.Text(f"({numNotTried} not tried)", color=COLOR_RED_TEXT)
                     dp.Separator()
         
 
