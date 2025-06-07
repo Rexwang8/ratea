@@ -2300,7 +2300,9 @@ class Window_Stash_Reviews(WindowBase):
                     dp.Button(label="No Reviews to Duplicate", enabled=False)
 
                 # Reorder reviews button
-                dp.Button(label="Reorder Reviews", callback=self.DummyCallback, user_data=None)
+                dp.Button(label="Reorder Reviews", callback=self.reorderReviews, user_data=(tea))
+
+                dp.Button(label="Refresh", callback=self.refresh, user_data=(tea))
                 
                 # Tooltip
                 dp.Button(label="?")
@@ -2526,6 +2528,28 @@ class Window_Stash_Reviews(WindowBase):
         height = min(max(estHeight, minHeight), maxHeight)
         dpg.set_item_height(window.tag, height)
 
+    def reorderReviews(self, sender, app_data, user_data):
+        # Reviews should be reordered according to date purchased if available else date added
+        # userdata is the tea object
+        tea = user_data
+        if tea is None:
+            RichPrintError("No tea provided for reordering reviews.")
+            return
+        if len(tea.reviews) == 0 or tea.reviews is None:
+            RichPrintError("No reviews to reorder.")
+            return
+        # sort by date purchased if available, else date added
+        if "date" in tea.attributes:
+            tea.reviews.sort(key=lambda r: r.attributes.get("date", r.attributes.get("dateAdded", 0)))
+        else:
+            tea.reviews.sort(key=lambda r: r.attributes.get("dateAdded", 0))
+        # Renumber the reviews
+        renumberTeasAndReviews(save=True)  # Renumber teas and reviews to keep IDs consistent
+        RichPrintSuccess(f"Reordered {len(tea.reviews)} reviews for tea {tea.name} by date purchased or added.")
+
+        # Refresh the window
+        self.softRefresh()
+
     def deleteEditReviewWindow(self):
         # If window is open, close it first
         if self.editReviewWindow != None:
@@ -2534,6 +2558,9 @@ class Window_Stash_Reviews(WindowBase):
             self.addReviewList = list()
         else:
             print("No window to delete")
+
+    def softRefresh(self):
+        return super().softRefresh()
 
 def Menu_Stash():
     w = 500 * settings["UI_SCALE"]
@@ -2582,7 +2609,6 @@ class Window_Stash(WindowBase):
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export All (TODO)", callback=self.DummyCallback)
-                dp.Button(label="Reorder by purchase date (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Refresh", callback=self.refresh)
                 
 
