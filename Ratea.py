@@ -78,6 +78,11 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.6.0): Move to end or top buttons for adjustments
+< Semantic change, any feature will get it's own minor version >
+Feat(0.5.9): StatsTeas Tried
+Feat(0.5.8): Add filter key change
+Feat(0.5.8): Optional rating system dropdown
 Feat(0.5.9): basic about and userguide
 Feat(0.5.8): Duplicate reviews button
 Feat(0.5.8): Gift adjustment
@@ -2266,7 +2271,12 @@ class Window_Stash_Reviews(WindowBase):
             dpg.bind_item_font(dpg.last_item(), getFontName(2))
             with hbarActionGroup:
                 dp.Button(label="Add Review", callback=self.ShowAddReview, user_data=(tea, "add"))
-                dp.Button(label="Duplicate Last Review", callback=self.ShowAddReview, user_data=(tea, "duplicate"))
+
+                # Only show duplicate button if there are reviews
+                if len(tea.reviews) > 0:
+                    dp.Button(label="Duplicate Last Review", callback=self.ShowAddReview, user_data=(tea, "duplicate"))
+                else:
+                    dp.Button(label="No Reviews to Duplicate", enabled=False)
                 
                 # Tooltip
                 dp.Button(label="?")
@@ -2540,7 +2550,10 @@ class Window_Stash(WindowBase):
             dpg.bind_item_font(dpg.last_item(), getFontName(2))
             with hgroupButtons:
                 dp.Button(label="Add Tea", callback=self.ShowAddTea)
-                dp.Button(label="Duplicate Last Tea", callback=self.ShowAddTea, user_data="duplicate")
+                if len(TeaStash) > 0:
+                    dp.Button(label="Duplicate Last Tea", callback=self.ShowAddTea, user_data="duplicate")
+                else:
+                    dp.Button(label="No Teas to Duplicate", enabled=False)
                 dp.Button(label="Import Tea", callback=self.importOneTeaFromClipboard)
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
@@ -6427,7 +6440,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.5.9", # Updates to most recently loaded
+        "APP_VERSION": "0.6.0", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
