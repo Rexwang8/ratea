@@ -943,7 +943,6 @@ def _table_sort_callback(sender, sortSpec):
             try:
                 parsed_date = StringToTimeStamp(item[1])
                 if parsed_date:
-                    print(f"Parsed date string: {item[1]} to timestamp: {parsed_date}")
                     return parsed_date
             except:
                 # Fail silently as we know it isnt always a date
@@ -2351,8 +2350,8 @@ class Window_Stash_Reviews(WindowBase):
             _filter_table_id = dpg.generate_uuid()
             filterAdvDropdown = None
             tableRows = list()
-            h = 30 * settings["UI_SCALE"]
-            dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)), height=h)
+            w = 640 * settings["UI_SCALE"]
+            dp.InputText(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)), width=w)
             with dp.CollapsingHeader(label="Advanced filtering/sorting", default_open=False, border=True):
                 # Add a filter input text
                 
@@ -2678,8 +2677,8 @@ class Window_Stash(WindowBase):
             _filter_table_id = dpg.generate_uuid()
             filterAdvDropdown = None
             tableRows = list()
-            h = 400 * settings["UI_SCALE"]
-            dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)), height=h)
+            w = 640 * settings["UI_SCALE"]
+            dp.InputText(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)), width=w)
             dpg.bind_item_font(dpg.last_item(), getFontName(2))
             with dp.CollapsingHeader(label="Advanced filtering/sorting", default_open=False, border=True):
                 # Add a filter input text
@@ -4167,6 +4166,25 @@ def statsCountTeasTriedTotal():
 
     return numTeasTried, len(TeaStash)
 
+def statsWaterConsumed():
+    # For each review, multiply the number of steeps by vessel size
+    # and sum them up
+    totalWaterConsumed = 0
+    for tea in TeaStash:
+        tea: StashedTea
+        for review in tea.reviews:
+            if "Steeps" in review.attributes and "Vessel size" in review.attributes:
+                steeps = review.attributes["Steeps"]
+                vesselSize = review.attributes["Vessel size"]
+                totalWaterConsumed += steeps * vesselSize
+    # Calculate the average water consumed
+    sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Steeps", True)
+    if sum > 0:
+        averageWaterConsumed = totalWaterConsumed / sum
+    else:
+        averageWaterConsumed = 0
+    return totalWaterConsumed, averageWaterConsumed
+
 def statsCountTeasTriedPerType():
     # Count the number of teas tried per type
     teasTriedPerType = {}
@@ -4374,6 +4392,15 @@ class Window_Stats(WindowBase):
                     dp.Text("Required Category role 'Steeps' for Review is not enabled.")
                 dp.Separator()
 
+                # Total water consumed by summing all reviews (Review-Vessel Size-stats)
+                dp.Text("Total Water Consumed")
+                if "Vessel size" in allTypesCategoryRoleReviewsValid and "Steeps" in allTypesCategoryRoleReviewsValid:
+                    totalWaterConsumed, averageWaterConsumed = statsWaterConsumed()
+                    dp.Text(f"Total Water Consumed: {totalWaterConsumed:.2f}ml, Average Water Consumed per steep: {averageWaterConsumed:.2f}ml")
+                    liters = totalWaterConsumed / 1000
+                    dp.Text(f"Total Water Consumed: {liters:.2f}L")
+                else:
+                    dp.Text("Required Category role 'Vessel size' and 'Steeps' for Review is not enabled.")
             # Teaware size (Reviews-Vessel Size-stats)
             with dp.CollapsingHeader(label="Teaware Size", default_open=False):
                 if "Vessel size" in allTypesCategoryRoleReviewsValid:
@@ -4481,7 +4508,9 @@ class Window_Stats(WindowBase):
                 dp.Text("Teas Tried Total")
                 teasTriedPerType, teasNotTriedPerType = statsCountTeasTriedPerType()
                 teasFinishedPerType = statsCountTeasFinishedPerType()
-                totalFinished = sum(teasFinishedPerType.values())
+                totalFinished = 0
+                for teaType in teasTriedPerType:
+                    totalFinished += teasFinishedPerType.get(teaType, 0)
                 numTeasTried, totalTeas = statsCountTeasTriedTotal()
                 dp.Text(f"Number of Teas Tried: {numTeasTried} out of {totalTeas} total teas, {numTeasTried / totalTeas * 100:.2f}%")
                 dp.Text(f"Number of Teas Finished: {totalFinished} out of {totalTeas} total teas, {totalFinished / totalTeas * 100:.2f}%")
@@ -4494,11 +4523,11 @@ class Window_Stats(WindowBase):
                         numNotTried = teasNotTriedPerType.get(teaType, 0)
                         numTried = teasTriedPerType.get(teaType, 0)
                         numTotal = numTried + numNotTried
-                        rightpartstr = f"{count}/ {numTotal}, {(count / numTotal) * 100:.2f}%"
+                        rightpartstr = f"{count}/{numTotal},  {(count / numTotal) * 100:.2f}%"
                         numFinished = teasFinishedPerType.get(teaType, 0)
-                        teaType = teaType.ljust(20)
-                        if len(teaType) > 20:
-                            teaType = teaType[:17] + "..."
+                        teaType = teaType.ljust(25)
+                        if len(teaType) > 25:
+                            teaType = teaType[:22] + "..."
                         
                         if count > 0:
                             with dp.Group(horizontal=True):
@@ -4508,7 +4537,7 @@ class Window_Stats(WindowBase):
                                 if numNotTried > 0:
                                     dp.Text(f"({numNotTried} not tried)", color=COLOR_RED_TEXT)
                                 if numFinished > 0:
-                                    dp.Text(f"({numFinished} finished)", color=COLOR_BLUE_TEXT)
+                                    dp.Text(f"({numFinished} finished)", color=COLOR_LIGHT_BLUE_TEXT)
                     dp.Separator()
         # End refreshing
         self.refreshing = False
