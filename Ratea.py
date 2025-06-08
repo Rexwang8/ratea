@@ -137,6 +137,11 @@ COLOR_RED_TEXT = (255, 0, 0, 200)
 # green
 COLOR_AUTO_CALCULATED_TEXT = (0, 255, 0, 200)
 COLOR_GREEN_TEXT = (0, 255, 0, 200)
+# blue
+COLOR_BLUE_TEXT = (0, 0, 255, 200)
+# Light blue
+COLOR_LIGHT_BLUE_TEXT = (140, 140, 230, 150)  # Light blue
+COLOR_AUTOCALCULATED_2 =  COLOR_LIGHT_BLUE_TEXT  # Light blue for autocalculated fields
 
 CONSTANT_DELAY_MULTIPLIER = 120 # +1frame per X items for the table
 #endregion
@@ -1238,9 +1243,8 @@ class TeaCategory:
                     remaining = round(remaining, 2)
                     return remaining, explanation
                 else:
-                    explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= {remaining:.2f}g Remaining (Finished)"
-                    remaining = round(remaining, 2)
-                    return remaining, explanation
+                    explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= 0.00g Remaining (Finished)"
+                    return 0, explanation
             else:
                 RichPrintError("Amount not found in categories, cannot calculate remaining")
                 return None, None
@@ -2346,7 +2350,8 @@ class Window_Stash_Reviews(WindowBase):
             _filter_table_id = dpg.generate_uuid()
             filterAdvDropdown = None
             tableRows = list()
-            dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)))
+            h = 30 * settings["UI_SCALE"]
+            dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)), height=h)
             with dp.CollapsingHeader(label="Advanced filtering/sorting", default_open=False, border=True):
                 # Add a filter input text
                 
@@ -2672,7 +2677,9 @@ class Window_Stash(WindowBase):
             _filter_table_id = dpg.generate_uuid()
             filterAdvDropdown = None
             tableRows = list()
-            dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)))
+            h = 400 * settings["UI_SCALE"]
+            dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)), height=h)
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
             with dp.CollapsingHeader(label="Advanced filtering/sorting", default_open=False, border=True):
                 # Add a filter input text
                 
@@ -2685,8 +2692,6 @@ class Window_Stash(WindowBase):
                 dp.Separator()
 
             # Table with collapsable rows for reviews
-            #_filter_table_id = dpg.generate_uuid()
-            #dpg.add_input_text(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)))
             teasTable = dp.Table(header_row=True, no_host_extendX=True,
                                 borders_innerH=True, borders_outerH=True, borders_innerV=True,
                                 borders_outerV=True, row_background=True, hideable=True, reorderable=True,
@@ -2751,6 +2756,7 @@ class Window_Stash(WindowBase):
                                 cellInvalidOrEmpty = True
                             # If category is autocalculatable and the autocalculated value is not None, use that
                             usingAutocalculatedValue = False
+                            autocalculatingAlternateColor = False
                             exp = None
                             if cat.isAutoCalculated:
                                 val, exp = cat.autocalculate(tea)
@@ -2760,6 +2766,10 @@ class Window_Stash(WindowBase):
                                         displayValue = round(val, 3)
                                     usingAutocalculatedValue = True
                                     cellInvalidOrEmpty = False
+
+                                    # if cat is Remaining, check if finished, if so, use alternate color
+                                    if ("Remaining" in cat.categoryRole) and (tea.finished or val <= 0):
+                                        autocalculatingAlternateColor = True
 
                             if not cellInvalidOrEmpty and (cat.categoryType == "string"):
                                 # Prefix, suffix
@@ -2815,7 +2825,9 @@ class Window_Stash(WindowBase):
                                 displayValue = str(displayValue)
                                 dp.Text(label=displayValue, default_value=displayValue)
 
-                            if usingAutocalculatedValue:
+                            if usingAutocalculatedValue and autocalculatingAlternateColor:
+                                    dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_AUTOCALCULATED_2)
+                            elif usingAutocalculatedValue:
                                     dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_AUTOCALCULATED_TABLE_CELL)
                             if cellInvalidOrEmpty:
                                 dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_INVALID_EMPTY_TABLE_CELL)
@@ -4160,7 +4172,7 @@ def statsCountTeasTriedPerType():
     teasNotTriedPerType = {}
     for tea in TeaStash:
         tea: StashedTea
-        if len(tea.reviews) > 0:
+        if len(tea.reviews) > 0 or tea.finished or tea.adjustments.get("Standard", 0) > 0:
             teaType = tea.attributes.get("Type", "Unknown")
             if teaType not in teasTriedPerType:
                 teasTriedPerType[teaType] = 0
@@ -4172,6 +4184,35 @@ def statsCountTeasTriedPerType():
             teasNotTriedPerType[teaType] += 1
 
     return teasTriedPerType, teasNotTriedPerType
+
+def statsCountTeasFinishedPerType():
+    # Count the number of teas finished per type
+    teasFinishedPerType = {}
+    
+    remainingCategory = None
+    for cat in TeaCategories:
+        cat: TeaCategory
+        if cat.categoryRole == "Remaining":
+            remainingCategory = cat
+            break
+    
+    for tea in TeaStash:
+        tea: StashedTea
+        flagFinished = False
+        # Also calc finished based on remaining
+        if remainingCategory is not None:
+            currentRemaining, exp = remainingCategory.autocalculate(tea)
+            if currentRemaining is not None and currentRemaining <= 0:
+                flagFinished = True
+
+        if tea.finished or flagFinished:
+            teaType = tea.attributes.get("Type", "Unknown")
+            if teaType not in teasFinishedPerType:
+                teasFinishedPerType[teaType] = 0
+            teasFinishedPerType[teaType] += 1
+        flagFinished = False
+
+    return teasFinishedPerType
 
 
 def Menu_Stats():
@@ -4437,19 +4478,23 @@ class Window_Stats(WindowBase):
                 dp.Text("Ratings and Grades")
                 # Teas tried total
                 dp.Text("Teas Tried Total")
+                teasTriedPerType, teasNotTriedPerType = statsCountTeasTriedPerType()
+                teasFinishedPerType = statsCountTeasFinishedPerType()
+                totalFinished = sum(teasFinishedPerType.values())
                 numTeasTried, totalTeas = statsCountTeasTriedTotal()
-                dp.Text(f"Number of Teas Tried: {numTeasTried} out of {totalTeas} total teas")
-                dp.Text(f"Percentage of Teas Tried: {numTeasTried / totalTeas * 100:.2f}%")
+                dp.Text(f"Number of Teas Tried: {numTeasTried} out of {totalTeas} total teas, {numTeasTried / totalTeas * 100:.2f}%")
+                dp.Text(f"Number of Teas Finished: {totalFinished} out of {totalTeas} total teas, {totalFinished / totalTeas * 100:.2f}%")
 
                 # Teas tried per type
                 with dp.CollapsingHeader(label="Teas Tried per Type", default_open=False):
-                    teasTriedPerType, teasNotTriedPerType = statsCountTeasTriedPerType()
+                    
                     # iterate both dictionaries
                     for teaType, count in teasTriedPerType.items():
                         numNotTried = teasNotTriedPerType.get(teaType, 0)
                         numTried = teasTriedPerType.get(teaType, 0)
                         numTotal = numTried + numNotTried
                         rightpartstr = f"{count}/ {numTotal}, {(count / numTotal) * 100:.2f}%"
+                        numFinished = teasFinishedPerType.get(teaType, 0)
                         teaType = teaType.ljust(20)
                         if len(teaType) > 20:
                             teaType = teaType[:17] + "..."
@@ -4461,6 +4506,8 @@ class Window_Stats(WindowBase):
                                 dp.Text(f"{rightpartstr}", color=COLOR_GREEN_TEXT)
                                 if numNotTried > 0:
                                     dp.Text(f"({numNotTried} not tried)", color=COLOR_RED_TEXT)
+                                if numFinished > 0:
+                                    dp.Text(f"({numFinished} finished)", color=COLOR_BLUE_TEXT)
                     dp.Separator()
         # End refreshing
         self.refreshing = False
