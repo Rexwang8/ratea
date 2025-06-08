@@ -15,6 +15,9 @@ import yaml
 import threading
 import pyperclip
 import textwrap
+import PIL as pillow
+from PIL import Image
+import numpy as np
 
 # From local files
 import RateaTexts
@@ -1346,6 +1349,7 @@ class WindowBase:
     exclusive = False
     persist = False
     utitle = ""
+    refreshing = False  # Flag to prevent multiple refreshes at the same time
     def __init__(self, title, width, height, exclusive=False):
         self.title = title
         self.width = width
@@ -1392,18 +1396,21 @@ class WindowBase:
         
     def refresh(self):
         # refresh the window
+        self.refreshing = True
         RichPrintInfo(f"[REFRESH] Refreshing window tag: {self.tag} title: {self.title}")
         self.onRefresh()
         dpg.delete_item(self.tag)
         self.create()
+        self.refreshing = False
 
     def softRefresh(self):
         # soft refresh the window, does not delete the window, just refreshes the content
         RichPrintInfo(f"[SOFT REFRESH] Soft refreshing window tag: {self.tag} title: {self.title}")
+        self.refreshing = True
         if self.dpgWindow is not None and self.dpgWindow.exists():
             dpg.delete_item(self.tag, children_only=True)  # Delete only the children of the window
-            self.onSoftRefresh()
             self.windowDefintion(self.dpgWindow)  # Recreate the window content
+            self.onSoftRefresh()
             
 
     def onCreateFirstTime(self):
@@ -4128,6 +4135,21 @@ def Menu_Stats():
 
 class Window_Stats(WindowBase):
     win = None
+    refreshIcon = None
+
+    def softRefresh(self):
+        # Refresh the stats window
+        super().softRefresh()
+        
+    def afterWindowDefinition(self):
+        # After the window is defined, we can set the callback for the soft refresh
+        # This will be called when the window is refreshed
+        self.onSoftRefresh()
+    
+    def onSoftRefresh(self):
+        if self.refreshIcon is not None and dpg.does_item_exist(self.refreshIcon):
+            dpg.configure_item(self.refreshIcon, show=False)
+
         
     def windowDefintion(self, window):
         self.win = window
@@ -4146,7 +4168,10 @@ class Window_Stats(WindowBase):
             dp.Separator()
 
             # Refresh button
-            dp.Button(label="Refresh", callback=self.softRefresh, width=100 * settings["UI_SCALE"])
+            with dp.Group(horizontal=True):
+                dp.Button(label="Refresh", callback=self.softRefresh, width=100 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"], user_data=self)
+                # Show a refreshing emote icon
+                self.refreshIcon = dpg.add_image("refresh_icon", width=32 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"])
             dp.Separator()
 
             # All stats should only be displayed if the coorsponding category is enabled
@@ -4391,6 +4416,9 @@ class Window_Stats(WindowBase):
                                 if numNotTried > 0:
                                     dp.Text(f"({numNotTried} not tried)", color=COLOR_RED_TEXT)
                     dp.Separator()
+        # End refreshing
+        self.refreshing = False
+        self.afterWindowDefinition()
         
 
 
@@ -6503,6 +6531,22 @@ def bindLoadFonts():
             RichPrintError(f"Default font {settings['DEFAULT_FONT']} not found, using OpenSansRegular")
             dpg.bind_font("OpenSansRegular")
     
+def bind_image_registry():
+    # Bind the image registry for the application
+    with dpg.texture_registry(show=True):
+        # Load images from assets folder
+        texture_data = []
+        for i in range(0, 100 * 100):
+            texture_data.append(255/255)
+            texture_data.append(0)
+            texture_data.append(0)
+            texture_data.append(255/255)
+        
+        dpg.add_static_texture(width=100, height=100, default_value=texture_data, tag="test")
+        width, height, channels, data = dpg.load_image("assets/images/icons8-refresh-64.png")
+        dpg.add_static_texture(width=width, height=height, default_value=data, tag="refresh_icon")
+
+    
             
 
 def printSettings():
@@ -6638,6 +6682,7 @@ def main():
     # Menu MUST be loaded before any font based calls, don't ask me why. Will Ref error if not
     UI_CreateViewPort_MenuBar()
     bindLoadFonts()
+    bind_image_registry()  # Bind the image registry for the application
 
 
     Settings_SaveCurrentSettings()
