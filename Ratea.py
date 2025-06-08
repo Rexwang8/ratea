@@ -40,6 +40,7 @@ TODO: Section off autocalculate functions, account for remaining=0 or naegative 
 TODO: renumber review button
 TODO: review window
 TODO: move delete category to popup or add confirmation
+TODO: Finish adding refresh indicator to all long operations
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -1781,6 +1782,7 @@ class Window_Stash_Reviews(WindowBase):
     addReviewList = list()
     reviewsWindow = None
     editReviewsWindow = None
+    refreshIcon = None
     def ShowAddReview(self, sender, app_data, user_data):
         # Call Edit review with Add
         tea = user_data[0]
@@ -2272,6 +2274,19 @@ class Window_Stash_Reviews(WindowBase):
         self.tea = tea
         super().__init__(title, width, height, exclusive)
 
+    def softRefresh(self):
+        # Refresh the stats window
+        super().softRefresh()
+        
+    def afterWindowDefinition(self):
+        # After the window is defined, we can set the callback for the soft refresh
+        # This will be called when the window is refreshed
+        self.onSoftRefresh()
+    
+    def onSoftRefresh(self):
+        if self.refreshIcon is not None and dpg.does_item_exist(self.refreshIcon):
+            dpg.configure_item(self.refreshIcon, show=False)
+
     def windowDefintion(self, window):
         tea = self.tea
         tea: StashedTea
@@ -2309,13 +2324,18 @@ class Window_Stash_Reviews(WindowBase):
                 # Reorder reviews button
                 dp.Button(label="Reorder Reviews", callback=self.reorderReviews, user_data=(tea))
 
-                dp.Button(label="Refresh", callback=self.refresh, user_data=(tea))
-                
                 # Tooltip
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
                     tooltipText = RateaTexts.ListTextHelpMenu["menuTeaReviews"].wrap()
                     dp.Text(tooltipText)
+
+            with dp.Group(horizontal=True):
+                dp.Button(label="Refresh", callback=self.softRefresh, width=100 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"], user_data=self)
+                # Show a refreshing emote icon
+                self.refreshIcon = dpg.add_image("refresh_icon", width=32 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"])
+                
+                
             # Add add review popup
             w = 900 * settings["UI_SCALE"]
             h = 500 * settings["UI_SCALE"]
@@ -2478,6 +2498,10 @@ class Window_Stash_Reviews(WindowBase):
 
         dpg.set_item_user_data(filterAdvDropdown, tableRows)  # Set initial filter key to Name
 
+        # End refreshing
+        self.refreshing = False
+        self.afterWindowDefinition()
+
     def _UpdateTableRowFilterKeys(self, sender, app_data, user_data, rowList):
         # Update the filter keys for the table rows
         rowList = user_data
@@ -2579,6 +2603,7 @@ class Window_Stash(WindowBase):
     teasWindow = None
     adjustmentsWindow = None
     adjustmentsDict = dict()
+    refreshIcon = None
 
     def onDelete(self):
         # Close all popups
@@ -2596,6 +2621,19 @@ class Window_Stash(WindowBase):
             self.adjustmentsWindow = None
         # Invoke base class delete
         super().onDelete()
+
+    def softRefresh(self):
+        # Refresh the stats window
+        super().softRefresh()
+        
+    def afterWindowDefinition(self):
+        # After the window is defined, we can set the callback for the soft refresh
+        # This will be called when the window is refreshed
+        self.onSoftRefresh()
+    
+    def onSoftRefresh(self):
+        if self.refreshIcon is not None and dpg.does_item_exist(self.refreshIcon):
+            dpg.configure_item(self.refreshIcon, show=False)
 
     def windowDefintion(self, window):
         self.addTeaList = dict()
@@ -2616,7 +2654,7 @@ class Window_Stash(WindowBase):
                 dp.Button(label="Import All (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export One (TODO)", callback=self.DummyCallback)
                 dp.Button(label="Export All (TODO)", callback=self.DummyCallback)
-                dp.Button(label="Refresh", callback=self.refresh)
+                
                 
 
                 # Tooltip for the buttons
@@ -2625,6 +2663,10 @@ class Window_Stash(WindowBase):
                     toolTipText = RateaTexts.ListTextHelpMenu["menuTeaStash"].wrap()
                     dp.Text(toolTipText)
 
+            with dp.Group(horizontal=True):
+                dp.Button(label="Refresh", callback=self.softRefresh, width=100 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"], user_data=self)
+                # Show a refreshing emote icon
+                self.refreshIcon = dpg.add_image("refresh_icon", width=32 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"])
             dp.Separator()
 
             _filter_table_id = dpg.generate_uuid()
@@ -2793,6 +2835,10 @@ class Window_Stash(WindowBase):
         dpg.set_frame_callback(dpg.get_frame_count()+delay, self.afterWindowDefintion, user_data=window)
 
         dpg.set_item_user_data(filterAdvDropdown, tableRows)  # Set initial filter key to Name
+
+        # End refreshing
+        self.refreshing = False
+        self.afterWindowDefinition()
 
     def _UpdateTableRowFilterKeys(self, sender, app_data, user_data, rowList):
         # Update the filter keys for the table rows
@@ -6533,7 +6579,7 @@ def bindLoadFonts():
     
 def bind_image_registry():
     # Bind the image registry for the application
-    with dpg.texture_registry(show=True):
+    with dpg.texture_registry(show=False):
         # Load images from assets folder
         texture_data = []
         for i in range(0, 100 * 100):
