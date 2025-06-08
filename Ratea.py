@@ -943,7 +943,8 @@ def _table_sort_callback(sender, sortSpec):
             try:
                 parsed_date = StringToTimeStamp(item[1])
                 if parsed_date:
-                    return parsed_date.timestamp()
+                    print(f"Parsed date string: {item[1]} to timestamp: {parsed_date}")
+                    return parsed_date
             except:
                 # Fail silently as we know it isnt always a date
                 return item[1]
