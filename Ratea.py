@@ -82,6 +82,8 @@ TODO: Visualization: Network graph, word cloud, tier list
 
 
 ---Done---
+Feat(0.9.0): First refresh icon for soft reload
+Feat(0.8.0): Reorder button for reviews
 Feat(0.7.0): Notepad and timer now have save and load buttons that call persist
 Feat(0.6.0): Move to end or top buttons for adjustments
 < Semantic change, any feature will get it's own minor version >
@@ -1244,7 +1246,7 @@ class TeaCategory:
                     return remaining, explanation
                 else:
                     explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= 0.00g Remaining (Finished)"
-                    return 0, explanation
+                    return remaining, explanation
             else:
                 RichPrintError("Amount not found in categories, cannot calculate remaining")
                 return None, None
@@ -2568,6 +2570,7 @@ class Window_Stash_Reviews(WindowBase):
         # Reviews should be reordered according to date purchased if available else date added
         # userdata is the tea object
         tea = user_data
+        tea: StashedTea
         if tea is None:
             RichPrintError("No tea provided for reordering reviews.")
             return
@@ -2577,8 +2580,10 @@ class Window_Stash_Reviews(WindowBase):
         # sort by date purchased if available, else date added
         if "date" in tea.attributes:
             tea.reviews.sort(key=lambda r: r.attributes.get("date", r.attributes.get("dateAdded", 0)))
+            RichPrintSuccessMinor(f"Reordered {len(tea.reviews)} reviews for tea {tea.name} by date purchased.")
         else:
             tea.reviews.sort(key=lambda r: r.attributes.get("dateAdded", 0))
+            RichPrintWarning(f"No date purchased found for tea {tea.name}. Reordered reviews by date added instead.")
         # Renumber the reviews
         renumberTeasAndReviews(save=True)  # Renumber teas and reviews to keep IDs consistent
         RichPrintSuccess(f"Reordered {len(tea.reviews)} reviews for tea {tea.name} by date purchased or added.")
@@ -2770,6 +2775,8 @@ class Window_Stash(WindowBase):
                                     # if cat is Remaining, check if finished, if so, use alternate color
                                     if ("Remaining" in cat.categoryRole) and (tea.finished or val <= 0):
                                         autocalculatingAlternateColor = True
+                                        val = 0
+                                        displayValue = 0
 
                             if not cellInvalidOrEmpty and (cat.categoryType == "string"):
                                 # Prefix, suffix
@@ -4092,9 +4099,37 @@ def statsAllStandardAdjustmentsSum():
     
     numTeas = statsNumTeas()
     totalStandardAdjustments = 0
+
+    remainingCategory = None
+    for cat in TeaCategories:
+        cat: TeaCategory
+        if cat.categoryRole == "Remaining":
+            remainingCategory = cat
+            break
+
     for tea in TeaStash:
-        if "Standard" in tea.adjustments:
-            totalStandardAdjustments += tea.adjustments["Standard"]
+        # If there is remaining and finished is marked, we assume the tea is finished
+        # and add the remaining amount to the total standard adjustments
+        tea: StashedTea
+        currentRemaining, exp = remainingCategory.autocalculate(tea)
+        if currentRemaining is None:
+            currentRemaining = 0.0
+
+        if tea.finished and currentRemaining > 0:
+            # If the tea is finished, we add the remaining amount to the total standard adjustments
+            totalStandardAdjustments += currentRemaining
+        elif not tea.finished:
+            # If the tea is not finished, we add the standard adjustments
+            # Check if there are any standard adjustments
+            if "Standard" in tea.adjustments:
+                totalStandardAdjustments += tea.adjustments["Standard"]
+
+
+
+        #if "Standard" in tea.adjustments:
+        #    totalStandardAdjustments += tea.adjustments["Standard"]
+            
+    
     
     if numTeas > 0:
         averageStandardAdjustments = totalStandardAdjustments / numTeas
@@ -4235,8 +4270,8 @@ def statsCountTeasFinishedPerType():
 
 
 def Menu_Stats():
-    w = 540 * settings["UI_SCALE"]
-    h = 720 * settings["UI_SCALE"]
+    w = 1280 * settings["UI_SCALE"]
+    h = 920 * settings["UI_SCALE"]
     stats = Window_Stats("Stats", w, h, exclusive=True)
 
 class Window_Stats(WindowBase):
@@ -4256,75 +4291,54 @@ class Window_Stats(WindowBase):
         if self.refreshIcon is not None and dpg.does_item_exist(self.refreshIcon):
             dpg.configure_item(self.refreshIcon, show=False)
 
+
+    # Categories and types
+    def window_subwindow_0_0_categories(self, sender=None, app_data=None, user_data=None):
+        # All types is userdata0, all types reviews is userdata1
         
-    def windowDefintion(self, window):
-        self.win = window
-        window = self.win
-        with window:
-            dp.Text("Stats")
+        AllTypesCategoryRole = user_data[0] if user_data and len(user_data) > 0 else []
+        AllTypesCategoryRoleValid = user_data[1] if user_data and len(user_data) > 1 else []
 
-            # Divider
+        allTypesCategoryRoleReviews = user_data[2] if user_data and len(user_data) > 2 else []
+        allTypesCategoryRoleReviewsValid = user_data[3] if user_data and len(user_data) > 3 else []
+
+        dp.Text("Categories and Types")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+
+        # Create a text box
+        with dp.CollapsingHeader(label="Enabled Categories", default_open=True):
+            with dp.CollapsingHeader(label="Tea Categories", default_open=False, indent=20 * settings["UI_SCALE"]):
+                for cat in AllTypesCategoryRole:
+                    if cat in AllTypesCategoryRoleValid:
+                        dp.Text(f"{cat}", color=COLOR_GREEN_TEXT)
+                    else:
+                        dp.Text(f"{cat} - Not Enabled", color=COLOR_RED_TEXT)
             dp.Separator()
-            # Tea Stats
-            dp.Text("Tea Stats")
-            numTeas = statsNumTeas()
-            dp.Text(f"Number of Teas: {numTeas}")
-            numReviews = statsNumReviews()
-            dp.Text(f"Number of Reviews: {numReviews}")
-            dp.Separator()
-
-            # Refresh button
-            with dp.Group(horizontal=True):
-                dp.Button(label="Refresh", callback=self.softRefresh, width=100 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"], user_data=self)
-                # Show a refreshing emote icon
-                self.refreshIcon = dpg.add_image("refresh_icon", width=32 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"])
-            dp.Separator()
-
-            # All stats should only be displayed if the coorsponding category is enabled
-            AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
-            allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
-
-
-            # Display enabled categories
-            # Foldable tab
-            with dp.CollapsingHeader(label="Enabled Categories", default_open=False):
-                with dp.CollapsingHeader(label="Tea Categories", default_open=False, indent=20 * settings["UI_SCALE"]):
-                    for cat in AllTypesCategoryRole:
-                        if cat in AllTypesCategoryRoleValid:
-                            dp.Text(f"{cat}", color=COLOR_GREEN_TEXT)
-                        else:
-                            dp.Text(f"{cat} - Not Enabled", color=COLOR_RED_TEXT)
-
+            # Review categories
+            with dp.CollapsingHeader(label="Enabled Review Categories", default_open=False, indent=20 * settings["UI_SCALE"]):
+                for cat in allTypesCategoryRoleReviews:
+                    if cat in allTypesCategoryRoleReviewsValid:
+                        dp.Text(f"{cat}", color=COLOR_GREEN_TEXT)
+                    else:
+                        dp.Text(f"{cat} - Not Enabled", color=COLOR_RED_TEXT)
                 dp.Separator()
-                # Review categories
-                with dp.CollapsingHeader(label="Enabled Review Categories", default_open=False, indent=20 * settings["UI_SCALE"]):
-                    for cat in allTypesCategoryRoleReviews:
-                        if cat in allTypesCategoryRoleReviewsValid:
-                            dp.Text(f"{cat}", color=COLOR_GREEN_TEXT)
-                        else:
-                            dp.Text(f"{cat} - Not Enabled", color=COLOR_RED_TEXT)
 
-                    dp.Separator()
-
-            # Type counts
-            with dp.CollapsingHeader(label="Type", default_open=False):
-                if "Type" in AllTypesCategoryRoleValid:
-                    # Tea Type Stats
-                    teaTypeStats = {}
-                    with dp.CollapsingHeader(label="Tea Type Stats", default_open=False):
-                        for tea in TeaStash:
-                            if "Type" in tea.attributes:
-                                teaType = tea.attributes["Type"]
-                                if teaType not in teaTypeStats:
-                                    teaTypeStats[teaType] = 0
-                                teaTypeStats[teaType] += 1
-                        for teaType, count in teaTypeStats.items():
-                            dp.Text(f"{teaType}: {count}")
+        with dp.CollapsingHeader(label="Tea Types", default_open=True):
+            teaTypeStats = {}
+            with dp.CollapsingHeader(label="Tea Type Stats", default_open=False, indent=20 * settings["UI_SCALE"]):
+                if "Type" in AllTypesCategoryRoleValid:                
+                    for tea in TeaStash:
+                        if "Type" in tea.attributes:
+                            teaType = tea.attributes["Type"]
+                            if teaType not in teaTypeStats:
+                                teaTypeStats[teaType] = 0
+                            teaTypeStats[teaType] += 1
+                    for teaType, count in teaTypeStats.items():
+                        dp.Text(f"{teaType}: {count}")
                 else:
                     dp.Text("Required Category role 'Type' for Tea is not enabled.")
-                dp.Separator()
-
-                dp.Text("Review Type Stats")
+            dp.Separator()
+            with dp.CollapsingHeader(label="Review Type Stats", default_open=False, indent=20 * settings["UI_SCALE"]):
                 if "Type" in allTypesCategoryRoleReviewsValid:
                     # Tea Type Stats
                     teaTypeStats = {}
@@ -4340,82 +4354,50 @@ class Window_Stats(WindowBase):
                     dp.Text("Required Category role 'Type' for Review is not enabled.")
                 dp.Separator()
 
-            with dp.CollapsingHeader(label="Date", default_open=False):
+    def window_subwindow_0_1_categories(self, sender=None, app_data=None, user_data=None):
+        allTypesCategoryRoleReviewsValid = user_data[1] if user_data and len(user_data) > 0 else []
+        # Teaware size (Reviews-Vessel Size-stats)
+        dp.Text("Teaware")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        dp.Separator()
+        with dp.CollapsingHeader(label="Teaware Type", default_open=True):
+            with dp.CollapsingHeader(label="Teaware Size", default_open=False, indent=20 * settings["UI_SCALE"]):
+                if "Vessel size" in allTypesCategoryRoleReviewsValid:
+                    sum, avrg, count, unique, uniqueDict = getStatsOnCategoryByRole("Vessel size", True)
+                    dp.Text(f"Sum: {sum}ml, Average: {avrg}ml, Count: {count}")
+                    dp.Text("Unique Sizes by Review:")
+                    for size, count in uniqueDict.items():
+                        dp.Text(f"{size}: {count}")
+                else:
+                    dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
+                dp.Separator()
+
+    def window_subwindow_0_2_categories(self, sender=None, app_data=None, user_data=None):
+        dp.Text("Dates, spending, purchasing")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        dp.Separator()
+        with dp.CollapsingHeader(label="Purchasing", default_open=True):
+            with dp.CollapsingHeader(label="Start Date", default_open=False, indent=20 * settings["UI_SCALE"]):
                 # Start day
                 dp.Text("Start Day")
                 startDay = statsgetStartDayTimestamp()
                 dp.Text(f"Start Day: {dt.datetime.fromtimestamp(startDay, tz=dt.timezone.utc).strftime(settings['DATE_FORMAT'])}")
                 dp.Separator()
-
                 # Total days since start day
                 totalDays = (dt.datetime.now(tz=dt.timezone.utc).timestamp() - startDay) / (24 * 60 * 60)
                 dp.Text(f"Total Days Since Start Day: {totalDays:.2f} days")
                 dp.Separator()
 
-            # Stash amounts
-            with dp.CollapsingHeader(label="Stash Amounts", default_open=False):
-                # Total volume of all teas in the stash
-                dp.Text("Total Volume of All Teas in Stash")
-                totalVolume, averageVolume = statsTotalVolume()
-                dp.Text(f"Total Volume: {totalVolume:.2f}g, Average Volume: {averageVolume:.2f}g")
-                dp.Separator()
-
-                # Total cost of all teas in the stash
-                dp.Text("Total Cost of All Teas in Stash")
-                totalCost, averageCost = statsTotalAverageCost()
-                dp.Text(f"Total Cost: ${totalCost:.2f}, Average Cost: ${averageCost:.2f}")
-                weightedAverageCost = statsWeightedAverageCost()
-                dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
-                dp.Separator()
-
-            # Consumed amounts
-            with dp.CollapsingHeader(label="Consumed Amounts", default_open=False):
-            # Total consumed by summing all reviews, adjustments, and finished teas
-
-                # Total volume of consumed tea (Review-remaining-stats)
-                dp.Text("Total Volume of Consumed Tea")
-                if "Amount" in allTypesCategoryRoleReviewsValid:
-                    sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Amount", True)
-                    dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
-                else:
-                    dp.Text("Required Category role 'Amount' for Review is not enabled.")
-                dp.Separator()
-
-            # Steeps and water consumption
-            with dp.CollapsingHeader(label="Steeps and Water Consumption", default_open=False):
-                # Total steeps (Review-steep-count-stats)
-                dp.Text("Total Steeps")
-                if "Steeps" in allTypesCategoryRoleReviewsValid:
-                    sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Steeps", True)
-                    dp.Text(f"Sum: {sum} steeps, Average: {avrg} steeps, Count: {count}")
-                else:
-                    dp.Text("Required Category role 'Steeps' for Review is not enabled.")
-                dp.Separator()
-
-                # Total water consumed by summing all reviews (Review-Vessel Size-stats)
-                dp.Text("Total Water Consumed")
-                if "Vessel size" in allTypesCategoryRoleReviewsValid and "Steeps" in allTypesCategoryRoleReviewsValid:
-                    totalWaterConsumed, averageWaterConsumed = statsWaterConsumed()
-                    dp.Text(f"Total Water Consumed: {totalWaterConsumed:.2f}ml, Average Water Consumed per steep: {averageWaterConsumed:.2f}ml")
-                    liters = totalWaterConsumed / 1000
-                    dp.Text(f"Total Water Consumed: {liters:.2f}L")
-                else:
-                    dp.Text("Required Category role 'Vessel size' and 'Steeps' for Review is not enabled.")
-            # Teaware size (Reviews-Vessel Size-stats)
-            with dp.CollapsingHeader(label="Teaware Size", default_open=False):
-                if "Vessel size" in allTypesCategoryRoleReviewsValid:
-                    sum, avrg, count, unique, uniqueDict = getStatsOnCategoryByRole("Vessel size", True)
-                    dp.Text(f"Sum: {sum}ml, Average: {avrg}ml, Count: {count}")
-
-                    dp.Text("Unique Sizes by Review:")
-                    for size, count in uniqueDict.items():
-                        dp.Text(f"{size}: {count}")
-
-                else:
-                    dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
-                dp.Separator()
-
-            with dp.CollapsingHeader(label="Volume, costs, adjustments", default_open=False):
+    # Consumption and remaining stats
+    def window_subwindow_1_0_categories(self, sender=None, app_data=None, user_data=None):
+        AllTypesCategoryRoleValid = user_data[0] if user_data and len(user_data) > 0 else []
+        allTypesCategoryRoleReviewsValid = user_data[1] if user_data and len(user_data) > 1 else []
+        dp.Text("Consumption and Remaining Stats")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        dp.Separator()
+        # Total volume Purchased, total cost, and weighted average cost
+        with dp.CollapsingHeader(label="Volume, costs, adjustments", default_open=True):
+            with dp.CollapsingHeader(label="Total Volume and Cost", default_open=False, indent=20 * settings["UI_SCALE"]):
                 # Total volume Purchased, total cost, and weighted average cost
                 if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
                     dp.Text("Total Volume and Cost")
@@ -4427,8 +4409,9 @@ class Window_Stats(WindowBase):
                     dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
                 else:
                     dp.Text("Required Category role 'Cost' or 'Amount' for Tea is not enabled.")
-
                 dp.Separator()
+
+            with dp.CollapsingHeader(label="Total Consumed and Remaining", default_open=False, indent=20 * settings["UI_SCALE"]):
                 # Total consumed by summing all reviews, adjustments, and finished teas
                 dp.Text("Total Consumed Including Adjustments")
                 if "Amount" in AllTypesCategoryRoleValid:
@@ -4437,7 +4420,6 @@ class Window_Stats(WindowBase):
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
-
                 # Total consumed excluding Gift adjustments
                 dp.Text("Total Consumed Excluding Gift Adjustments")
                 if "Amount" in AllTypesCategoryRoleValid:
@@ -4446,7 +4428,6 @@ class Window_Stats(WindowBase):
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
-
                 # Total consumed excluding all adjustments
                 dp.Text("Total Consumed Excluding All Adjustments")
                 if "Amount" in AllTypesCategoryRoleValid:
@@ -4455,19 +4436,15 @@ class Window_Stats(WindowBase):
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
-
                 # Total standard adjustments, Total gift adjustments
                 dp.Text("Total Standard Adjustments")
                 totalStandardAdjustments, averageStandardAdjustments = statsAllStandardAdjustmentsSum()
                 dp.Text(f"Total Standard Adjustments: {totalStandardAdjustments:.2f}g, Average Standard Adjustments per tea: {averageStandardAdjustments:.2f}g")
-
                 dp.Separator()
                 dp.Text("Total Gift Adjustments")
                 totalGiftAdjustments, averageGiftAdjustments = statsAllGiftAdjustmentsSum()
                 dp.Text(f"Total Gift Adjustments: {totalGiftAdjustments:.2f}g, Average Gift Adjustments per tea: {averageGiftAdjustments:.2f}g")
-
                 dp.Separator()
-
                 # Total remaining by summing all remaining amounts after applying autocalculations
                 dp.Text("Total Remaining")
                 if "Remaining" in AllTypesCategoryRoleValid:
@@ -4475,20 +4452,13 @@ class Window_Stats(WindowBase):
                     dp.Text(f"Total Remaining: {totalRemaining:.2f}g, Average Remaining per tea: {averageRemaining:.2f}g")
                 else:
                     dp.Text("Required Category role 'Remaining' for Tea is not enabled.")
-
-
-
                 dp.Separator()
-                # Start day
-                dp.Text("Start Day")
-                startDay = statsgetStartDayTimestamp()
-                dp.Text(f"Start Day (First recorded date): {dt.datetime.fromtimestamp(startDay, tz=dt.timezone.utc).strftime(settings['DATE_FORMAT'])}")
-                today = dt.datetime.now(tz=dt.timezone.utc).timestamp()
-                numDays = (today - startDay) / (24 * 60 * 60)
-                dp.Text(f"Number of Days since Start Day: {numDays:.2f} days")
-                dp.Separator()
-    
-                # Grams of tea consumed per day
+            startDay = statsgetStartDayTimestamp()
+            today = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+            numDays = (today - startDay) / (24 * 60 * 60)
+
+            # Grams of tea consumed per day
+            with dp.CollapsingHeader(label="Grams of Tea Consumed per Day", default_open=False, indent=20 * settings["UI_SCALE"]):
                 dp.Text("Grams of Tea Consumed per Day")
                 if "Amount" in AllTypesCategoryRoleValid:
                     totalConsumed, averageConsumed = statsTotalConsumed()
@@ -4500,8 +4470,70 @@ class Window_Stats(WindowBase):
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
 
-            # Ratings and Grades
-            with dp.CollapsingHeader(label="Ratings and Grades", default_open=False):
+        # Stash amounts
+        with dp.CollapsingHeader(label="Stash Amounts", default_open=False):
+            # Total volume of all teas in the stash
+            dp.Text("Total Volume of All Teas in Stash")
+            totalVolume, averageVolume = statsTotalVolume()
+            dp.Text(f"Total Volume: {totalVolume:.2f}g, Average Volume: {averageVolume:.2f}g")
+            dp.Separator()
+            # Total cost of all teas in the stash
+            dp.Text("Total Cost of All Teas in Stash")
+            totalCost, averageCost = statsTotalAverageCost()
+            dp.Text(f"Total Cost: ${totalCost:.2f}, Average Cost: ${averageCost:.2f}")
+            weightedAverageCost = statsWeightedAverageCost()
+            dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
+            dp.Separator()
+        # Consumed amounts
+        with dp.CollapsingHeader(label="Consumed Amounts", default_open=False):
+        # Total consumed by summing all reviews, adjustments, and finished teas
+            # Total volume of consumed tea (Review-remaining-stats)
+            dp.Text("Total Volume of Consumed Tea")
+            if "Amount" in allTypesCategoryRoleReviewsValid:
+                sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Amount", True)
+                dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
+            else:
+                dp.Text("Required Category role 'Amount' for Review is not enabled.")
+            dp.Separator()
+
+
+    # Steeps and water consumption stats
+    def window_subwindow_1_1_categories(self, sender=None, app_data=None, user_data=None):
+        allTypesCategoryRoleValid = user_data[0] if user_data and len(user_data) > 0 else []
+        allTypesCategoryRoleReviewsValid = user_data[1] if user_data and len(user_data) > 1 else []
+        dp.Text("Steeps and Water Consumption Stats")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        dp.Separator()
+        # Steeps and water consumption
+        with dp.CollapsingHeader(label="Steeps and Water Consumption", default_open=True):
+            with dp.CollapsingHeader(label="Steeps", default_open=False, indent=20 * settings["UI_SCALE"]):
+                # Total steeps (Review-steep-count-stats)
+                dp.Text("Total Steeps")
+                if "Steeps" in allTypesCategoryRoleReviewsValid:
+                    sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Steeps", True)
+                    dp.Text(f"Sum: {sum} steeps, Average: {avrg} steeps, Count: {count}")
+                else:
+                    dp.Text("Required Category role 'Steeps' for Review is not enabled.")
+                dp.Separator()
+            # Total water consumed by summing all reviews (Review-Vessel Size-stats)
+            with dp.CollapsingHeader(label="Water Consumption", default_open=False, indent=20 * settings["UI_SCALE"]):
+                dp.Text("Total Water Consumed")
+                if "Vessel size" in allTypesCategoryRoleReviewsValid and "Steeps" in allTypesCategoryRoleReviewsValid:
+                    totalWaterConsumed, averageWaterConsumed = statsWaterConsumed()
+                    dp.Text(f"Total Water Consumed: {totalWaterConsumed:.2f}ml, Average Water Consumed per steep: {averageWaterConsumed:.2f}ml")
+                    liters = totalWaterConsumed / 1000
+                    dp.Text(f"Total Water Consumed: {liters:.2f}L")
+                else:
+                    dp.Text("Required Category role 'Vessel size' and 'Steeps' for Review is not enabled.")
+
+    # Ratings and Grades
+    def window_subwindow_1_2_categories(self, sender=None, app_data=None, user_data=None):
+        dp.Text("Ratings and Grades Stats")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        dp.Separator()
+        # Ratings and Grades
+        with dp.CollapsingHeader(label="Ratings and Grades", default_open=True):
+            with dp.CollapsingHeader(label="Ratings and Grades", default_open=False, indent=20 * settings["UI_SCALE"]):
                 # filler
                 dp.Text("Ratings and Grades")
                 # Teas tried total
@@ -4514,31 +4546,91 @@ class Window_Stats(WindowBase):
                 numTeasTried, totalTeas = statsCountTeasTriedTotal()
                 dp.Text(f"Number of Teas Tried: {numTeasTried} out of {totalTeas} total teas, {numTeasTried / totalTeas * 100:.2f}%")
                 dp.Text(f"Number of Teas Finished: {totalFinished} out of {totalTeas} total teas, {totalFinished / totalTeas * 100:.2f}%")
-
-                # Teas tried per type
-                with dp.CollapsingHeader(label="Teas Tried per Type", default_open=False):
+            # Teas tried per type
+            with dp.CollapsingHeader(label="Teas Tried per Type", default_open=False, indent=20 * settings["UI_SCALE"]):
+                # iterate both dictionaries
+                for teaType, count in teasTriedPerType.items():
+                    numNotTried = teasNotTriedPerType.get(teaType, 0)
+                    numTried = teasTriedPerType.get(teaType, 0)
+                    numTotal = numTried + numNotTried
+                    rightpartstr = f"{count}/{numTotal},  {(count / numTotal) * 100:.2f}%"
+                    numFinished = teasFinishedPerType.get(teaType, 0)
+                    teaType = teaType.ljust(25)
+                    if len(teaType) > 25:
+                        teaType = teaType[:22] + "..."
                     
-                    # iterate both dictionaries
-                    for teaType, count in teasTriedPerType.items():
-                        numNotTried = teasNotTriedPerType.get(teaType, 0)
-                        numTried = teasTriedPerType.get(teaType, 0)
-                        numTotal = numTried + numNotTried
-                        rightpartstr = f"{count}/{numTotal},  {(count / numTotal) * 100:.2f}%"
-                        numFinished = teasFinishedPerType.get(teaType, 0)
-                        teaType = teaType.ljust(25)
-                        if len(teaType) > 25:
-                            teaType = teaType[:22] + "..."
-                        
-                        if count > 0:
-                            with dp.Group(horizontal=True):
-                                dp.Text(f"{teaType}")
-                                dpg.bind_item_font(dpg.last_item(), getFontName(2))
-                                dp.Text(f"{rightpartstr}", color=COLOR_GREEN_TEXT)
-                                if numNotTried > 0:
-                                    dp.Text(f"({numNotTried} not tried)", color=COLOR_RED_TEXT)
-                                if numFinished > 0:
-                                    dp.Text(f"({numFinished} finished)", color=COLOR_LIGHT_BLUE_TEXT)
-                    dp.Separator()
+                    if count > 0:
+                        with dp.Group(horizontal=True):
+                            dp.Text(f"{teaType}")
+                            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                            dp.Text(f"{rightpartstr}", color=COLOR_GREEN_TEXT)
+                            if numNotTried > 0:
+                                dp.Text(f"({numNotTried} not tried)", color=COLOR_RED_TEXT)
+                            if numFinished > 0:
+                                dp.Text(f"({numFinished} finished)", color=COLOR_LIGHT_BLUE_TEXT)
+                dp.Separator()
+    
+
+
+        
+    def windowDefintion(self, window):
+        self.win = window
+        window = self.win
+        with window:
+            # Divider
+            dp.Separator()
+            # Tea Stats
+            dp.Text("Tea Stats")
+            numTeas = statsNumTeas()
+            numReviews = statsNumReviews()
+            dp.Text(f"Teas: {numTeas}, Reviews: {numReviews}")
+            dp.Separator()
+
+            # Refresh button
+            with dp.Group(horizontal=True):
+                dp.Button(label="Refresh", callback=self.softRefresh, width=100 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"], user_data=self)
+                # Show a refreshing emote icon
+                self.refreshIcon = dpg.add_image("refresh_icon", width=32 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"])
+            dp.Separator()
+
+            # All stats should only be displayed if the coorsponding category is enabled
+            AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
+            allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
+
+            windowWidth = window.width
+            windowHeight = window.height
+            childWidth = (windowWidth - 20 * settings["UI_SCALE"]) / 3
+            childHeight = (windowHeight - 20 * settings["UI_SCALE"]) / 2
+
+            for row in range(2):
+                with dpg.group(horizontal=True):
+                    for col in range(3):
+                        with dpg.child_window(width=childWidth, height=childHeight, border=True):
+                            
+                            if row == 0 and col == 0:
+                                self.window_subwindow_0_0_categories(user_data=[AllTypesCategoryRole, AllTypesCategoryRoleValid, allTypesCategoryRoleReviews, allTypesCategoryRoleReviewsValid])
+                            elif row == 0 and col == 1:
+                                self.window_subwindow_0_1_categories(user_data=[AllTypesCategoryRoleValid, allTypesCategoryRoleReviewsValid])
+                            elif row == 0 and col == 2:
+                                self.window_subwindow_0_2_categories()
+                            elif row == 1 and col == 0:
+                                self.window_subwindow_1_0_categories(user_data=[AllTypesCategoryRoleValid, allTypesCategoryRoleReviewsValid])
+                            elif row == 1 and col == 1:
+                                self.window_subwindow_1_1_categories(user_data=[AllTypesCategoryRoleValid, allTypesCategoryRoleReviewsValid])
+                            elif row == 1 and col == 2:
+                                self.window_subwindow_1_2_categories(user_data=[allTypesCategoryRoleReviewsValid])
+                            else:
+                                dpg.add_text(f"Placeholder {row * 3 + col + 1}")
+            dp.Separator()
+
+
+            
+
+            
+
+            
+
+            
         # End refreshing
         self.refreshing = False
         self.afterWindowDefinition()
@@ -6751,7 +6843,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.7.0", # Updates to most recently loaded
+        "APP_VERSION": "0.10.0", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
