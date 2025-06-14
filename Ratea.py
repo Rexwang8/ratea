@@ -37,10 +37,10 @@ TODO: save table sort state
 TODO: Sold: Support adjustment
 TODO: Optional refresh on add tea/ review
 TODO: Section off autocalculate functions, account for remaining=0 or naegative values
-TODO: renumber review button
 TODO: review window
 TODO: move delete category to popup or add confirmation
-TODO: Finish adding refresh indicator to all long operations
+TODO: Pagination for tables
+TODO: Caching calculations for stats table
 
 Nice To Have:
 TODO: Documentation: Add ? tooltips to everything
@@ -58,7 +58,7 @@ TODO: Optional non-refreshing table updates, limit number of items on first load
 TODO: Change log
 TODO: Windows list to manage open windows
 TODO: Reset to default buttons
-TODO: Grey out duplicate button if nothing to duplicate
+TODO: 1-5 as stars for rating system
 
 
 
@@ -71,10 +71,8 @@ TODO: Visualizeation: Pie chart for consumption of amount and types of tea, spli
 TODO: Visualization: Solid fill line graph for consumption of types of tea over years
 TODO: Summary: User preference visualization for types of tea, amount of tea, etc.
 TODO: File: Import from CSV: Add in functionality to import from CSV
-TODO: 2d array of stats by divisor (vendor, type, etc.)
 TODO: Optional Override of autocalculated fields
-TODO: Adjustments of quantities including sells and purchases and 'Done' status
-TODO: Highlight when '0' flags are set
+TODO: Adjustments of quantities including sells and purchases
 TODO: Highlight color customization
 TODO: Make a clean default page for new users
 TODO: Alternate calculation methods and a flag for that
@@ -1202,94 +1200,100 @@ class TeaCategory:
         self.isDropdown = False
 
     def autocalculate(self, data):
+        
         # role - Remaining
         RichPrintInfo("Autocalculating...")
         if self.categoryRole == "Remaining":
-            # Requires: Amount to be set, Amount in reviews to be set
-            validReviewsCategories, _ = getValidReviewCategoryRolesList()
-            validCategories, _ = getValidCategoryRolesList()
-            if "Amount" in validCategories and "Amount" in validReviewsCategories and "Amount" in data.attributes:
-                RichPrintInfo("Calculating remaining")
-                # Sum of all review Amounts in the tea (data)
-                reviewAmount = 0
-                for review in data.reviews:
-                    if "Amount" in review.attributes:
-                        reviewAmount += review.attributes["Amount"]
-
-                # Get adjustments amount
-                adjustmentsAmountTotal, adjustmentsGift, adjustmentsStandard = 0, 0, 0
-                try:
-                    adjustmentsStandard += data.adjustments["Standard"]
-                    adjustmentsGift += data.adjustments["Gift"]
-                except:
-                    RichPrintWarning("No adjustments found, skipping")
-
-                originalAmount = data.attributes["Amount"]
-                # Remaining = Original Amount - Sum of all review Amounts
-                remaining = originalAmount - reviewAmount - adjustmentsStandard - adjustmentsGift
-                adjustmentsAmount = adjustmentsStandard + adjustmentsGift
-
-                # Also check if finished
-                finished = data.finished
-
-                # Explanation
-                if not finished:
-                    explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= {remaining:.2f}g Remaining"
-                    if remaining < 0:
-                        explanation += " (Overdrawn)"
-                    elif remaining == 0:
-                        explanation += " (Finished)"
-                    else:
-                        explanation += " (Not Finished)"
-
-                    remaining = round(remaining, 2)
-                    return remaining, explanation
-                else:
-                    explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= 0.00g Remaining (Finished)"
-                    return remaining, explanation
-            else:
-                RichPrintError("Amount not found in categories, cannot calculate remaining")
-                return None, None
+            return data.calculated.get("remaining", None), data.calculated.get("remainingExplanation", None)
+        #    # Requires: Amount to be set, Amount in reviews to be set
+        #    validReviewsCategories, _ = getValidReviewCategoryRolesList()
+        #    validCategories, _ = getValidCategoryRolesList()
+        #    if "Amount" in validCategories and "Amount" in validReviewsCategories and "Amount" in data.attributes:
+        #        RichPrintInfo("Calculating remaining")
+        #        # Sum of all review Amounts in the tea (data)
+        #        reviewAmount = 0
+        #        for review in data.reviews:
+        #            if "Amount" in review.attributes:
+        #                reviewAmount += review.attributes["Amount"]
+#
+        #        # Get adjustments amount
+        #        adjustmentsAmountTotal, adjustmentsGift, adjustmentsStandard = 0, 0, 0
+        #        try:
+        #            adjustmentsStandard += data.adjustments["Standard"]
+        #            adjustmentsGift += data.adjustments["Gift"]
+        #        except:
+        #            RichPrintWarning("No adjustments found, skipping")
+#
+        #        originalAmount = data.attributes["Amount"]
+        #        # Remaining = Original Amount - Sum of all review Amounts
+        #        remaining = originalAmount - reviewAmount - adjustmentsStandard - adjustmentsGift
+        #        adjustmentsAmount = adjustmentsStandard + adjustmentsGift
+#
+        #        # Also check if finished
+        #        finished = data.finished
+#
+        #        # Explanation
+        #        if not finished:
+        #            explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= {remaining:.2f}g Remaining"
+        #            if remaining < 0:
+        #                explanation += " (Overdrawn)"
+        #            elif remaining == 0:
+        #                explanation += " (Finished)"
+        #            else:
+        #                explanation += " (Not Finished)"
+#
+        #            remaining = round(remaining, 2)
+        #            return remaining, explanation
+        #        else:
+        #            explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= 0.00g Remaining (Finished)"
+        #            return remaining, explanation
+        #    else:
+        #        RichPrintError("Amount not found in categories, cannot calculate remaining")
+        #        return None, None
         elif self.categoryRole == "Cost per Gram":
-            # Requires: Cost to be set, Amount to be set
-            validCategories, _ = getValidCategoryRolesList()
-            if "Cost" in validCategories and "Amount" in data.attributes:
-                RichPrintInfo("Calculating price per gram")
-                # Price per gram = Cost / Amount
-                cost = data.attributes["Cost"]
-                amount = data.attributes["Amount"]
-                pricePerGram = cost / amount
-                # Explanation
-                explanation = f"${cost:.2f} Cost\n/ {amount:.2f} Amount\n= ${pricePerGram:.2f} Price per gram"
-                return pricePerGram, explanation
-            else:
-                RichPrintError("Cost or Amount not found in categories, cannot calculate price per gram")
-                return None, None
+            return data.calculated.get("costPerGram", None), data.calculated.get("costPerGramExplanation", None)
+            ## Requires: Cost to be set, Amount to be set
+            #validCategories, _ = getValidCategoryRolesList()
+            #if "Cost" in validCategories and "Amount" in data.attributes:
+            #    RichPrintInfo("Calculating price per gram")
+            #    # Price per gram = Cost / Amount
+            #    cost = data.attributes["Cost"]
+            #    amount = data.attributes["Amount"]
+            #    pricePerGram = cost / amount
+            #    # Explanation
+            #    explanation = f"${cost:.2f} Cost\n/ {amount:.2f} Amount\n= ${pricePerGram:.2f} Price per gram"
+            #    return pricePerGram, explanation
+            #else:
+            #    RichPrintError("Cost or Amount not found in categories, cannot calculate price per gram")
+            #    return None, None
         elif self.categoryRole == "Total Score":
-            # Average of all review scores
-            validReviewsCategories, _ = getValidReviewCategoryRolesList()
-            if "Final Score" in validReviewsCategories:
-                RichPrintInfo("Calculating total score")
-                # Total score = Average of all review scores
-                totalScore = 0
-                for review in data.reviews:
-                    if "Final Score" in review.attributes:
-                        totalScore += review.attributes["Final Score"]
-                # Divide by the number of reviews
-                if len(data.reviews) == 0:
-                    RichPrintWarning("No reviews found, cannot calculate total score")
-                    return -1, None
-                
+            # Pulls cached values from TeaCache and put into the calculated dict
+            return data.calculated.get("averageScore", None), data.calculated.get("totalScoreExplanation", None)
 
-                avrgScore = totalScore / len(data.reviews)
-
-                # Explanation
-                explanation = f"{totalScore:.2f} Total Score\n/ {len(data.reviews)} Number of reviews\n= {avrgScore:.2f} Average Score"
-                avrgScore = round(avrgScore, 2)
-                return avrgScore, explanation
-            else:
-                RichPrintError("Score not found in review categories, cannot calculate total score")
-                return None, None
+            ## Average of all review scores
+            #validReviewsCategories, _ = getValidReviewCategoryRolesList()
+            #if "Final Score" in validReviewsCategories:
+            #    RichPrintInfo("Calculating total score")
+            #    # Total score = Average of all review scores
+            #    totalScore = 0
+            #    for review in data.reviews:
+            #        if "Final Score" in review.attributes:
+            #            totalScore += review.attributes["Final Score"]
+            #    # Divide by the number of reviews
+            #    if len(data.reviews) == 0:
+            #        RichPrintWarning("No reviews found, cannot calculate total score")
+            #        return -1, None
+            #    
+#
+            #    avrgScore = totalScore / len(data.reviews)
+#
+            #    # Explanation
+            #    explanation = f"{totalScore:.2f} Total Score\n/ {len(data.reviews)} Number of reviews\n= {avrgScore:.2f} Average Score"
+            #    avrgScore = round(avrgScore, 2)
+            #    return avrgScore, explanation
+            #else:
+            #    RichPrintError("Score not found in review categories, cannot calculate total score")
+            #    return None, None
     
     
 
@@ -2309,9 +2313,9 @@ class Window_Stash_Reviews(WindowBase):
             dp.Text(f"Total Reviews: {len(tea.reviews)}, Last Review date: {dateString}")
             val, exp = tea.getEstimatedRemaining()
             dp.Text(f"Estimated consumed by reviews: {tea.getEstimatedConsumedByReviews()}g")
-            dp.Text(f"Estimated remaining: {val}g")
+            dp.Text(f"Estimated remaining: {val:.2f}g")
             with dp.Tooltip(dpg.last_item()):
-                dp.Text(f"Estimated remaining: {val}g")
+                dp.Text(f"Estimated remaining: {val:.2f}g")
                 if exp is not None:
                     dp.Text(f"{exp}")
             # Add a horizontal bar with buttons to add or duplicate reviews
@@ -2346,6 +2350,14 @@ class Window_Stash_Reviews(WindowBase):
             w = 900 * settings["UI_SCALE"]
             h = 500 * settings["UI_SCALE"]
             self.reviewsWindow = dp.Window(label="Reviews", width=w, height=h, show=False, modal=False)
+
+            # Call the pop of the TeaCache if not already populated
+            global TeaCache
+            if TeaCache is None or (len(TeaCache) == 0 and len(TeaStash) > 0):
+                TeaCache = populateStatsCache()
+                RichPrintSuccessMinor("TeaCache populated from TeaStash")
+
+            
             # --
             dp.Separator()
             # Add a table with reviews
@@ -2650,6 +2662,15 @@ class Window_Stash(WindowBase):
         self.addReviewList = dict()
         dpg.configure_item(window.tag, autosize=True)
         dpg.bind_item_font(window.tag, getFontName(1))
+        timeLoadStart = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+
+        # Call the pop of the TeaCache if not already populated
+        global TeaCache
+        if TeaCache is None or (len(TeaCache) == 0 and len(TeaStash) > 0):
+            TeaCache = populateStatsCache()
+            RichPrintSuccessMinor("TeaCache populated from TeaStash")
+
+                
         with window:
             dp.Separator()
             hgroupButtons = dp.Group(horizontal=True)
@@ -2857,6 +2878,8 @@ class Window_Stash(WindowBase):
 
         # End refreshing
         self.refreshing = False
+        timeLoadEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+        RichPrintSuccess(f"Window loaded in {timeLoadEnd - timeLoadStart:.2f} seconds.")
         self.afterWindowDefinition()
 
     def _UpdateTableRowFilterKeys(self, sender, app_data, user_data, rowList):
@@ -3912,6 +3935,265 @@ F -- (0.0, 0.0, 0.0)
 # Stats functions
 
 # Get Start day will use the start day from the settings, or default the earliest date it can find
+def populateStatsCache():
+    # Run all calcs in parallel and cache them for other cals. return the cache
+    cache = {}
+    AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
+    allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
+    # Num teas
+    cache["numTeas"] = statsNumTeas()
+    # Num reviews
+    cache["numReviews"] = statsNumReviews()
+    # Start day
+    cache["startDay"] = statsgetStartDayTimestamp()
+    totalDays = dt.datetime.now(tz=dt.timezone.utc).timestamp() - cache["startDay"]
+    cache["totalDays"] = totalDays / (24 * 60 * 60)  # Convert to days
+
+    # Num teas by type
+    cache["numTeasByType"] = dict()
+    for tea in TeaStash:
+        if "Type" in tea.attributes:
+            teaType = tea.attributes["Type"]
+            if teaType in cache["numTeasByType"]:
+                cache["numTeasByType"][teaType] += 1
+            else:
+                cache["numTeasByType"][teaType] = 1
+
+    # Calc total volume, average volume and all the other stash stats in one loop to prevent multiple loops
+    ctrTotalVolume = 0
+    ctrTotalCost = 0
+    ctrTotalConsumedByReviews = 0
+    ctrTotalConsumedByStdAdjustments = 0
+    ctrTotalConsumedByFinishedTeas = 0
+    ctrTotalConsumedByGiftedTeas = 0
+    ctrTotalRemaining = 0
+    ctrTotalTeasTried = 0
+    dictCtrTeasTried = {}
+    ctrTeasFinished = 0
+    dictCtrTeasFinished = {}
+    ctrTotalScored = 0
+    dictCtrScoresByType = {}
+    remainingCategory = None
+    for cat in TeaCategories:
+        if cat.categoryRole == "Remaining":
+            remainingCategory = cat
+            break
+    cache["remainingCategory"] = remainingCategory
+    
+    for tea in TeaStash:
+        ctrTeaRemaining = 0
+        ctrTeaDrankReviews = 0
+        ctrTeaTotalAdjustments = 0
+        ctrTeaGiftAdjustments = 0
+        ctrTeaStandardAdjustments = 0
+        autocalcTotalScore = 0
+        autocalcAveragedScore = 0
+        autocalcCostPerGram = 0
+        if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
+            if "Cost" in tea.attributes and "Amount" in tea.attributes:
+                autocalcCostPerGram = tea.attributes["Cost"] / tea.attributes["Amount"]
+        if "Amount" in AllTypesCategoryRoleValid:
+            if "Amount" in tea.attributes:
+                ctrTotalVolume += tea.attributes["Amount"]
+        if "Cost" in AllTypesCategoryRoleValid:
+            if "Cost" in tea.attributes:
+                ctrTotalCost += tea.attributes["Cost"]
+
+        if not tea.finished:
+            # Standard adjustment
+            if "Standard" in tea.adjustments:
+                ctrTeaStandardAdjustments = tea.adjustments["Standard"]
+                ctrTotalConsumedByStdAdjustments += ctrTeaStandardAdjustments
+                ctrTeaTotalAdjustments += ctrTeaStandardAdjustments
+            # Finished teas
+        else:
+            if "Amount" in tea.attributes:
+                ctrTotalConsumedByFinishedTeas += tea.attributes["Amount"]
+
+        # Gifted teas
+        if "Amount" in tea.attributes:
+            if "Gift" in tea.adjustments:
+                ctrTeaGiftAdjustments = tea.adjustments["Gift"]
+                ctrTotalConsumedByGiftedTeas += ctrTeaGiftAdjustments
+                ctrTeaTotalAdjustments += ctrTeaGiftAdjustments
+
+        # Teas tried
+        if len(tea.reviews) > 0:
+            ctrTotalTeasTried += 1
+            if "Type" in allTypesCategoryRoleReviewsValid:
+                if tea.attributes["Type"] not in dictCtrTeasTried:
+                    dictCtrTeasTried[tea.attributes["Type"]] = 0
+                else:
+                    dictCtrTeasTried[tea.attributes["Type"]] += 1
+
+        # Finished teas
+        if tea.finished:
+            ctrTeasFinished += 1
+            if "Type" in allTypesCategoryRoleReviewsValid:
+                if tea.attributes["Type"] not in dictCtrTeasFinished:
+                    dictCtrTeasFinished[tea.attributes["Type"]] = 0
+                else:
+                    dictCtrTeasFinished[tea.attributes["Type"]] += 1
+
+        # Review loop
+        for review in tea.reviews:
+            if "Amount" in allTypesCategoryRoleReviewsValid and not tea.finished:
+                if "Amount" in review.attributes:
+                    ctrTeaDrankReviews += review.attributes["Amount"]
+
+            # Total up score raw value
+            if "Final Score" in allTypesCategoryRoleReviewsValid and "Total Score" in AllTypesCategoryRoleValid:
+                print(review.attributes)
+                ctrTotalScored += review.attributes["Final Score"]
+                autocalcTotalScore += review.attributes["Final Score"]
+                if "Type" in allTypesCategoryRoleReviewsValid:
+                    if review.attributes["Type"] not in dictCtrScoresByType:
+                        dictCtrScoresByType[review.attributes["Type"]] = 0
+                    dictCtrScoresByType[review.attributes["Type"]] += review.attributes["Final Score"]
+            else:
+                print(f"Warning: Review {review.name} does not have a valid Total Score or Final Score attribute.")
+
+
+        ctrTotalConsumedByReviews += ctrTeaDrankReviews
+        # Calculate remaining
+        if tea.finished:
+            ctrTeaRemaining = 0
+        else:
+            ctrTeaRemaining = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Standard", 0) - tea.adjustments.get("Gift", 0)
+        ctrTotalRemaining += ctrTeaRemaining
+
+        # Derive explanation for remaining
+        remainingExplanation = ""
+        explanation = f"{ctrTeaRemaining:.2f}g Purchased\n- {ctrTeaDrankReviews:.2f}g Sum of all review Amounts\n- {ctrTeaStandardAdjustments:.2f}g Standard Adjustments\n- {ctrTeaGiftAdjustments:.2f}g Gift Adjustments\n= {ctrTeaRemaining:.2f}g Remaining"
+        if ctrTeaRemaining < 0:
+            remainingExplanation = explanation + " (Overdrawn)"
+        elif ctrTeaRemaining == 0:
+            remainingExplanation = explanation + " (Finished)"
+        else:
+            remainingExplanation = explanation + " (Not Finished)"
+
+        # Calc average score
+        if autocalcTotalScore > 0:
+            autocalcAveragedScore = autocalcTotalScore / len(tea.reviews)
+
+        totalScoreExplanation = f"{autocalcTotalScore:.2f} Total Score\n/ {len(tea.reviews)} Number of reviews\n= {autocalcAveragedScore:.2f} Average Score"
+
+        # if no reviews, set autocalcAveragedScore to -1
+        if len(tea.reviews) == 0:
+            autocalcAveragedScore = -1
+            totalScoreExplanation = "No reviews, no score"
+
+        # Autocalc explanation for cost per gram
+        costPerGramExplanation = f"${tea.attributes["Cost"]:.2f} Cost\n/ {tea.attributes["Amount"]:.2f} Amount\n= ${autocalcCostPerGram:.2f} Price per gram"
+        # Add to tea.cache
+        tea.calculated["remaining"] = ctrTeaRemaining
+        tea.calculated["remainingExplanation"] = remainingExplanation
+        tea.calculated["averageScore"] = autocalcAveragedScore
+        tea.calculated["totalScoreExplanation"] = totalScoreExplanation
+        tea.calculated["costPerGramExplanation"] = costPerGramExplanation
+        tea.calculated["costPerGram"] = autocalcCostPerGram
+
+    if cache["numTeas"] > 0:
+        cache["averageVolume"] = ctrTotalVolume / cache["numTeas"]
+    else:
+        cache["averageVolume"] = 0
+
+    cache["totalVolume"] = ctrTotalVolume
+    if cache["numTeas"] > 0:
+        cache["averageCost"] = ctrTotalCost / cache["numTeas"]
+    else:
+        cache["averageCost"] = 0
+    cache["totalCost"] = ctrTotalCost
+    # Weighted average cost
+    if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
+        if ctrTotalVolume > 0:
+            cache["weightedAverageCost"] = ctrTotalCost / ctrTotalVolume
+        else:
+            cache["weightedAverageCost"] = 0
+    else:
+        cache["weightedAverageCost"] = 0
+
+    # Total consumed by reviews
+    if "Amount" in allTypesCategoryRoleReviewsValid and cache["numReviews"] > 0 and cache["numTeas"] > 0:
+        cache["totalConsumedByReviewsSum"] = ctrTotalConsumedByReviews
+        cache["averageConsumedByReviews"] = ctrTotalConsumedByReviews / cache["numTeas"]
+    else:
+        cache["totalConsumedByReviewsSum"] = 0
+        cache["averageConsumedByReviews"] = 0
+
+    # Total consumed by standard adjustments
+    if "Remaining" in AllTypesCategoryRoleValid and cache["numTeas"] > 0:
+        cache["totalConsumedByStdAdjustmentsOnlySum"] = ctrTotalConsumedByStdAdjustments
+        cache["averageConsumedByStdAdjustmentsOnly"] = ctrTotalConsumedByStdAdjustments / cache["numTeas"]
+    else:
+        cache["totalConsumedByStdAdjustmentsOnlySum"] = 0
+        cache["averageConsumedByStdAdjustmentsOnly"] = 0
+
+    # Total consumed by finished teas
+    if "Amount" in AllTypesCategoryRoleValid and cache["numTeas"] > 0:
+        cache["totalConsumedByFinishedTeasSum"] = ctrTotalConsumedByFinishedTeas
+        cache["averageConsumedByFinishedTeas"] = ctrTotalConsumedByFinishedTeas / cache["numTeas"]
+    else:
+        cache["totalConsumedByFinishedTeasSum"] = 0
+        cache["averageConsumedByFinishedTeas"] = 0
+
+    # Total consumed by gifted teas
+    if "Amount" in AllTypesCategoryRoleValid and cache["numTeas"] > 0:
+        cache["totalConsumedByGiftedTeasSum"] = ctrTotalConsumedByGiftedTeas
+        cache["averageConsumedByGiftedTeas"] = ctrTotalConsumedByGiftedTeas / cache["numTeas"]
+    else:
+        cache["totalConsumedByGiftedTeasSum"] = 0
+        cache["averageConsumedByGiftedTeas"] = 0
+
+    # Total consumed by all methods
+    totalConsumed = ctrTotalConsumedByReviews + ctrTotalConsumedByStdAdjustments + ctrTotalConsumedByFinishedTeas + ctrTotalConsumedByGiftedTeas
+    cache["totalConsumed"] = totalConsumed
+    cache["averageConsumed"] = totalConsumed / cache["numTeas"] if cache["numTeas"] > 0 else 0
+
+    # Total consumed excluding gift adjustments
+    totalConsumedExcludingGiftAdj = ctrTotalConsumedByReviews + ctrTotalConsumedByStdAdjustments + ctrTotalConsumedByFinishedTeas
+    cache["totalConsumedExcludingGiftAdj"] = totalConsumedExcludingGiftAdj
+    cache["averageConsumedExcludingGiftAdj"] = totalConsumedExcludingGiftAdj / cache["numTeas"] if cache["numTeas"] > 0 else 0
+
+    # Total Consumed Standard Adjustments is finished plus standard
+    totalConsumedStandardAdj = ctrTotalConsumedByFinishedTeas + ctrTotalConsumedByStdAdjustments
+    cache["totalConsumedStandardAdj"] = totalConsumedStandardAdj
+    cache["averageConsumedStandardAdj"] = totalConsumedStandardAdj / cache["numTeas"] if cache["numTeas"] > 0 else 0
+
+    # Total Consumed Gift Adjustments is just the gift adjustments
+    totalConsumedGiftAdj = ctrTotalConsumedByGiftedTeas
+    cache["totalConsumedGiftAdj"] = totalConsumedGiftAdj
+    cache["averageConsumedGiftAdj"] = totalConsumedGiftAdj / cache["numTeas"] if cache["numTeas"] > 0 else 0
+
+    # Total Remaining
+    cache["totalRemaining"] = ctrTotalRemaining
+    if cache["numTeas"] > 0:
+        cache["averageRemaining"] = ctrTotalRemaining / cache["numTeas"]
+    else:
+        cache["averageRemaining"] = 0
+
+    # Teas tried
+    cache["totalTeasTried"] = ctrTotalTeasTried
+    cache["averageTeasTried"] = ctrTotalTeasTried / cache["numTeas"] if cache["numTeas"] > 0 else 0
+    cache["teasTriedByType"] = dictCtrTeasTried
+    
+    # Teas not tried
+    cache["totalTeasNotTried"] = cache["numTeas"] - ctrTotalTeasTried
+    cache["averageTeasNotTried"] = (cache["numTeas"] - ctrTotalTeasTried) / cache["numTeas"] if cache["numTeas"] > 0 else 0
+    cache["teasNotTriedByType"] = {k: cache["numTeasByType"].get(k, 0) - dictCtrTeasTried.get(k, 0) for k in cache["numTeasByType"]}
+
+    # Teas finished
+    cache["totalTeasFinished"] = ctrTeasFinished
+    cache["averageTeasFinished"] = ctrTeasFinished / cache["numTeas"] if cache["numTeas"] > 0 else 0
+    cache["teasFinishedByType"] = dictCtrTeasFinished
+
+    # Total and average score by type
+    cache["totalScore"] = ctrTotalScored
+    cache["averageScore"] = ctrTotalScored / len(tea.reviews) if len(tea.reviews) > 0 else 0
+    cache["scoreByType"] = dictCtrScoresByType
+
+    return cache
+
 def statsgetStartDayTimestamp():
     startDay = None
     if "START_DAY" in settings and settings["START_DAY"] is not None and settings["START_DAY"] != "":
@@ -4277,6 +4559,7 @@ def Menu_Stats():
 class Window_Stats(WindowBase):
     win = None
     refreshIcon = None
+    cache = None
 
     def softRefresh(self):
         # Refresh the stats window
@@ -4380,11 +4663,11 @@ class Window_Stats(WindowBase):
             with dp.CollapsingHeader(label="Start Date", default_open=False, indent=20 * settings["UI_SCALE"]):
                 # Start day
                 dp.Text("Start Day")
-                startDay = statsgetStartDayTimestamp()
+                startDay = self.cache["startDay"]
                 dp.Text(f"Start Day: {dt.datetime.fromtimestamp(startDay, tz=dt.timezone.utc).strftime(settings['DATE_FORMAT'])}")
                 dp.Separator()
                 # Total days since start day
-                totalDays = (dt.datetime.now(tz=dt.timezone.utc).timestamp() - startDay) / (24 * 60 * 60)
+                totalDays = self.cache["totalDays"]
                 dp.Text(f"Total Days Since Start Day: {totalDays:.2f} days")
                 dp.Separator()
 
@@ -4401,11 +4684,13 @@ class Window_Stats(WindowBase):
                 # Total volume Purchased, total cost, and weighted average cost
                 if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
                     dp.Text("Total Volume and Cost")
-                    totalVolume, averageVolume = statsTotalVolume()
+                    totalVolume = self.cache["totalVolume"]
+                    averageVolume = self.cache["averageVolume"]
                     dp.Text(f"Total Volume: {totalVolume:.2f}g, Average Volume: {averageVolume:.2f}g")
-                    totalCost, averageCost = statsTotalAverageCost()
+                    totalCost = self.cache["totalCost"]
+                    averageCost = self.cache["averageCost"]
                     dp.Text(f"Total Cost: ${totalCost:.2f}, Average Cost: ${averageCost:.2f}")
-                    weightedAverageCost = statsWeightedAverageCost()
+                    weightedAverageCost = self.cache["weightedAverageCost"]
                     dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
                 else:
                     dp.Text("Required Category role 'Cost' or 'Amount' for Tea is not enabled.")
@@ -4415,7 +4700,8 @@ class Window_Stats(WindowBase):
                 # Total consumed by summing all reviews, adjustments, and finished teas
                 dp.Text("Total Consumed Including Adjustments")
                 if "Amount" in AllTypesCategoryRoleValid:
-                    totalConsumed, averageConsumed = statsTotalConsumed()
+                    totalConsumed = self.cache["totalConsumed"]
+                    averageConsumed = self.cache["averageConsumed"]
                     dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per tea: {averageConsumed:.2f}g")
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
@@ -4423,37 +4709,42 @@ class Window_Stats(WindowBase):
                 # Total consumed excluding Gift adjustments
                 dp.Text("Total Consumed Excluding Gift Adjustments")
                 if "Amount" in AllTypesCategoryRoleValid:
-                    totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingGiftAdj()
+                    totalConsumedExclAdj = self.cache["totalConsumedExcludingGiftAdj"]
+                    averageConsumedExclAdj = self.cache["averageConsumedExcludingGiftAdj"]
                     dp.Text(f"Total Consumed Excluding Gift Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
                 # Total consumed excluding all adjustments
-                dp.Text("Total Consumed Excluding All Adjustments")
+                dp.Text("Total Consumed By Reviews only")
                 if "Amount" in AllTypesCategoryRoleValid:
-                    totalConsumedExclAdj, averageConsumedExclAdj = statsTotalConsumedExcludingAdj()
-                    dp.Text(f"Total Consumed Excluding All Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
+                    totalConsumedReviews = self.cache["totalConsumedByReviewsSum"]
+                    averageConsumedReviews = self.cache["averageConsumedByReviews"]
+                    dp.Text(f"Total Consumed By Reviews only: {totalConsumedReviews:.2f}g, Average Consumed per tea: {averageConsumedReviews:.2f}g")
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
                 # Total standard adjustments, Total gift adjustments
                 dp.Text("Total Standard Adjustments")
-                totalStandardAdjustments, averageStandardAdjustments = statsAllStandardAdjustmentsSum()
+                totalStandardAdjustments = self.cache["totalConsumedStandardAdj"]
+                averageStandardAdjustments = self.cache["averageConsumedStandardAdj"]
                 dp.Text(f"Total Standard Adjustments: {totalStandardAdjustments:.2f}g, Average Standard Adjustments per tea: {averageStandardAdjustments:.2f}g")
                 dp.Separator()
                 dp.Text("Total Gift Adjustments")
-                totalGiftAdjustments, averageGiftAdjustments = statsAllGiftAdjustmentsSum()
+                totalGiftAdjustments = self.cache["totalConsumedGiftAdj"]
+                averageGiftAdjustments = self.cache["averageConsumedGiftAdj"]
                 dp.Text(f"Total Gift Adjustments: {totalGiftAdjustments:.2f}g, Average Gift Adjustments per tea: {averageGiftAdjustments:.2f}g")
                 dp.Separator()
                 # Total remaining by summing all remaining amounts after applying autocalculations
                 dp.Text("Total Remaining")
                 if "Remaining" in AllTypesCategoryRoleValid:
-                    totalRemaining, averageRemaining = statsTotalRemaining()
+                    totalRemaining = self.cache["totalRemaining"]
+                    averageRemaining = self.cache["averageRemaining"]
                     dp.Text(f"Total Remaining: {totalRemaining:.2f}g, Average Remaining per tea: {averageRemaining:.2f}g")
                 else:
                     dp.Text("Required Category role 'Remaining' for Tea is not enabled.")
                 dp.Separator()
-            startDay = statsgetStartDayTimestamp()
+            startDay = self.cache["startDay"]
             today = dt.datetime.now(tz=dt.timezone.utc).timestamp()
             numDays = (today - startDay) / (24 * 60 * 60)
 
@@ -4461,7 +4752,8 @@ class Window_Stats(WindowBase):
             with dp.CollapsingHeader(label="Grams of Tea Consumed per Day", default_open=False, indent=20 * settings["UI_SCALE"]):
                 dp.Text("Grams of Tea Consumed per Day")
                 if "Amount" in AllTypesCategoryRoleValid:
-                    totalConsumed, averageConsumed = statsTotalConsumed()
+                    totalConsumed = self.cache["totalConsumed"]
+                    averageConsumed = self.cache["averageConsumed"]
                     if numDays > 0:
                         gramsPerDay = totalConsumed / numDays
                         dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per day: {gramsPerDay:.2f}g")
@@ -4474,14 +4766,16 @@ class Window_Stats(WindowBase):
         with dp.CollapsingHeader(label="Stash Amounts", default_open=False):
             # Total volume of all teas in the stash
             dp.Text("Total Volume of All Teas in Stash")
-            totalVolume, averageVolume = statsTotalVolume()
+            totalVolume = self.cache["totalVolume"]
+            averageVolume = self.cache["averageVolume"]
             dp.Text(f"Total Volume: {totalVolume:.2f}g, Average Volume: {averageVolume:.2f}g")
             dp.Separator()
             # Total cost of all teas in the stash
             dp.Text("Total Cost of All Teas in Stash")
-            totalCost, averageCost = statsTotalAverageCost()
+            totalCost = self.cache["totalCost"]
+            averageCost = self.cache["averageCost"]
             dp.Text(f"Total Cost: ${totalCost:.2f}, Average Cost: ${averageCost:.2f}")
-            weightedAverageCost = statsWeightedAverageCost()
+            weightedAverageCost = self.cache["weightedAverageCost"]
             dp.Text(f"Weighted Average Cost: ${weightedAverageCost:.2f}")
             dp.Separator()
         # Consumed amounts
@@ -4490,8 +4784,10 @@ class Window_Stats(WindowBase):
             # Total volume of consumed tea (Review-remaining-stats)
             dp.Text("Total Volume of Consumed Tea")
             if "Amount" in allTypesCategoryRoleReviewsValid:
-                sum, avrg, count, unique, _ = getStatsOnCategoryByRole("Amount", True)
-                dp.Text(f"Sum: {sum}g, Average: {avrg}g, Count: {count} Count")
+                sum = self.cache["totalConsumedByReviewsSum"]
+                dp.Text(f"Total Consumed: {sum:.2f}g")
+                average = self.cache["averageConsumedByReviews"]
+                dp.Text(f"Average Consumed per tea: {average:.2f}g")
             else:
                 dp.Text("Required Category role 'Amount' for Review is not enabled.")
             dp.Separator()
@@ -4538,12 +4834,14 @@ class Window_Stats(WindowBase):
                 dp.Text("Ratings and Grades")
                 # Teas tried total
                 dp.Text("Teas Tried Total")
-                teasTriedPerType, teasNotTriedPerType = statsCountTeasTriedPerType()
-                teasFinishedPerType = statsCountTeasFinishedPerType()
+                teasTriedPerType = self.cache["teasTriedByType"]
+                teasNotTriedPerType = self.cache["teasNotTriedByType"]
+                teasFinishedPerType = self.cache["teasFinishedByType"]
                 totalFinished = 0
                 for teaType in teasTriedPerType:
                     totalFinished += teasFinishedPerType.get(teaType, 0)
-                numTeasTried, totalTeas = statsCountTeasTriedTotal()
+                numTeasTried = self.cache["totalTeasTried"]
+                totalTeas = self.cache["numTeas"]
                 dp.Text(f"Number of Teas Tried: {numTeasTried} out of {totalTeas} total teas, {numTeasTried / totalTeas * 100:.2f}%")
                 dp.Text(f"Number of Teas Finished: {totalFinished} out of {totalTeas} total teas, {totalFinished / totalTeas * 100:.2f}%")
             # Teas tried per type
@@ -4593,9 +4891,25 @@ class Window_Stats(WindowBase):
                 self.refreshIcon = dpg.add_image("refresh_icon", width=32 * settings["UI_SCALE"], height=32 * settings["UI_SCALE"])
             dp.Separator()
 
+            timeLoadStart = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+
             # All stats should only be displayed if the coorsponding category is enabled
             AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
             allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
+
+            # Init cache so we dont have to recalculate every time
+            if self.cache is None:
+                # Check global cache
+                global TeaCache
+                lenGlobalCache = len(TeaCache)
+                
+                if TeaCache is not None and lenGlobalCache > 0:
+                    self.cache = TeaCache
+                else:
+                    self.cache = populateStatsCache()
+                    # Populate global cache
+                    TeaCache = self.cache
+                    RichPrintSuccessMinor("Stats cache populated.")
 
             windowWidth = window.width
             windowHeight = window.height
@@ -4633,6 +4947,8 @@ class Window_Stats(WindowBase):
             
         # End refreshing
         self.refreshing = False
+        timeLoadEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+        RichPrintSuccess(f"Stats window loaded in {timeLoadEnd - timeLoadStart:.2f} seconds.")
         self.afterWindowDefinition()
         
 
@@ -6857,7 +7173,12 @@ def main():
     # Get a list of all valid types for Categories
     setValidTypes()
     session["validFonts"] = ["OpenSans", "Roboto", "Merriweather", "Montserrat"]
+    
     global TeaStash
+    global TeaCache
+    TeaStash = {}
+    TeaCache = {}
+    
     global TeaCategories
     TeaCategories = []
 
