@@ -4043,15 +4043,12 @@ def populateStatsCache():
 
             # Total up score raw value
             if "Final Score" in allTypesCategoryRoleReviewsValid and "Total Score" in AllTypesCategoryRoleValid:
-                print(review.attributes)
                 ctrTotalScored += review.attributes["Final Score"]
                 autocalcTotalScore += review.attributes["Final Score"]
                 if "Type" in allTypesCategoryRoleReviewsValid:
                     if review.attributes["Type"] not in dictCtrScoresByType:
                         dictCtrScoresByType[review.attributes["Type"]] = 0
                     dictCtrScoresByType[review.attributes["Type"]] += review.attributes["Final Score"]
-            else:
-                print(f"Warning: Review {review.name} does not have a valid Total Score or Final Score attribute.")
 
 
         ctrTotalConsumedByReviews += ctrTeaDrankReviews
