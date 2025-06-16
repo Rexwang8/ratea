@@ -4020,20 +4020,13 @@ def populateStatsCache():
         # Teas tried
         if len(tea.reviews) > 0:
             ctrTotalTeasTried += 1
-            if "Type" in allTypesCategoryRoleReviewsValid:
+            if "Type" in AllTypesCategoryRoleValid:
                 if tea.attributes["Type"] not in dictCtrTeasTried:
                     dictCtrTeasTried[tea.attributes["Type"]] = 0
                 else:
                     dictCtrTeasTried[tea.attributes["Type"]] += 1
 
-        # Finished teas
-        if tea.finished:
-            ctrTeasFinished += 1
-            if "Type" in allTypesCategoryRoleReviewsValid:
-                if tea.attributes["Type"] not in dictCtrTeasFinished:
-                    dictCtrTeasFinished[tea.attributes["Type"]] = 0
-                else:
-                    dictCtrTeasFinished[tea.attributes["Type"]] += 1
+        
 
         # Review loop
         for review in tea.reviews:
@@ -4079,6 +4072,15 @@ def populateStatsCache():
         if len(tea.reviews) == 0:
             autocalcAveragedScore = -1
             totalScoreExplanation = "No reviews, no score"
+
+        # Finished teas
+        if tea.finished or ctrTeaRemaining <= 0:
+            ctrTeasFinished += 1
+            if "Type" in AllTypesCategoryRoleValid:
+                if tea.attributes["Type"] not in dictCtrTeasFinished:
+                    dictCtrTeasFinished[tea.attributes["Type"]] = 0
+                else:
+                    dictCtrTeasFinished[tea.attributes["Type"]] += 1
 
         # Autocalc explanation for cost per gram
         costPerGramExplanation = f"${tea.attributes["Cost"]:.2f} Cost\n/ {tea.attributes["Amount"]:.2f} Amount\n= ${autocalcCostPerGram:.2f} Price per gram"
@@ -4827,14 +4829,12 @@ class Window_Stats(WindowBase):
         # Ratings and Grades
         with dp.CollapsingHeader(label="Ratings and Grades", default_open=True):
             with dp.CollapsingHeader(label="Ratings and Grades", default_open=False, indent=20 * settings["UI_SCALE"]):
-                # filler
-                dp.Text("Ratings and Grades")
                 # Teas tried total
                 dp.Text("Teas Tried Total")
                 teasTriedPerType = self.cache["teasTriedByType"]
                 teasNotTriedPerType = self.cache["teasNotTriedByType"]
                 teasFinishedPerType = self.cache["teasFinishedByType"]
-                totalFinished = 0
+                totalFinished = self.cache["totalTeasFinished"]
                 for teaType in teasTriedPerType:
                     totalFinished += teasFinishedPerType.get(teaType, 0)
                 numTeasTried = self.cache["totalTeasTried"]
@@ -4844,6 +4844,7 @@ class Window_Stats(WindowBase):
             # Teas tried per type
             with dp.CollapsingHeader(label="Teas Tried per Type", default_open=False, indent=20 * settings["UI_SCALE"]):
                 # iterate both dictionaries
+                dp.Text(f"Number of types: {len(teasTriedPerType)}")
                 for teaType, count in teasTriedPerType.items():
                     numNotTried = teasNotTriedPerType.get(teaType, 0)
                     numTried = teasTriedPerType.get(teaType, 0)
