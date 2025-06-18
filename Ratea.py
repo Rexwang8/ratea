@@ -2286,6 +2286,7 @@ class Window_Stash_Reviews(WindowBase):
 
     def softRefresh(self):
         # Refresh the stats window
+        reCacheStats()
         super().softRefresh()
         
     def afterWindowDefinition(self):
@@ -2646,6 +2647,7 @@ class Window_Stash(WindowBase):
 
     def softRefresh(self):
         # Refresh the stats window
+        reCacheStats()
         super().softRefresh()
         
     def afterWindowDefinition(self):
@@ -3935,9 +3937,17 @@ F -- (0.0, 0.0, 0.0)
 # Stats functions
 
 # Get Start day will use the start day from the settings, or default the earliest date it can find
+
+def reCacheStats():
+    # Recalculate all stats and cache them
+    global statsCache
+    statsCache = populateStatsCache()
+    return statsCache
+
 def populateStatsCache():
     # Run all calcs in parallel and cache them for other cals. return the cache
     cache = {}
+    timeCacheStart = dt.datetime.now(tz=dt.timezone.utc).timestamp()
     AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
     allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
     # Num teas
@@ -3973,6 +3983,8 @@ def populateStatsCache():
     dictCtrTeasFinished = {}
     ctrTotalScored = 0
     dictCtrScoresByType = {}
+    dictSteepsByType = {}
+    dictNumReviewsByType = {}
     remainingCategory = None
     for cat in TeaCategories:
         if cat.categoryRole == "Remaining":
@@ -3989,6 +4001,10 @@ def populateStatsCache():
         autocalcTotalScore = 0
         autocalcAveragedScore = 0
         autocalcCostPerGram = 0
+        teaType = None
+        if "Type" in AllTypesCategoryRoleValid:
+            teaType = tea.attributes["Type"]
+
         if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
             if "Cost" in tea.attributes and "Amount" in tea.attributes:
                 autocalcCostPerGram = tea.attributes["Cost"] / tea.attributes["Amount"]
@@ -4042,6 +4058,18 @@ def populateStatsCache():
                     if review.attributes["Type"] not in dictCtrScoresByType:
                         dictCtrScoresByType[review.attributes["Type"]] = 0
                     dictCtrScoresByType[review.attributes["Type"]] += review.attributes["Final Score"]
+
+            # Steeps by type
+            if "Steeps" in allTypesCategoryRoleReviewsValid and teaType is not None:
+                if teaType not in dictSteepsByType:
+                    dictSteepsByType[teaType] = 0
+                dictSteepsByType[teaType] += review.attributes["Steeps"]
+
+            # Num reviews by type
+            if teaType is not None:
+                if teaType not in dictNumReviewsByType:
+                    dictNumReviewsByType[teaType] = 0
+                dictNumReviewsByType[teaType] += 1
 
 
         ctrTotalConsumedByReviews += ctrTeaDrankReviews
@@ -4144,6 +4172,11 @@ def populateStatsCache():
         cache["totalConsumedByGiftedTeasSum"] = 0
         cache["averageConsumedByGiftedTeas"] = 0
 
+    # Steeps by type
+    cache["steepsByType"] = dictSteepsByType
+    # Num reviews by type
+    cache["numReviewsByType"] = dictNumReviewsByType
+
     # Total consumed by all methods
     totalConsumed = ctrTotalConsumedByReviews + ctrTotalConsumedByStdAdjustments + ctrTotalConsumedByFinishedTeas + ctrTotalConsumedByGiftedTeas
     cache["totalConsumed"] = totalConsumed
@@ -4190,6 +4223,10 @@ def populateStatsCache():
     cache["totalScore"] = ctrTotalScored
     cache["averageScore"] = ctrTotalScored / len(tea.reviews) if len(tea.reviews) > 0 else 0
     cache["scoreByType"] = dictCtrScoresByType
+
+    timeCacheEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+    timeCacheDuration = timeCacheEnd - timeCacheStart
+    RichPrintSuccessMinor(f"Stats cache duration: {timeCacheDuration:.2f} seconds")
 
     return cache
 
@@ -4562,8 +4599,9 @@ class Window_Stats(WindowBase):
 
     def softRefresh(self):
         # Refresh the stats window
+        self.cache = reCacheStats()
         super().softRefresh()
-        
+
     def afterWindowDefinition(self):
         # After the window is defined, we can set the callback for the soft refresh
         # This will be called when the window is refreshed
@@ -4636,6 +4674,7 @@ class Window_Stats(WindowBase):
                     dp.Text("Required Category role 'Type' for Review is not enabled.")
                 dp.Separator()
 
+    # Teaware, Teaware size
     def window_subwindow_0_1_categories(self, sender=None, app_data=None, user_data=None):
         allTypesCategoryRoleReviewsValid = user_data[1] if user_data and len(user_data) > 0 else []
         # Teaware size (Reviews-Vessel Size-stats)
@@ -4654,6 +4693,7 @@ class Window_Stats(WindowBase):
                     dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
                 dp.Separator()
 
+    # Dates, spending, purchasing
     def window_subwindow_0_2_categories(self, sender=None, app_data=None, user_data=None):
         dp.Text("Dates, spending, purchasing")
         dpg.bind_item_font(dpg.last_item(), getFontName(2))
@@ -4748,7 +4788,7 @@ class Window_Stats(WindowBase):
             numDays = (today - startDay) / (24 * 60 * 60)
 
             # Grams of tea consumed per day
-            with dp.CollapsingHeader(label="Grams of Tea Consumed per Day", default_open=False, indent=20 * settings["UI_SCALE"]):
+            with dp.CollapsingHeader(label="Daily Consumption", default_open=False, indent=20 * settings["UI_SCALE"]):
                 dp.Text("Grams of Tea Consumed per Day")
                 if "Amount" in AllTypesCategoryRoleValid:
                     totalConsumed = self.cache["totalConsumed"]
@@ -4760,6 +4800,20 @@ class Window_Stats(WindowBase):
                         dp.Text("No valid start day or no teas consumed.")
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+
+            # Days til depleted
+            with dp.CollapsingHeader(label="Days Til Depleted", default_open=False, indent=20 * settings["UI_SCALE"]):
+                if "Remaining" in AllTypesCategoryRoleValid:
+                    totalRemaining = self.cache["totalRemaining"]
+                    if totalRemaining > 0 and numDays > 0:
+                        daysTilDepleted = totalRemaining / (self.cache["totalConsumed"] / numDays)
+                        dp.Text(f"Total Remaining: {totalRemaining:.2f}g, Days Til Depleted: {daysTilDepleted:.2f} days")
+                        yearsTilDepleted = daysTilDepleted / 365.25
+                        dp.Text(f"That's approximately {yearsTilDepleted:.2f} years!")
+                    else:
+                        dp.Text("No valid remaining amount or no teas consumed.")
+                else:
+                    dp.Text("Required Category role 'Remaining' for Tea is not enabled.")
 
         # Stash amounts
         with dp.CollapsingHeader(label="Stash Amounts", default_open=False):
@@ -4812,14 +4866,34 @@ class Window_Stats(WindowBase):
                 dp.Separator()
             # Total water consumed by summing all reviews (Review-Vessel Size-stats)
             with dp.CollapsingHeader(label="Water Consumption", default_open=False, indent=20 * settings["UI_SCALE"]):
-                dp.Text("Total Water Consumed")
                 if "Vessel size" in allTypesCategoryRoleReviewsValid and "Steeps" in allTypesCategoryRoleReviewsValid:
                     totalWaterConsumed, averageWaterConsumed = statsWaterConsumed()
-                    dp.Text(f"Total Water Consumed: {totalWaterConsumed:.2f}ml, Average Water Consumed per steep: {averageWaterConsumed:.2f}ml")
+                    dp.Text(f"Total Water Consumed: {totalWaterConsumed:.2f}ml")
+                    dp.Text(f"Average Water Consumed per steep: {averageWaterConsumed:.2f}ml")
+                    dp.Separator()
                     liters = totalWaterConsumed / 1000
-                    dp.Text(f"Total Water Consumed: {liters:.2f}L")
+                    gallons = liters / 3.78541
+                    dp.Text(f"{liters:.2f}L ({gallons:.2f} gallons) over {self.cache['totalDays']:.2f} days")
+                    dp.Text(f"That's approximately {liters / self.cache['totalDays']:.2f}L per day")
                 else:
                     dp.Text("Required Category role 'Vessel size' and 'Steeps' for Review is not enabled.")
+
+            # Average Steeps per Tea type
+            with dp.CollapsingHeader(label="Average Steeps per Tea Type", default_open=False, indent=20 * settings["UI_SCALE"]):
+                steepsByType = self.cache["steepsByType"]
+                numReviewsByType = self.cache["numReviewsByType"]
+                for teaType, steeps in steepsByType.items():
+                    numReviews = numReviewsByType.get(teaType, 0)
+                    if numReviews > 0:
+                        averageSteeps = steeps / numReviews
+                        with dp.Group(horizontal=True):
+                            dp.Text(f"{teaType}: {averageSteeps:.2f} steeps average")
+                            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                            dp.Text(f" ({steeps} steeps, {numReviews} reviews)", color=COLOR_LIGHT_BLUE_TEXT)
+                    else:
+                        dp.Text(f"{teaType}: No reviews found", color=COLOR_RED_TEXT)
+                dp.Separator()
+
 
     # Ratings and Grades
     def window_subwindow_1_2_categories(self, sender=None, app_data=None, user_data=None):
