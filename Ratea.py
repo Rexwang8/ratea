@@ -2294,6 +2294,7 @@ class Window_Stash_Reviews(WindowBase):
     def windowDefintion(self, window):
         tea = self.tea
         tea: StashedTea
+        timeLoadStart = dt.datetime.now(tz=dt.timezone.utc).timestamp()
 
         # Enable window resizing
         dpg.configure_item(window.tag, autosize=True)
@@ -2504,6 +2505,11 @@ class Window_Stash_Reviews(WindowBase):
 
                         # button that opens a modal with reviews
                         dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
+
+            # Footer
+            timeLoadEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+            RichPrintSuccess(f"Window loaded in {timeLoadEnd - timeLoadStart:.2f} seconds.")
+            dp.Text(parent=window, default_value=f"Loaded {len(TeaStash)} teas in {timeLoadEnd - timeLoadStart:.2f} seconds.")
         
         # disable autosize to prevent flickering or looping
         delay = 2 + statsNumTeas() // CONSTANT_DELAY_MULTIPLIER
@@ -2710,6 +2716,10 @@ class Window_Stash(WindowBase):
                     if cat.categoryRole not in filterOptions:
                         filterOptions.append(cat.categoryRole)
                 filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value="Name", user_data=(None), callback=self._UpdateTableRowFilterKeys)
+
+                # Add two checkboxes for hide invalid, and hide finished
+                dp.Checkbox(label="Hide Invalid (DUMMY)", default_value=False, user_data=(None), callback=self.DummyCallback)
+                dp.Checkbox(label="Hide Finished (DUMMY)", default_value=False, user_data=(None), callback=self.DummyCallback)
                 dp.Separator()
 
             # Table with collapsable rows for reviews
@@ -2864,7 +2874,10 @@ class Window_Stash(WindowBase):
 
             # Add seperator and import/export buttons
             dp.Separator()
-        
+        # Footer
+        timeLoadEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
+        RichPrintSuccess(f"Window loaded in {timeLoadEnd - timeLoadStart:.2f} seconds.")
+        dp.Text(parent=window, default_value=f"Loaded {len(TeaStash)} teas in {timeLoadEnd - timeLoadStart:.2f} seconds.")
         # disable autosize to prevent flickering or looping
         delay = 2 + statsNumTeas() // CONSTANT_DELAY_MULTIPLIER
         dpg.set_frame_callback(dpg.get_frame_count()+delay, self.afterWindowDefintion, user_data=window)
@@ -2873,8 +2886,7 @@ class Window_Stash(WindowBase):
 
         # End refreshing
         self.refreshing = False
-        timeLoadEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
-        RichPrintSuccess(f"Window loaded in {timeLoadEnd - timeLoadStart:.2f} seconds.")
+        
         self.afterWindowDefinition()
 
     def _UpdateTableRowFilterKeys(self, sender, app_data, user_data, rowList):
