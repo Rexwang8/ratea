@@ -1097,17 +1097,10 @@ class StashedTea:
         return consumed
     
     def getEstimatedRemaining(self):
-        remainingCat = None
-        for cat in TeaCategories:
-            if cat.categoryRole == "Remaining":
-                remainingCat = cat
-                break
-        if remainingCat is None:
-            RichPrintError("No Remaining category found, cannot autocalculate")
-            return None, None
-        val, exp = remainingCat.autocalculate(self)
-        if val is not None:
-            return val, exp
+        # Find self in cache
+        global TeaCache
+        if self in TeaCache:
+            return TeaCache[self.id].get("remaining", None)
 
 # Defines a review for a tea
 class Review:
@@ -1778,7 +1771,7 @@ class Window_Settings(WindowBase):
     def ResetSettings(self, sender, data):
         settings = default_settings
         Settings_SaveCurrentSettings()
-        self.refresh()
+        self.softRefresh()
 
 
 def Menu_Stash_Reviews(sender, app_data, user_data):
@@ -1836,7 +1829,7 @@ class Window_Stash_Reviews(WindowBase):
         
         # close the popup
         dpg.configure_item(self.reviewsWindow.tag, show=False)
-        self.refresh()
+        self.softRefresh()
         timeEndAdd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
         RichPrintSuccess(f"Added review for {user_data.name} in {timeEndAdd - timeStartAdd:.2f}s")
 
@@ -2055,7 +2048,7 @@ class Window_Stash_Reviews(WindowBase):
 
         # Close the edit review window
         dpg.configure_item(self.editReviewWindow.tag, show=False)
-        self.refresh()
+        self.softRefresh()
             
     
     def validateAddEditReview(self, sender, app_data, user_data):
@@ -2271,7 +2264,7 @@ class Window_Stash_Reviews(WindowBase):
         dpg.configure_item(self.reviewsWindow.tag, show=False)
         self.deleteEditReviewWindow()
         # Refresh the window
-        self.refresh()
+        self.softRefresh()
         # Close the edit review window
         if self.editReviewWindow is not None:
             self.editReviewWindow.delete()
@@ -2312,7 +2305,13 @@ class Window_Stash_Reviews(WindowBase):
             dpg.bind_item_font(dpg.last_item(), getFontName(3, bold=True))
             dateString = f"Date Added: {TimeStampToString(tea.getLatestReview().attributes['date'])}" if tea.getLatestReview() else "No reviews yet"
             dp.Text(f"Total Reviews: {len(tea.reviews)}, Last Review date: {dateString}")
-            val, exp = tea.getEstimatedRemaining()
+            # Populate stats cache if not already done
+            global TeaCache
+            if not TeaCache:
+                TeaCache = populateStatsCache()
+            # Get the estimated remaining tea
+            val = tea.calculated["remaining"]
+            exp = tea.calculated["remainingExplanation"]
             dp.Text(f"Estimated consumed by reviews: {tea.getEstimatedConsumedByReviews()}g")
             dp.Text(f"Estimated remaining: {val:.2f}g")
             with dp.Tooltip(dpg.last_item()):
@@ -2351,12 +2350,6 @@ class Window_Stash_Reviews(WindowBase):
             w = 900 * settings["UI_SCALE"]
             h = 500 * settings["UI_SCALE"]
             self.reviewsWindow = dp.Window(label="Reviews", width=w, height=h, show=False, modal=False)
-
-            # Call the pop of the TeaCache if not already populated
-            global TeaCache
-            if TeaCache is None or (len(TeaCache) == 0 and len(TeaStash) > 0):
-                TeaCache = populateStatsCache()
-                RichPrintSuccessMinor("TeaCache populated from TeaStash")
 
             
             # --
@@ -2973,7 +2966,7 @@ class Window_Stash(WindowBase):
             saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
 
             # Refresh the window
-            self.refresh()
+            self.softRefresh()
         except json.JSONDecodeError:
             RichPrintError("Error: Clipboard data is not valid JSON.")
         except Exception as e:
@@ -3571,7 +3564,7 @@ class Window_Stash(WindowBase):
         RichPrintSuccess(f"Moved tea {tea.name} to index {newIndex} from current index {currentIndex}, renumbered stash.")
         # Refresh the window
         self.deleteAdjustmentsWindow()
-        self.refresh()
+        self.softRefresh()
 
     def greyOutAdjustmentInput(self, sender, app_data, user_data):
         # If the tea is finished, grey out the adjustment input
@@ -3625,7 +3618,7 @@ class Window_Stash(WindowBase):
 
         # Refresh the window
         self.deleteAdjustmentsWindow()
-        self.refresh()
+        self.softRefresh()
                    
                     
 
@@ -3671,7 +3664,7 @@ class Window_Stash(WindowBase):
         
         # hide the popup
         dpg.configure_item(self.teasWindow.tag, show=False)
-        self.refresh()
+        self.softRefresh()
 
 
     def EditTea(self, sender, app_data, user_data):
@@ -3732,7 +3725,7 @@ class Window_Stash(WindowBase):
         # hide the popup
         dpg.configure_item(self.teasWindow.tag, show=False)
         self.deleteTeasWindow()
-        self.refresh()
+        self.softRefresh()
 
     def DeleteTea(self, sender, app_data, user_data):
         # Remove tea from the stash (DUMMY, JUST PRINT)
@@ -3765,7 +3758,7 @@ class Window_Stash(WindowBase):
         saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
 
         # Refresh the window to reflect the deletion
-        self.refresh()
+        self.softRefresh()
         # Close the teas window if it's open (This is the edit reviews window)
         if self.teasWindow is not None:
             self.teasWindow.delete()
@@ -3942,6 +3935,7 @@ def reCacheStats():
     # Recalculate all stats and cache them
     global statsCache
     statsCache = populateStatsCache()
+    RichPrintSuccessMinor(f"Stats cache updated")
     return statsCache
 
 def populateStatsCache():
@@ -4082,7 +4076,7 @@ def populateStatsCache():
 
         # Derive explanation for remaining
         remainingExplanation = ""
-        explanation = f"{ctrTeaRemaining:.2f}g Purchased\n- {ctrTeaDrankReviews:.2f}g Sum of all review Amounts\n- {ctrTeaStandardAdjustments:.2f}g Standard Adjustments\n- {ctrTeaGiftAdjustments:.2f}g Gift Adjustments\n= {ctrTeaRemaining:.2f}g Remaining"
+        explanation = f"{tea.attributes['Amount']:.2f}g Purchased\n- {ctrTeaDrankReviews:.2f}g Sum of all review Amounts\n- {ctrTeaStandardAdjustments:.2f}g Standard Adjustments\n- {ctrTeaGiftAdjustments:.2f}g Gift Adjustments\n= {ctrTeaRemaining:.2f}g Remaining"
         if ctrTeaRemaining < 0:
             remainingExplanation = explanation + " (Overdrawn)"
         elif ctrTeaRemaining == 0:
@@ -5159,23 +5153,23 @@ class Window_EditCategories(WindowBase):
     def moveItemUpCategory(self, sender, app_data, user_data):
         TeaCategories[user_data], TeaCategories[user_data - 1] = TeaCategories[user_data - 1], TeaCategories[user_data]
         # Refresh the window
-        self.refresh()
+        self.softRefresh()
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
     def moveItemDownCategory(self, sender, app_data, user_data):
         TeaCategories[user_data], TeaCategories[user_data + 1] = TeaCategories[user_data + 1], TeaCategories[user_data]
         # Refresh the window
-        self.refresh()
+        self.softRefresh()
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
 
     def moveItemUpReviewCategory(self, sender, app_data, user_data):
         TeaReviewCategories[user_data], TeaReviewCategories[user_data - 1] = TeaReviewCategories[user_data - 1], TeaReviewCategories[user_data]
         # Refresh the window
-        self.refresh()
+        self.softRefresh()
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
     def moveItemDownReviewCategory(self, sender, app_data, user_data):
         TeaReviewCategories[user_data], TeaReviewCategories[user_data + 1] = TeaReviewCategories[user_data + 1], TeaReviewCategories[user_data]
         # Refresh the window
-        self.refresh()
+        self.softRefresh()
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
 
     def showAddCategory(self, sender, app_data, user_data):
@@ -5498,7 +5492,7 @@ class Window_EditCategories(WindowBase):
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
         
         # close the popup
-        self.refresh()
+        self.softRefresh()
         dpg.delete_item(user_data[1])
 
     def showEditCategory(self, sender, app_data, user_data):
@@ -5707,7 +5701,7 @@ class Window_EditCategories(WindowBase):
 
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
         # close the popup
-        self.refresh()
+        self.softRefresh()
         dpg.delete_item(user_data[2])
 
     def showEditReviewCategory(self, sender, app_data, user_data):
@@ -5887,7 +5881,7 @@ class Window_EditCategories(WindowBase):
         RichPrintInfo(f"Editing review category: {category.name} ({category.categoryType}, Flags: {category.isRequiredForAll}, {category.isRequiredForTea}, {category.isAutoCalculated}, {category.isDropdown})")
         saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
         # close the popup
-        self.refresh()
+        self.softRefresh()
         dpg.delete_item(user_data[2])
 
 
@@ -5899,7 +5893,7 @@ class Window_EditCategories(WindowBase):
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
         
         # Refresh the window
-        self.refresh()
+        self.softRefresh()
 
     def deleteReviewCategory(self, sender, app_data, user_data):
         nameOfCategory = TeaReviewCategories[user_data].name
@@ -5910,7 +5904,7 @@ class Window_EditCategories(WindowBase):
         RichPrintSuccess(f"Deleted {nameOfCategory} category")
         
         # Refresh the window
-        self.refresh()
+        self.softRefresh()
 
     def AddCategory(self, sender, app_data, user_data):
         allObjects = user_data[0]
@@ -5966,7 +5960,7 @@ class Window_EditCategories(WindowBase):
         saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
        
         # close the popup
-        self.refresh()
+        self.softRefresh()
         dpg.delete_item(user_data[1])
 
 def Menu_ReviewsTable():
