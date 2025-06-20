@@ -1198,100 +1198,11 @@ class TeaCategory:
         RichPrintInfo("Autocalculating...")
         if self.categoryRole == "Remaining":
             return data.calculated.get("remaining", None), data.calculated.get("remainingExplanation", None)
-        #    # Requires: Amount to be set, Amount in reviews to be set
-        #    validReviewsCategories, _ = getValidReviewCategoryRolesList()
-        #    validCategories, _ = getValidCategoryRolesList()
-        #    if "Amount" in validCategories and "Amount" in validReviewsCategories and "Amount" in data.attributes:
-        #        RichPrintInfo("Calculating remaining")
-        #        # Sum of all review Amounts in the tea (data)
-        #        reviewAmount = 0
-        #        for review in data.reviews:
-        #            if "Amount" in review.attributes:
-        #                reviewAmount += review.attributes["Amount"]
-#
-        #        # Get adjustments amount
-        #        adjustmentsAmountTotal, adjustmentsGift, adjustmentsStandard = 0, 0, 0
-        #        try:
-        #            adjustmentsStandard += data.adjustments["Standard"]
-        #            adjustmentsGift += data.adjustments["Gift"]
-        #        except:
-        #            RichPrintWarning("No adjustments found, skipping")
-#
-        #        originalAmount = data.attributes["Amount"]
-        #        # Remaining = Original Amount - Sum of all review Amounts
-        #        remaining = originalAmount - reviewAmount - adjustmentsStandard - adjustmentsGift
-        #        adjustmentsAmount = adjustmentsStandard + adjustmentsGift
-#
-        #        # Also check if finished
-        #        finished = data.finished
-#
-        #        # Explanation
-        #        if not finished:
-        #            explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= {remaining:.2f}g Remaining"
-        #            if remaining < 0:
-        #                explanation += " (Overdrawn)"
-        #            elif remaining == 0:
-        #                explanation += " (Finished)"
-        #            else:
-        #                explanation += " (Not Finished)"
-#
-        #            remaining = round(remaining, 2)
-        #            return remaining, explanation
-        #        else:
-        #            explanation = f"{originalAmount:.2f}g Purchased\n- {reviewAmount:.2f}g Sum of all review Amounts\n- {adjustmentsStandard:.2f}g Standard Adjustments\n- {adjustmentsGift:.2f}g Gift Adjustments\n= 0.00g Remaining (Finished)"
-        #            return remaining, explanation
-        #    else:
-        #        RichPrintError("Amount not found in categories, cannot calculate remaining")
-        #        return None, None
         elif self.categoryRole == "Cost per Gram":
             return data.calculated.get("costPerGram", None), data.calculated.get("costPerGramExplanation", None)
-            ## Requires: Cost to be set, Amount to be set
-            #validCategories, _ = getValidCategoryRolesList()
-            #if "Cost" in validCategories and "Amount" in data.attributes:
-            #    RichPrintInfo("Calculating price per gram")
-            #    # Price per gram = Cost / Amount
-            #    cost = data.attributes["Cost"]
-            #    amount = data.attributes["Amount"]
-            #    pricePerGram = cost / amount
-            #    # Explanation
-            #    explanation = f"${cost:.2f} Cost\n/ {amount:.2f} Amount\n= ${pricePerGram:.2f} Price per gram"
-            #    return pricePerGram, explanation
-            #else:
-            #    RichPrintError("Cost or Amount not found in categories, cannot calculate price per gram")
-            #    return None, None
         elif self.categoryRole == "Total Score":
             # Pulls cached values from TeaCache and put into the calculated dict
-            return data.calculated.get("averageScore", None), data.calculated.get("totalScoreExplanation", None)
-
-            ## Average of all review scores
-            #validReviewsCategories, _ = getValidReviewCategoryRolesList()
-            #if "Final Score" in validReviewsCategories:
-            #    RichPrintInfo("Calculating total score")
-            #    # Total score = Average of all review scores
-            #    totalScore = 0
-            #    for review in data.reviews:
-            #        if "Final Score" in review.attributes:
-            #            totalScore += review.attributes["Final Score"]
-            #    # Divide by the number of reviews
-            #    if len(data.reviews) == 0:
-            #        RichPrintWarning("No reviews found, cannot calculate total score")
-            #        return -1, None
-            #    
-#
-            #    avrgScore = totalScore / len(data.reviews)
-#
-            #    # Explanation
-            #    explanation = f"{totalScore:.2f} Total Score\n/ {len(data.reviews)} Number of reviews\n= {avrgScore:.2f} Average Score"
-            #    avrgScore = round(avrgScore, 2)
-            #    return avrgScore, explanation
-            #else:
-            #    RichPrintError("Score not found in review categories, cannot calculate total score")
-            #    return None, None
-    
-    
-
-        
-                    
+            return data.calculated.get("averageScore", None), data.calculated.get("totalScoreExplanation", None) 
 
 # Themes for coloring
 def create_cell_theme(color_rgba):
@@ -1300,10 +1211,6 @@ def create_cell_theme(color_rgba):
             dpg.add_theme_color(dpg.mvThemeCol_Header, color_rgba, category=dpg.mvThemeCat_Core)
             dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 5, 5)
     return theme_id
-
-
-#green_theme = create_cell_theme((100, 255, 100, 255))
-#yellow_theme = create_cell_theme((255, 255, 100, 255))
 
 
 class ReviewCategory:
@@ -3406,16 +3313,8 @@ class Window_Stash(WindowBase):
 
             # Check if all required categories are present,
             # Needs Amount Purchased, amount remaining
-            AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
-            allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
             if "Amount" in teaCurrent.attributes or "Remaining" in teaCurrent.attributes:
-
                 # Get Amount and Remaining categories
-                amountCategory = None
-                for cat in TeaCategories:
-                    if cat.categoryRole == "Amount":
-                        amountCategory = cat
-                        break
                 remainingCategory = None
                 for cat in TeaCategories:
                     if cat.categoryRole == "Remaining":
@@ -3456,6 +3355,14 @@ class Window_Stash(WindowBase):
                     if currentGiftAdjustmentAmt is None:
                         currentGiftAdjustmentAmt = 0.0
                 dp.Text(f"Current Gift Adjustment: {currentGiftAdjustmentAmt:.3f}g")
+                currentSaleAdjustmentAmt = 0
+                currentSaleAdjustmentDict = teaCurrent.adjustments
+                if currentSaleAdjustmentDict is not None:
+                    # Try to get sale adjustment
+                    currentSaleAdjustmentAmt = currentSaleAdjustmentDict.get("Sale", None)
+                    if currentSaleAdjustmentAmt is None:
+                        currentSaleAdjustmentAmt = 0.0
+                dp.Text(f"Current Sale Adjustment: {currentSaleAdjustmentAmt:.3f}g")
                 # Add a checkbox to mark the tea as finished
                 dp.Separator()
                 finished = teaCurrent.finished
@@ -3473,7 +3380,7 @@ class Window_Stash(WindowBase):
 
                 # Add a button to confirm the adjustment
                 dp.Separator()
-                dp.Button(label="Confirm Adjustment", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, adjustmentInput, finsihedCheckbox, "Standard"))
+                dp.Button(label="Confirm Adjustment/Finished", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, adjustmentInput, finsihedCheckbox, "Standard"))
 
                 # Adjust gift amount, adjustment that doesnt count towards consumption
                 dp.Text("Gift Adjustment (Does not count towards consumption):")
@@ -3481,6 +3388,14 @@ class Window_Stash(WindowBase):
                 self.addTeaList["Gift Adjustment"] = giftAdjustmentInput
                 # Add a button to confirm the gift adjustment
                 dp.Button(label="Confirm Gift Adjustment", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, giftAdjustmentInput, finsihedCheckbox, "Gift"))
+
+                # Adjust Sale amount
+                dp.Text("Sale Adjustment")
+                dp.Text("(Does not count towards consumption, proceeds counted separately)")
+                saleAdjustmentInput = dp.InputFloat(default_value=currentSaleAdjustmentAmt, step=1.0, format="%.2f")
+                self.addTeaList["Sale Adjustment"] = saleAdjustmentInput
+                # Add a button to confirm the sale adjustment
+                dp.Button(label="Confirm Sale Adjustment", callback=self.UpdateAdjustmentAmt, user_data=(teaCurrent, saleAdjustmentInput, finsihedCheckbox, "Sale"))
             else:
                 # If the tea does not have the required attributes, show an error message
                 dp.Text("Error: Tea does not have the required attributes for adjustments.")
@@ -3982,6 +3897,8 @@ def populateStatsCache():
     ctrTotalConsumedByStdAdjustments = 0
     ctrTotalConsumedByFinishedTeas = 0
     ctrTotalConsumedByGiftedTeas = 0
+    ctrTotalConsumedBySaleAdjustments = 0
+    ctrTotalReturnedBySales = 0
     ctrTotalRemaining = 0
     ctrTotalTeasTried = 0
     dictCtrTeasTried = {}
@@ -4039,6 +3956,16 @@ def populateStatsCache():
                 ctrTotalConsumedByGiftedTeas += ctrTeaGiftAdjustments
                 ctrTeaTotalAdjustments += ctrTeaGiftAdjustments
 
+        # Sale adjustments
+        ctrTeaSaleAdjustments = 0
+        if "Sale" in tea.adjustments:
+            ctrTeaSaleAdjustments = tea.adjustments["Sale"]
+            ctrTotalConsumedBySaleAdjustments += ctrTeaSaleAdjustments
+            ctrTeaTotalAdjustments += ctrTeaSaleAdjustments
+            # Given cost and amount of sale, calculate total returned
+            if "Cost" in tea.attributes and "Amount" in tea.attributes:
+                ctrTotalReturnedBySales += autocalcCostPerGram * ctrTeaSaleAdjustments
+
         # Teas tried
         if len(tea.reviews) > 0:
             ctrTotalTeasTried += 1
@@ -4083,12 +4010,12 @@ def populateStatsCache():
         if tea.finished:
             ctrTeaRemaining = 0
         else:
-            ctrTeaRemaining = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Standard", 0) - tea.adjustments.get("Gift", 0)
+            ctrTeaRemaining = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Standard", 0) - tea.adjustments.get("Gift", 0) - tea.adjustments.get("Sale", 0)
         ctrTotalRemaining += ctrTeaRemaining
 
         # Derive explanation for remaining
         remainingExplanation = ""
-        explanation = f"{tea.attributes['Amount']:.2f}g Purchased\n- {ctrTeaDrankReviews:.2f}g Sum of all review Amounts\n- {ctrTeaStandardAdjustments:.2f}g Standard Adjustments\n- {ctrTeaGiftAdjustments:.2f}g Gift Adjustments\n= {ctrTeaRemaining:.2f}g Remaining"
+        explanation = f"{tea.attributes['Amount']:.2f}g Purchased\n- {ctrTeaDrankReviews:.2f}g Sum of all review Amounts\n- {ctrTeaStandardAdjustments:.2f}g Standard Adjustments\n- {ctrTeaGiftAdjustments:.2f}g Gift Adjustments\n- {ctrTeaSaleAdjustments:.2f}g Sale Adjustments\n= {ctrTeaRemaining:.2f}g Remaining"
         if ctrTeaRemaining < 0:
             remainingExplanation = explanation + " (Overdrawn)"
         elif ctrTeaRemaining == 0:
@@ -4178,6 +4105,22 @@ def populateStatsCache():
         cache["totalConsumedByGiftedTeasSum"] = 0
         cache["averageConsumedByGiftedTeas"] = 0
 
+    # Total consumed by sale adjustments
+    if "Amount" in AllTypesCategoryRoleValid and cache["numTeas"] > 0:
+        cache["totalConsumedBySaleAdjustmentsSum"] = ctrTotalConsumedBySaleAdjustments
+        cache["averageConsumedBySaleAdjustments"] = ctrTotalConsumedBySaleAdjustments / cache["numTeas"]
+    else:
+        cache["totalConsumedBySaleAdjustmentsSum"] = 0
+        cache["averageConsumedBySaleAdjustments"] = 0
+
+    # Total returned by sales
+    if "Amount" in AllTypesCategoryRoleValid and cache["numTeas"] > 0:
+        cache["totalReturnedBySales"] = ctrTotalReturnedBySales
+        cache["averageReturnedBySales"] = ctrTotalReturnedBySales / cache["numTeas"]
+    else:
+        cache["totalReturnedBySales"] = 0
+        cache["averageReturnedBySales"] = 0
+
     # Steeps by type
     cache["steepsByType"] = dictSteepsByType
     # Num reviews by type
@@ -4202,6 +4145,11 @@ def populateStatsCache():
     totalConsumedGiftAdj = ctrTotalConsumedByGiftedTeas
     cache["totalConsumedGiftAdj"] = totalConsumedGiftAdj
     cache["averageConsumedGiftAdj"] = totalConsumedGiftAdj / cache["numTeas"] if cache["numTeas"] > 0 else 0
+
+    # Total consumed by sale and gift adjustments
+    totalConsumedSaleAdj = ctrTotalConsumedBySaleAdjustments
+    cache["totalConsumedSaleGiftAdj"] = totalConsumedSaleAdj
+    cache["averageConsumedSaleGiftAdj"] = totalConsumedSaleAdj / cache["numTeas"] if cache["numTeas"] > 0 else 0
 
     # Total Remaining
     cache["totalRemaining"] = ctrTotalRemaining
@@ -4270,261 +4218,6 @@ def statsNumReviews():
         numReviews += len(tea.reviews)
     return numReviews
 
-# Get total Purchase volume of all teas in the stash
-def statsTotalVolume():
-    # Guard if no attributes are present
-    validCategories, _  = getValidCategoryRolesList()
-    if "Amount" not in validCategories:
-        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
-        return 0, 0
-    numTeas = statsNumTeas()
-    totalVolume = 0
-    for tea in TeaStash:
-        if "Amount" in tea.attributes:
-            totalVolume += tea.attributes["Amount"]
-    if numTeas > 0:
-        averageVolume = totalVolume / numTeas
-    else:
-        averageVolume = 0
-    
-    return totalVolume, averageVolume
-
-# Get the total cost of all teas in the stash
-def statsTotalAverageCost():
-    # Guard if no attributes are present
-    validCategories, _  = getValidCategoryRolesList()
-    if "Cost" not in validCategories:
-        RichPrintError("Error: No 'Cost' attribute found in Tea Categories.")
-        return 0, 0
-    numTeas = statsNumTeas()
-    totalCost = 0
-    for tea in TeaStash:
-        if "Cost" in tea.attributes:
-            totalCost += tea.attributes["Cost"]
-    if numTeas > 0:
-        averageCost = totalCost / numTeas
-    
-    return totalCost, averageCost
-
-# Get the weighted average cost of all teas in the stash
-def statsWeightedAverageCost():
-    # Guard if no attributes are present
-    validCategories, _ = getValidCategoryRolesList()
-    if "Cost" not in validCategories or "Amount" not in validCategories:
-        RichPrintError("Error: No 'Cost' or 'Amount' attribute found in Tea Categories.")
-        return 0, 0
-    
-    totalVol, _ = statsTotalVolume()
-    totalCost = statsTotalAverageCost()[0]
-    if totalVol > 0:
-        weightedAverageCost = totalCost / totalVol
-    else:
-        weightedAverageCost = 0
-    return weightedAverageCost
-
-# Get total consumed by summing all reviews, adjustments, and finished teas
-def statsTotalConsumed():
-    # Guard if no attributes are present
-    validCategories, _ = getValidCategoryRolesList()
-    if "Remaining" not in validCategories:
-        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
-        return 0, 0
-    
-    numTeas = statsNumTeas()
-    totalConsumed = 0
-    for tea in TeaStash:
-        if not tea.finished:
-            # If the tea is not finished, add the amount from the reviews
-            for review in tea.reviews:
-                if "Amount" in review.attributes:
-                    totalConsumed += review.attributes["Amount"]
-            # Add the adjustments
-            if "Standard" in tea.adjustments:
-                totalConsumed += tea.adjustments["Standard"]
-        else:
-            # Directly add total purchase volume
-            if "Amount" in tea.attributes:
-                totalConsumed += tea.attributes["Amount"]
-    if numTeas > 0:
-        averageConsumed = totalConsumed / numTeas
-    else:
-        averageConsumed = 0
-    
-    return totalConsumed, averageConsumed
-
-# Get total consumed, excluding adjustments
-def statsTotalConsumedExcludingGiftAdj():
-    # Guard if no attributes are present
-    validCategories, _ = getValidCategoryRolesList()
-    if "Remaining" not in validCategories:
-        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
-        return 0, 0
-    
-    numTeas = statsNumTeas()
-    totalConsumed = 0
-    for tea in TeaStash:
-        if not tea.finished:
-            # If the tea is not finished, add the amount from the reviews
-            for review in tea.reviews:
-                if "Amount" in review.attributes:
-                    totalConsumed += review.attributes["Amount"]
-        else:
-            # Directly add total purchase volume
-            if "Amount" in tea.attributes:
-                totalConsumed += tea.attributes["Amount"]
-
-        # Add the adjustments, but only the standard ones
-        if "Standard" in tea.adjustments:
-            totalConsumed += tea.adjustments["Standard"]
-
-        # Less Gift adjustments, assuming they are not part of the consumed amount
-        if "Gift" in tea.adjustments:
-            totalConsumed -= tea.adjustments["Gift"]
-    if numTeas > 0:
-        averageConsumed = totalConsumed / numTeas
-    else:
-        averageConsumed = 0
-    
-    return totalConsumed, averageConsumed
-
-# Get total consumed by summing all reviews, adjustments, and finished teas
-def statsTotalConsumedExcludingAdj():
-    # Guard if no attributes are present
-    validCategories, _ = getValidCategoryRolesList()
-    if "Remaining" not in validCategories:
-        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
-        return 0, 0
-    
-    numTeas = statsNumTeas()
-    totalConsumed = 0
-    for tea in TeaStash:
-        if not tea.finished:
-            # If the tea is not finished, add the amount from the reviews
-            for review in tea.reviews:
-                if "Amount" in review.attributes:
-                    totalConsumed += review.attributes["Amount"]
-        else:
-            # Directly add total purchase volume
-            if "Amount" in tea.attributes:
-                totalConsumed += tea.attributes["Amount"]
-    if numTeas > 0:
-        averageConsumed = totalConsumed / numTeas
-    else:
-        averageConsumed = 0
-    
-    return totalConsumed, averageConsumed
-
-def statsAllStandardAdjustmentsSum():
-    # Guard if no attributes are present
-    validCategories, _ = getValidCategoryRolesList()
-    if "Remaining" not in validCategories:
-        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
-        return 0, 0
-    
-    numTeas = statsNumTeas()
-    totalStandardAdjustments = 0
-
-    remainingCategory = None
-    for cat in TeaCategories:
-        cat: TeaCategory
-        if cat.categoryRole == "Remaining":
-            remainingCategory = cat
-            break
-
-    for tea in TeaStash:
-        # If there is remaining and finished is marked, we assume the tea is finished
-        # and add the remaining amount to the total standard adjustments
-        tea: StashedTea
-        currentRemaining, exp = remainingCategory.autocalculate(tea)
-        if currentRemaining is None:
-            currentRemaining = 0.0
-
-        if tea.finished and currentRemaining > 0:
-            # If the tea is finished, we add the remaining amount to the total standard adjustments
-            totalStandardAdjustments += currentRemaining
-        elif not tea.finished:
-            # If the tea is not finished, we add the standard adjustments
-            # Check if there are any standard adjustments
-            if "Standard" in tea.adjustments:
-                totalStandardAdjustments += tea.adjustments["Standard"]
-
-
-
-        #if "Standard" in tea.adjustments:
-        #    totalStandardAdjustments += tea.adjustments["Standard"]
-            
-    
-    
-    if numTeas > 0:
-        averageStandardAdjustments = totalStandardAdjustments / numTeas
-    else:
-        averageStandardAdjustments = 0
-    
-    return totalStandardAdjustments, averageStandardAdjustments
-
-def statsAllGiftAdjustmentsSum():
-    # Guard if no attributes are present
-    validCategories, _ = getValidCategoryRolesList()
-    if "Remaining" not in validCategories:
-        RichPrintError("Error: No 'Amount' attribute found in Tea Categories.")
-        return 0, 0
-    
-    numTeas = statsNumTeas()
-    totalGiftAdjustments = 0
-    for tea in TeaStash:
-        if "Gift" in tea.adjustments:
-            totalGiftAdjustments += tea.adjustments["Gift"]
-    
-    if numTeas > 0:
-        averageGiftAdjustments = totalGiftAdjustments / numTeas
-    else:
-        averageGiftAdjustments = 0
-    
-    return totalGiftAdjustments, averageGiftAdjustments
-
-# Get total remaining by summing all remaining amounts after applying autocalculations
-def statsTotalRemaining():
-    # Guard if no attributes are present
-    validCategories, _ = getValidCategoryRolesList()
-    if "Remaining" not in validCategories:
-        RichPrintError("Error: No 'Remaining' attribute found in Tea Categories.")
-        return 0, 0
-    
-    numTeas = statsNumTeas()
-    totalRemaining = 0
-
-    remainingCategory = None
-    for cat in TeaCategories:
-        cat: TeaCategory
-        if cat.categoryRole == "Remaining":
-            remainingCategory = cat
-            break
-    
-    for tea in TeaStash:
-        tea: StashedTea
-        currentRemaining, exp = remainingCategory.autocalculate(tea)
-        if currentRemaining is None:
-            currentRemaining = 0.0
-        totalRemaining += currentRemaining
-
-    # Calculate the average remaining
-    if numTeas > 0:
-        averageRemaining = totalRemaining / numTeas
-    else:
-        averageRemaining = 0
-    
-    return totalRemaining, averageRemaining
-
-def statsCountTeasTriedTotal():
-    # Teas with reviews
-    numTeasTried = 0
-    for tea in TeaStash:
-        tea: StashedTea
-        if len(tea.reviews) > 0:
-            numTeasTried += 1
-
-    return numTeasTried, len(TeaStash)
-
 def statsWaterConsumed():
     # For each review, multiply the number of steeps by vessel size
     # and sum them up
@@ -4543,54 +4236,6 @@ def statsWaterConsumed():
     else:
         averageWaterConsumed = 0
     return totalWaterConsumed, averageWaterConsumed
-
-def statsCountTeasTriedPerType():
-    # Count the number of teas tried per type
-    teasTriedPerType = {}
-    teasNotTriedPerType = {}
-    for tea in TeaStash:
-        tea: StashedTea
-        if len(tea.reviews) > 0 or tea.finished or tea.adjustments.get("Standard", 0) > 0:
-            teaType = tea.attributes.get("Type", "Unknown")
-            if teaType not in teasTriedPerType:
-                teasTriedPerType[teaType] = 0
-            teasTriedPerType[teaType] += 1
-        else:
-            teaType = tea.attributes.get("Type", "Unknown")
-            if teaType not in teasNotTriedPerType:
-                teasNotTriedPerType[teaType] = 0
-            teasNotTriedPerType[teaType] += 1
-
-    return teasTriedPerType, teasNotTriedPerType
-
-def statsCountTeasFinishedPerType():
-    # Count the number of teas finished per type
-    teasFinishedPerType = {}
-    
-    remainingCategory = None
-    for cat in TeaCategories:
-        cat: TeaCategory
-        if cat.categoryRole == "Remaining":
-            remainingCategory = cat
-            break
-    
-    for tea in TeaStash:
-        tea: StashedTea
-        flagFinished = False
-        # Also calc finished based on remaining
-        if remainingCategory is not None:
-            currentRemaining, exp = remainingCategory.autocalculate(tea)
-            if currentRemaining is not None and currentRemaining <= 0:
-                flagFinished = True
-
-        if tea.finished or flagFinished:
-            teaType = tea.attributes.get("Type", "Unknown")
-            if teaType not in teasFinishedPerType:
-                teasFinishedPerType[teaType] = 0
-            teasFinishedPerType[teaType] += 1
-        flagFinished = False
-
-    return teasFinishedPerType
 
 
 def Menu_Stats():
@@ -4715,6 +4360,17 @@ class Window_Stats(WindowBase):
                 totalDays = self.cache["totalDays"]
                 dp.Text(f"Total Days Since Start Day: {totalDays:.2f} days")
                 dp.Separator()
+        with dp.CollapsingHeader(label="Resale", default_open=False, indent=20 * settings["UI_SCALE"]):
+            # Get sale amount and returned value from cache
+            totalSoldAmt = self.cache["totalConsumedBySaleAdjustmentsSum"]
+            totalReturnedAmt = self.cache["totalReturnedBySales"]
+            dp.Text(f"Total Sold Amount: {totalSoldAmt:.2f}g")
+            dp.Text(f"Total Returned value: ${totalReturnedAmt:.2f}")
+            pricepergram = 0
+            if totalSoldAmt > 0:
+                pricepergram = totalReturnedAmt / totalSoldAmt
+            dp.Text(f"Price per gram: ${pricepergram:.2f}")
+            dp.Separator()
 
     # Consumption and remaining stats
     def window_subwindow_1_0_categories(self, sender=None, app_data=None, user_data=None):
@@ -4780,6 +4436,20 @@ class Window_Stats(WindowBase):
                 averageGiftAdjustments = self.cache["averageConsumedGiftAdj"]
                 dp.Text(f"Total Gift Adjustments: {totalGiftAdjustments:.2f}g, Average Gift Adjustments per tea: {averageGiftAdjustments:.2f}g")
                 dp.Separator()
+                # Total sale adjustments
+                dp.Text("Total Sale Adjustments")
+                totalSaleAdjustments = self.cache["totalConsumedBySaleAdjustmentsSum"]
+                averageSaleAdjustments = self.cache["averageConsumedBySaleAdjustments"]
+                dp.Text(f"Total Sale Adjustments: {totalSaleAdjustments:.2f}g, Average Sale Adjustments per tea: {averageSaleAdjustments:.2f}g")
+                totalReturnedBySales = self.cache["totalReturnedBySales"]
+                averageReturnedBySales = self.cache["averageReturnedBySales"]
+                pricePerGram = 0
+                if totalSaleAdjustments > 0:
+                    pricePerGram = totalReturnedBySales / totalSaleAdjustments
+                dp.Text(f"Total Returned by Sales: ${totalReturnedBySales:.2f}, Average Returned by Sales per tea: ${averageReturnedBySales:.2f}")
+                dp.Text(f"Price per gram: ${pricePerGram:.2f}")
+                
+                dp.Separator()
                 # Total remaining by summing all remaining amounts after applying autocalculations
                 dp.Text("Total Remaining")
                 if "Remaining" in AllTypesCategoryRoleValid:
@@ -4844,7 +4514,7 @@ class Window_Stats(WindowBase):
             dp.Text("Total Volume of Consumed Tea")
             if "Amount" in allTypesCategoryRoleReviewsValid:
                 sum = self.cache["totalConsumedByReviewsSum"]
-                dp.Text(f"Total Consumed: {sum:.2f}g")
+                dp.Text(f"Total Consumed personally: {sum:.2f}g")
                 average = self.cache["averageConsumedByReviews"]
                 dp.Text(f"Average Consumed per tea: {average:.2f}g")
             else:
