@@ -3288,7 +3288,10 @@ class Window_Stash(WindowBase):
         # Show the adjust tea window
         if self.adjustmentsWindow != None and type(self.adjustmentsWindow) == dp.Window:
             self.deleteAdjustmentsWindow()
-        self.generateAdjustmentsWindow(sender, app_data, user_data=user_data)
+        if not isinstance(user_data, StashedTea):
+            RichPrintError("Error: user_data is not a StashedTea object, is: ", user_data)
+        else:
+            self.generateAdjustmentsWindow(sender, app_data, user_data=user_data)
         return
     
 
@@ -3525,27 +3528,19 @@ class Window_Stash(WindowBase):
         try:
             adjustment = float(adjustment)
         except ValueError:
-            RichPrintError("Error: Adjustment is not a valid number.")
+            RichPrintError("Error: Adjustment is not a valid number. Found: ", adjustment)
             return
-        # Modify the TeaStash object
-        teaStashObj = None
-        for i, teaStash in enumerate(TeaStash):
-            if teaStash.id == tea.id:
-                teaStashObj = teaStash
-                break
-        if teaStashObj is None:
-            RichPrintError("Error: Tea not found in stash.")
-            return
+        # Modify tea object
                 
         # Update the adjustment amount
-        teaStashObj.adjustments[typeOfAdjustment] = round(adjustment, 2)
-        teaStashObj.finished = finished
+        tea.adjustments[typeOfAdjustment] = round(adjustment, 2)
+        tea.finished = finished
         # Save the tea stash to file
         saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        RichPrintSuccess(f"Updated {typeOfAdjustment} adjustment amount for tea {tea.name} to {adjustment:.3f}g")
 
-        # Refresh the window
+        # Delete the adjustments window
         self.deleteAdjustmentsWindow()
-        self.softRefresh()
                    
                     
 
@@ -4097,6 +4092,14 @@ def populateStatsCache():
         cache["totalConsumedByFinishedTeasSum"] = 0
         cache["averageConsumedByFinishedTeas"] = 0
 
+    # Total personally consumed (finished + reviews + standard adjustments)
+    if "Amount" in AllTypesCategoryRoleValid and cache["numTeas"] > 0:
+        cache["totalConsumedByPersonalSum"] = ctrTotalConsumedByReviews + ctrTotalConsumedByStdAdjustments + ctrTotalConsumedByFinishedTeas
+        cache["averageConsumedByPersonal"] = (ctrTotalConsumedByReviews + ctrTotalConsumedByStdAdjustments + ctrTotalConsumedByFinishedTeas) / cache["numTeas"]
+    else:
+        cache["totalConsumedByPersonalSum"] = 0
+        cache["averageConsumedByPersonal"] = 0
+
     # Total consumed by gifted teas
     if "Amount" in AllTypesCategoryRoleValid and cache["numTeas"] > 0:
         cache["totalConsumedByGiftedTeasSum"] = ctrTotalConsumedByGiftedTeas
@@ -4127,7 +4130,7 @@ def populateStatsCache():
     cache["numReviewsByType"] = dictNumReviewsByType
 
     # Total consumed by all methods
-    totalConsumed = ctrTotalConsumedByReviews + ctrTotalConsumedByStdAdjustments + ctrTotalConsumedByFinishedTeas + ctrTotalConsumedByGiftedTeas
+    totalConsumed = ctrTotalConsumedByReviews + ctrTotalConsumedByStdAdjustments + ctrTotalConsumedByFinishedTeas + ctrTotalConsumedByGiftedTeas + ctrTotalConsumedBySaleAdjustments
     cache["totalConsumed"] = totalConsumed
     cache["averageConsumed"] = totalConsumed / cache["numTeas"] if cache["numTeas"] > 0 else 0
 
@@ -4463,34 +4466,6 @@ class Window_Stats(WindowBase):
             today = dt.datetime.now(tz=dt.timezone.utc).timestamp()
             numDays = (today - startDay) / (24 * 60 * 60)
 
-            # Grams of tea consumed per day
-            with dp.CollapsingHeader(label="Daily Consumption", default_open=False, indent=20 * settings["UI_SCALE"]):
-                dp.Text("Grams of Tea Consumed per Day")
-                if "Amount" in AllTypesCategoryRoleValid:
-                    totalConsumed = self.cache["totalConsumed"]
-                    averageConsumed = self.cache["averageConsumed"]
-                    if numDays > 0:
-                        gramsPerDay = totalConsumed / numDays
-                        dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per day: {gramsPerDay:.2f}g")
-                    else:
-                        dp.Text("No valid start day or no teas consumed.")
-                else:
-                    dp.Text("Required Category role 'Amount' for Tea is not enabled.")
-
-            # Days til depleted
-            with dp.CollapsingHeader(label="Days Til Depleted", default_open=False, indent=20 * settings["UI_SCALE"]):
-                if "Remaining" in AllTypesCategoryRoleValid:
-                    totalRemaining = self.cache["totalRemaining"]
-                    if totalRemaining > 0 and numDays > 0:
-                        daysTilDepleted = totalRemaining / (self.cache["totalConsumed"] / numDays)
-                        dp.Text(f"Total Remaining: {totalRemaining:.2f}g, Days Til Depleted: {daysTilDepleted:.2f} days")
-                        yearsTilDepleted = daysTilDepleted / 365.25
-                        dp.Text(f"That's approximately {yearsTilDepleted:.2f} years!")
-                    else:
-                        dp.Text("No valid remaining amount or no teas consumed.")
-                else:
-                    dp.Text("Required Category role 'Remaining' for Tea is not enabled.")
-
         # Stash amounts
         with dp.CollapsingHeader(label="Stash Amounts", default_open=False):
             # Total volume of all teas in the stash
@@ -4511,15 +4486,32 @@ class Window_Stats(WindowBase):
         with dp.CollapsingHeader(label="Consumed Amounts", default_open=False):
         # Total consumed by summing all reviews, adjustments, and finished teas
             # Total volume of consumed tea (Review-remaining-stats)
-            dp.Text("Total Volume of Consumed Tea")
+            dp.Text("Tea Consumed")
+            days = self.cache["totalDays"]
             if "Amount" in allTypesCategoryRoleReviewsValid:
-                sum = self.cache["totalConsumedByReviewsSum"]
+                sum = self.cache["totalConsumedByPersonalSum"]
                 dp.Text(f"Total Consumed personally: {sum:.2f}g")
-                average = self.cache["averageConsumedByReviews"]
-                dp.Text(f"Average Consumed per tea: {average:.2f}g")
+                daysTilDepleted = self.cache["totalRemaining"] / (sum / days) if days > 0 else 0
+                yearsTilDepleted = daysTilDepleted / 365.25 if daysTilDepleted > 0 else 0
+                gramsPerDay = sum / days if days > 0 else 0
+                dp.Text(f"This is {gramsPerDay:.2f}g per day")
+                dp.Text(f"Days Til Depleted: {daysTilDepleted:.2f} days ({yearsTilDepleted:.2f} years)")
             else:
                 dp.Text("Required Category role 'Amount' for Review is not enabled.")
             dp.Separator()
+            dp.Text("Tea Consumed by all Methods")
+            if "Amount" in AllTypesCategoryRoleValid:
+                totalConsumed = self.cache["totalConsumed"]
+                dp.Text(f"Total Consumed: {totalConsumed:.2f}g")
+                daysTilDepleted = self.cache["totalRemaining"] / (totalConsumed / days) if days > 0 else 0
+                yearsTilDepleted = daysTilDepleted / 365.25 if daysTilDepleted > 0 else 0
+                gramsPerDay = totalConsumed / days if days > 0 else 0
+                dp.Text(f"This is {gramsPerDay:.2f}g per day")
+                dp.Text(f"Days Til Depleted: {daysTilDepleted:.2f} days ({yearsTilDepleted:.2f} years)")
+            else:
+                dp.Text("Required Category role 'Amount' for Tea is not enabled.")
+            dp.Separator()
+            
 
 
     # Steeps and water consumption stats
@@ -6056,7 +6048,15 @@ def saveTeasReviews(stash, path):
             teaData["reviews"].append(reviewData)
         allData.append(teaData)
 
-    WriteYaml(path, allData)
+    # If stash is not empty and data is not empty, write to file
+    if len(allData) > 0 and allData is not None:
+        RichPrintInfo(f"Saving {len(allData)} teas to {path}")
+        WriteYaml(path, allData)
+    else:
+        RichPrintWarning(f"No teas to save, skipping save to {path}")
+        return
+
+    
 
 def loadTeasReviews(path):
     # If not exists, create the directory, return false
@@ -6907,7 +6907,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.10.0", # Updates to most recently loaded
+        "APP_VERSION": "0.12.0", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
