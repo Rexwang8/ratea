@@ -3525,6 +3525,10 @@ class Window_Stash(WindowBase):
         finished = finishedCheckbox.get_value()
         typeOfAdjustment = user_data[3]
         # Check if the adjustment is a valid number
+        # Discard Nonetype values, which occur from a bug
+        if adjustment is None:
+            RichPrintError("Error: Nonetype found, discarding (results from a library bug, may crash.).")
+            return
         try:
             adjustment = float(adjustment)
         except ValueError:
@@ -3903,6 +3907,8 @@ def populateStatsCache():
     dictCtrScoresByType = {}
     dictSteepsByType = {}
     dictNumReviewsByType = {}
+    listTopTenTeasSoldByValue = []
+    ctrTotalTeasSold= 0
     remainingCategory = None
     for cat in TeaCategories:
         if cat.categoryRole == "Remaining":
@@ -3916,6 +3922,7 @@ def populateStatsCache():
         ctrTeaTotalAdjustments = 0
         ctrTeaGiftAdjustments = 0
         ctrTeaStandardAdjustments = 0
+        ctrTeaFinishedAmt = 0
         autocalcTotalScore = 0
         autocalcAveragedScore = 0
         autocalcCostPerGram = 0
@@ -3933,16 +3940,10 @@ def populateStatsCache():
             if "Cost" in tea.attributes:
                 ctrTotalCost += tea.attributes["Cost"]
 
-        if not tea.finished:
-            # Standard adjustment
-            if "Standard" in tea.adjustments:
-                ctrTeaStandardAdjustments = tea.adjustments["Standard"]
-                ctrTotalConsumedByStdAdjustments += ctrTeaStandardAdjustments
-                ctrTeaTotalAdjustments += ctrTeaStandardAdjustments
-            # Finished teas
-        else:
-            if "Amount" in tea.attributes:
-                ctrTotalConsumedByFinishedTeas += tea.attributes["Amount"]
+        if "Standard" in tea.adjustments:
+            ctrTeaStandardAdjustments = tea.adjustments["Standard"]
+            ctrTotalConsumedByStdAdjustments += ctrTeaStandardAdjustments
+            ctrTeaTotalAdjustments += ctrTeaStandardAdjustments
 
         # Gifted teas
         if "Amount" in tea.attributes:
@@ -3955,14 +3956,19 @@ def populateStatsCache():
         ctrTeaSaleAdjustments = 0
         if "Sale" in tea.adjustments:
             ctrTeaSaleAdjustments = tea.adjustments["Sale"]
-            ctrTotalConsumedBySaleAdjustments += ctrTeaSaleAdjustments
-            ctrTeaTotalAdjustments += ctrTeaSaleAdjustments
-            # Given cost and amount of sale, calculate total returned
-            if "Cost" in tea.attributes and "Amount" in tea.attributes:
-                ctrTotalReturnedBySales += autocalcCostPerGram * ctrTeaSaleAdjustments
+            if ctrTeaSaleAdjustments > 0:
+            # If there is a sale adjustment, add it to the list of top ten teas sold by value
+                ctrTotalTeasSold += 1
+                ctrTotalConsumedBySaleAdjustments += ctrTeaSaleAdjustments
+                ctrTeaTotalAdjustments += ctrTeaSaleAdjustments
+                # Given cost and amount of sale, calculate total returned
+                if "Cost" in tea.attributes and "Amount" in tea.attributes:
+                    ctrTotalReturnedBySales += autocalcCostPerGram * ctrTeaSaleAdjustments
+                    listTopTenTeasSoldByValue.append((tea, ctrTeaSaleAdjustments, autocalcCostPerGram))
 
         # Teas tried
-        if len(tea.reviews) > 0:
+        if len(tea.reviews) > 0 or tea.finished:
+            # If the tea has reviews or is finished, count it as tried
             ctrTotalTeasTried += 1
             if "Type" in AllTypesCategoryRoleValid:
                 if tea.attributes["Type"] not in dictCtrTeasTried:
@@ -3974,7 +3980,7 @@ def populateStatsCache():
 
         # Review loop
         for review in tea.reviews:
-            if "Amount" in allTypesCategoryRoleReviewsValid and not tea.finished:
+            if "Amount" in allTypesCategoryRoleReviewsValid:
                 if "Amount" in review.attributes:
                     ctrTeaDrankReviews += review.attributes["Amount"]
 
@@ -4002,15 +4008,22 @@ def populateStatsCache():
 
         ctrTotalConsumedByReviews += ctrTeaDrankReviews
         # Calculate remaining
+        ctrTeaRemaining = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Standard", 0) - tea.adjustments.get("Gift", 0) - tea.adjustments.get("Sale", 0)
+
+        # If finished, the remaining is set to 0 and added to the total consumed by finished teas
         if tea.finished:
+            ctrTotalConsumedByFinishedTeas += ctrTeaRemaining
+            ctrTeaFinishedAmt = ctrTeaRemaining
             ctrTeaRemaining = 0
-        else:
-            ctrTeaRemaining = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Standard", 0) - tea.adjustments.get("Gift", 0) - tea.adjustments.get("Sale", 0)
+            
+
         ctrTotalRemaining += ctrTeaRemaining
+
 
         # Derive explanation for remaining
         remainingExplanation = ""
-        explanation = f"{tea.attributes['Amount']:.2f}g Purchased\n- {ctrTeaDrankReviews:.2f}g Sum of all review Amounts\n- {ctrTeaStandardAdjustments:.2f}g Standard Adjustments\n- {ctrTeaGiftAdjustments:.2f}g Gift Adjustments\n- {ctrTeaSaleAdjustments:.2f}g Sale Adjustments\n= {ctrTeaRemaining:.2f}g Remaining"
+        stdPlusFinished = tea.adjustments.get("Standard", 0) + ctrTeaFinishedAmt
+        explanation = f"{tea.attributes['Amount']:.2f}g Purchased\n- {ctrTeaDrankReviews:.2f}g Sum of all review Amounts\n- {stdPlusFinished:.2f}g Standard Adjustments (inc Finished)\n- {ctrTeaGiftAdjustments:.2f}g Gift Adjustments\n- {ctrTeaSaleAdjustments:.2f}g Sale Adjustments\n= {ctrTeaRemaining:.2f}g Remaining"
         if ctrTeaRemaining < 0:
             remainingExplanation = explanation + " (Overdrawn)"
         elif ctrTeaRemaining == 0:
@@ -4124,6 +4137,12 @@ def populateStatsCache():
         cache["totalReturnedBySales"] = 0
         cache["averageReturnedBySales"] = 0
 
+    # Top ten teas sold by value
+    listTopTenTeasSoldByValue.sort(key=lambda x: x[1], reverse=True)
+    print(f"Sum of all tea sold by amt: {sum(x[1] for x in listTopTenTeasSoldByValue)}")
+    cache["topTenTeasSoldByValue"] = listTopTenTeasSoldByValue[:10]  # Limit to top 10
+    cache["totalTeasSold"] = ctrTotalTeasSold
+
     # Steeps by type
     cache["steepsByType"] = dictSteepsByType
     # Num reviews by type
@@ -4140,7 +4159,7 @@ def populateStatsCache():
     cache["averageConsumedExcludingGiftAdj"] = totalConsumedExcludingGiftAdj / cache["numTeas"] if cache["numTeas"] > 0 else 0
 
     # Total Consumed Standard Adjustments is finished plus standard
-    totalConsumedStandardAdj = ctrTotalConsumedByFinishedTeas + ctrTotalConsumedByStdAdjustments
+    totalConsumedStandardAdj = ctrTotalConsumedByStdAdjustments
     cache["totalConsumedStandardAdj"] = totalConsumedStandardAdj
     cache["averageConsumedStandardAdj"] = totalConsumedStandardAdj / cache["numTeas"] if cache["numTeas"] > 0 else 0
 
@@ -4373,6 +4392,15 @@ class Window_Stats(WindowBase):
             if totalSoldAmt > 0:
                 pricepergram = totalReturnedAmt / totalSoldAmt
             dp.Text(f"Price per gram: ${pricepergram:.2f}")
+            # Top 10 sold teas by price
+            with dp.CollapsingHeader(label="Top 10 Sold Teas by Price", default_open=False, indent=20 * settings["UI_SCALE"]):
+                for topTeaTuple in TeaCache["topTenTeasSoldByValue"]:
+                    tea = topTeaTuple[0]
+                    amt = topTeaTuple[1]
+                    ppg = topTeaTuple[2]
+                    value = amt * ppg
+                    if "Cost" in tea.attributes and "Amount" in tea.attributes:
+                        dp.Text(f"{tea.name} - {amt:.2f}g, ${ppg:.2f}/g, Value: ${value:.2f}")
             dp.Separator()
 
     # Consumption and remaining stats
@@ -4402,54 +4430,66 @@ class Window_Stats(WindowBase):
 
             with dp.CollapsingHeader(label="Total Consumed and Remaining", default_open=False, indent=20 * settings["UI_SCALE"]):
                 # Total consumed by summing all reviews, adjustments, and finished teas
-                dp.Text("Total Consumed Including Adjustments")
+                dp.Text("Consumed - (All)")
                 if "Amount" in AllTypesCategoryRoleValid:
                     totalConsumed = self.cache["totalConsumed"]
                     averageConsumed = self.cache["averageConsumed"]
-                    dp.Text(f"Total Consumed: {totalConsumed:.2f}g, Average Consumed per tea: {averageConsumed:.2f}g")
+                    dp.Text(f"Total: {totalConsumed:.2f}g, Average per Tea: {averageConsumed:.2f}g")
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
                 # Total consumed excluding Gift adjustments
-                dp.Text("Total Consumed Excluding Gift Adjustments")
+                dp.Text("Consumed - (Review, Standard, Finished Teas)")
                 if "Amount" in AllTypesCategoryRoleValid:
                     totalConsumedExclAdj = self.cache["totalConsumedExcludingGiftAdj"]
                     averageConsumedExclAdj = self.cache["averageConsumedExcludingGiftAdj"]
-                    dp.Text(f"Total Consumed Excluding Gift Adjustments: {totalConsumedExclAdj:.2f}g, Average Consumed per tea: {averageConsumedExclAdj:.2f}g")
+                    dp.Text(f"Total: {totalConsumedExclAdj:.2f}g, Average per Tea: {averageConsumedExclAdj:.2f}g")
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
                 # Total consumed excluding all adjustments
-                dp.Text("Total Consumed By Reviews only")
+                dp.Text("Consumed - (Review Only)")
                 if "Amount" in AllTypesCategoryRoleValid:
                     totalConsumedReviews = self.cache["totalConsumedByReviewsSum"]
                     averageConsumedReviews = self.cache["averageConsumedByReviews"]
-                    dp.Text(f"Total Consumed By Reviews only: {totalConsumedReviews:.2f}g, Average Consumed per tea: {averageConsumedReviews:.2f}g")
+                    dp.Text(f"Total: {totalConsumedReviews:.2f}g, Average per Tea: {averageConsumedReviews:.2f}g")
                 else:
                     dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
                 # Total standard adjustments, Total gift adjustments
-                dp.Text("Total Standard Adjustments")
+                dp.Text("Standard Adjustments - (Standard)")
                 totalStandardAdjustments = self.cache["totalConsumedStandardAdj"]
                 averageStandardAdjustments = self.cache["averageConsumedStandardAdj"]
-                dp.Text(f"Total Standard Adjustments: {totalStandardAdjustments:.2f}g, Average Standard Adjustments per tea: {averageStandardAdjustments:.2f}g")
+                dp.Text(f"Total: {totalStandardAdjustments:.2f}g, Average per tea: {averageStandardAdjustments:.2f}g")
                 dp.Separator()
-                dp.Text("Total Gift Adjustments")
-                totalGiftAdjustments = self.cache["totalConsumedGiftAdj"]
-                averageGiftAdjustments = self.cache["averageConsumedGiftAdj"]
-                dp.Text(f"Total Gift Adjustments: {totalGiftAdjustments:.2f}g, Average Gift Adjustments per tea: {averageGiftAdjustments:.2f}g")
+                # Total Gift Adjustments
+                if "Amount" in AllTypesCategoryRoleValid:
+                    dp.Text("Gift Adjustments - (Gift)")
+                    totalGiftAdjustments = self.cache["totalConsumedByGiftedTeasSum"]
+                    averageGiftAdjustments = self.cache["averageConsumedByGiftedTeas"]
+                    dp.Text(f"Total: {totalGiftAdjustments:.2f}g, Average per tea: {averageGiftAdjustments:.2f}g")
+                else:
+                    dp.Text("Required Category role 'Amount' for Tea is not enabled.")
                 dp.Separator()
+
+                # Total finished specifically
+                dp.Text("Finished Teas - (Finished)")
+                totalFinishedTeas = self.cache["totalConsumedByFinishedTeasSum"]
+                averageFinishedTeas = self.cache["averageConsumedByFinishedTeas"]
+                dp.Text(f"Total: {totalFinishedTeas:.2f}g, Average per tea: {averageFinishedTeas:.2f}g")
+                dp.Separator()
+
                 # Total sale adjustments
-                dp.Text("Total Sale Adjustments")
+                dp.Text("Sale Adjustments - (Sale)")
                 totalSaleAdjustments = self.cache["totalConsumedBySaleAdjustmentsSum"]
                 averageSaleAdjustments = self.cache["averageConsumedBySaleAdjustments"]
-                dp.Text(f"Total Sale Adjustments: {totalSaleAdjustments:.2f}g, Average Sale Adjustments per tea: {averageSaleAdjustments:.2f}g")
+                dp.Text(f"Total Sales: {totalSaleAdjustments:.2f}g, Average Sale per tea: {averageSaleAdjustments:.2f}g")
                 totalReturnedBySales = self.cache["totalReturnedBySales"]
                 averageReturnedBySales = self.cache["averageReturnedBySales"]
                 pricePerGram = 0
                 if totalSaleAdjustments > 0:
                     pricePerGram = totalReturnedBySales / totalSaleAdjustments
-                dp.Text(f"Total Returned by Sales: ${totalReturnedBySales:.2f}, Average Returned by Sales per tea: ${averageReturnedBySales:.2f}")
+                dp.Text(f"Total Returned by Sales: ${totalReturnedBySales:.2f}, Average $ per tea: ${averageReturnedBySales:.2f}")
                 dp.Text(f"Price per gram: ${pricePerGram:.2f}")
                 
                 dp.Separator()
