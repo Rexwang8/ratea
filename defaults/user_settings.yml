@@ -1,13 +1,14 @@
-APP_VERSION: 0.5.7
+APP_VERSION: 0.12.0
 AUTO_SAVE: true
 AUTO_SAVE_INTERVAL: 15
 AUTO_SAVE_PATH: ratea-data/auto_backup
 BACKUP_PATH: ratea-data/backup
 CSV_OUTPUT_REVIEW_PATH: ratea-data/tea_review.csv
 CSV_OUTPUT_TEA_PATH: ratea-data/tea_stash.csv
-DATE_FORMAT: '%Y-%m-%d'
-DEFAULT_FONT: OpenSansRegular
+DATE_FORMAT: '%m/%d/%Y'
+DEFAULT_FONT: OpenSans
 DIRECTORY: ratea-data
+FALLBACK_DEFAULT_PATH: defaults
 PERSISTANT_WINDOWS_PATH: ratea-data/persistant_windows.yml
 SETTINGS_FILENAME: ratea-data/user_settings.yml
 TEA_CATEGORIES_PATH: ratea-data/tea_categories.yml
@@ -16,5 +17,5 @@ TEA_REVIEW_CATEGORIES_PATH: ratea-data/tea_review_categories.yml
 TIMER_PERSIST_LAST_WINDOW: true
 TIMER_WINDOW_LABEL: true
 TIMEZONE: UTC
-UI_SCALE: 1.72
-USERNAME: Rex Wang
+UI_SCALE: 1.0
+USERNAME: User

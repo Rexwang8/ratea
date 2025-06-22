@@ -2,63 +2,116 @@
   categoryRole: Name
   categoryType: string
   defaultValue: ''
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
   isDropdown: true
   isRequiredForAll: false
   isRequiredForTea: false
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
 - Name: Date
   categoryRole: date
   categoryType: datetime
   defaultValue: ''
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
   isDropdown: true
   isRequiredForAll: false
   isRequiredForTea: false
-- Name: Vessel Size (ml)
-  categoryRole: Vessel size
-  categoryType: int
-  defaultValue: '100'
-  isAutoCalculated: false
-  isDropdown: true
-  isRequiredForAll: false
-  isRequiredForTea: true
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
 - Name: Amount (g)
   categoryRole: Amount
   categoryType: float
   defaultValue: '0'
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
   isDropdown: false
   isRequiredForAll: false
   isRequiredForTea: true
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
+- Name: Vessel Size (ml)
+  categoryRole: Vessel size
+  categoryType: int
+  defaultValue: '100'
+  gradingDisplayAsLetter: false
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: true
+  maxItems: 12
+  prefix: ''
+  rounding: 2
+  suffix: ''
 - Name: Rating
   categoryRole: Final Score
   categoryType: float
   defaultValue: '5'
+  gradingDisplayAsLetter: true
   isAutoCalculated: false
   isDropdown: true
   isRequiredForAll: false
   isRequiredForTea: false
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
 - Name: Steeps
   categoryRole: Steeps
   categoryType: int
   defaultValue: '1'
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
   isDropdown: false
   isRequiredForAll: false
   isRequiredForTea: true
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
 - Name: Notes
   categoryRole: Notes (Long)
   categoryType: string
   defaultValue: ''
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
   isDropdown: true
   isRequiredForAll: false
   isRequiredForTea: false
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
 - Name: Adjustments
   categoryRole: Notes (short)
   categoryType: string
   defaultValue: None Needed
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
   isDropdown: false
   isRequiredForAll: false
   isRequiredForTea: false
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
+- Name: Brew Method
+  categoryRole: Method
+  categoryType: string
+  defaultValue: Gongfu
+  gradingDisplayAsLetter: false
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: true
+  maxItems: 10
+  prefix: ''
+  rounding: 2
+  suffix: ''

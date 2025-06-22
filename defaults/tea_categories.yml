@@ -2,55 +2,142 @@
   categoryRole: Name
   categoryType: string
   defaultValue: DefaultName
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
-  isDropdown: true
+  isDropdown: false
   isRequiredForAll: false
-  isRequiredForTea: false
+  isRequiredForTea: true
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
 - Name: Vendor
   categoryRole: Vendor
   categoryType: string
   defaultValue: N/A
-  isAutoCalculated: false
-  isDropdown: true
-  isRequiredForAll: false
-  isRequiredForTea: false
-- Name: Year
-  categoryRole: Year
-  categoryType: int
-  defaultValue: '2000'
-  isAutoCalculated: false
-  isDropdown: true
-  isRequiredForAll: false
-  isRequiredForTea: false
-- Name: Type
-  categoryRole: Type
-  categoryType: string
-  defaultValue: Hong
-  isAutoCalculated: false
-  isDropdown: true
-  isRequiredForAll: false
-  isRequiredForTea: false
-- Name: Remaining
-  categoryRole: Remaining
-  categoryType: float
-  defaultValue: '999'
-  isAutoCalculated: false
-  isDropdown: false
-  isRequiredForAll: false
-  isRequiredForTea: false
-- Name: Purchase Volume
-  categoryRole: Amount
-  categoryType: float
-  defaultValue: '25'
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
   isDropdown: true
   isRequiredForAll: false
   isRequiredForTea: true
+  maxItems: 20
+  prefix: ''
+  rounding: 2
+  suffix: ''
+- Name: Year
+  categoryRole: Year
+  categoryType: int
+  defaultValue: '2025'
+  gradingDisplayAsLetter: false
+  isAutoCalculated: false
+  isDropdown: false
+  isRequiredForAll: false
+  isRequiredForTea: true
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
 - Name: Date Purchased
   categoryRole: date
   categoryType: datetime
   defaultValue: '2002-10-10'
+  gradingDisplayAsLetter: false
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: false
+  maxItems: 10
+  prefix: ''
+  rounding: 2
+  suffix: ''
+- Name: Type
+  categoryRole: Type
+  categoryType: string
+  defaultValue: Hong
+  gradingDisplayAsLetter: false
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: false
+  maxItems: 20
+  prefix: ''
+  rounding: 2
+  suffix: ''
+- Name: Price
+  categoryRole: Cost
+  categoryType: float
+  defaultValue: '15.00'
+  gradingDisplayAsLetter: false
+  isAutoCalculated: false
+  isDropdown: false
+  isRequiredForAll: false
+  isRequiredForTea: true
+  maxItems: 5
+  prefix: $
+  rounding: 2
+  suffix: ''
+- Name: Purchase Volume
+  categoryRole: Amount
+  categoryType: float
+  defaultValue: '25'
+  gradingDisplayAsLetter: false
+  isAutoCalculated: false
+  isDropdown: true
+  isRequiredForAll: false
+  isRequiredForTea: true
+  maxItems: 10
+  prefix: ''
+  rounding: 0
+  suffix: g
+- Name: Notes
+  categoryRole: Notes (Long)
+  categoryType: string
+  defaultValue: 'Order #1 from XYZ'
+  gradingDisplayAsLetter: false
   isAutoCalculated: false
   isDropdown: false
   isRequiredForAll: false
   isRequiredForTea: false
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
+- Name: Remaining
+  categoryRole: Remaining
+  categoryType: float
+  defaultValue: '100'
+  gradingDisplayAsLetter: false
+  isAutoCalculated: true
+  isDropdown: false
+  isRequiredForAll: false
+  isRequiredForTea: false
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: g
+- Name: $/g
+  categoryRole: Cost per Gram
+  categoryType: float
+  defaultValue: '0.10'
+  gradingDisplayAsLetter: false
+  isAutoCalculated: true
+  isDropdown: false
+  isRequiredForAll: false
+  isRequiredForTea: false
+  maxItems: 5
+  prefix: $
+  rounding: 2
+  suffix: ''
+- Name: Score
+  categoryRole: Total Score
+  categoryType: float
+  defaultValue: '0'
+  gradingDisplayAsLetter: true
+  isAutoCalculated: true
+  isDropdown: false
+  isRequiredForAll: false
+  isRequiredForTea: false
+  maxItems: 5
+  prefix: ''
+  rounding: 2
+  suffix: ''
