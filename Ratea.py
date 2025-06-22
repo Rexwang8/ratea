@@ -5809,9 +5809,32 @@ class Window_UserGuide(WindowBase):
         with window:
             dp.Text("User Guide")
             dpg.bind_item_font(dpg.last_item(), getFontName(3))
-            text = RateaTexts.ListTextUserGuide["userGuide"].wrap()
-
-            dp.Text(text)
+            dp.Separator()
+            # Collapsing header for each section
+            with dp.CollapsingHeader(label="Introduction", default_open=True):
+                text = RateaTexts.ListTextUserGuide["introduction"].wrap().strip()
+                dp.Text(text)
+                dp.Separator()
+            with dp.CollapsingHeader(label="Windows", default_open=False):
+                text = RateaTexts.ListTextUserGuide["windows"].wrap().strip()
+                dp.Text(text)
+                dp.Separator()
+            with dp.CollapsingHeader(label="Stash Basics", default_open=False):
+                text = RateaTexts.ListTextUserGuide["stashBasics"].wrap().strip()
+                dp.Text(text)
+                dp.Separator()
+            with dp.CollapsingHeader(label="Stash Functions", default_open=False):
+                text = RateaTexts.ListTextUserGuide["stashFunctions"].wrap().strip()
+                dp.Text(text)
+                dp.Separator()
+            with dp.CollapsingHeader(label="Stash Reviews", default_open=False):
+                text = RateaTexts.ListTextUserGuide["stashReviews"].wrap().strip()
+                dp.Text(text)
+                dp.Separator()
+            with dp.CollapsingHeader(label="Misc Functions", default_open=False):
+                text = RateaTexts.ListTextUserGuide["userGuide"].wrap().strip()
+                dp.Text(text)
+                dp.Separator()
 
 # About window
 def Menu_About():
@@ -6952,7 +6975,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.12.0", # Updates to most recently loaded
+        "APP_VERSION": "0.12.5", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",

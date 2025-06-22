@@ -20,3 +20,7 @@ To activate it run for Windows: ```.venv/Scripts/activate```, or ```source .venv
 To install all dependencies run:
 
 ```pip install -r requirements.txt```
+
+# User Guide
+
+You can find the Userguide in the app under Help/User Guide
