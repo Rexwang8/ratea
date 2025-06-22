@@ -2,7 +2,6 @@ import csv
 import datetime as dt
 import json
 import time
-import pandas as pd
 import uuid
 import dearpypixl as dp
 import dearpygui.dearpygui as dpg
@@ -15,9 +14,6 @@ import yaml
 import threading
 import pyperclip
 import textwrap
-import PIL as pillow
-from PIL import Image
-import numpy as np
 
 # From local files
 import RateaTexts
@@ -2627,7 +2623,17 @@ class Window_Stash(WindowBase):
                 # Add two checkboxes for hide invalid, and hide finished
                 dp.Checkbox(label="Hide Invalid (DUMMY)", default_value=False, user_data=(None), callback=self.DummyCallback)
                 dp.Checkbox(label="Hide Finished (DUMMY)", default_value=False, user_data=(None), callback=self.DummyCallback)
+
                 dp.Separator()
+            # Operations on the stash
+            with dp.CollapsingHeader(label="Operations", default_open=False, border=True):
+                # Operations that cover the stash as a whole
+
+                # Mark all teas zeroed or negative as finished, zero all negative
+                dp.Button(label="Mark All Teas Finished (TODO)", callback=self.DummyCallback, user_data=None)
+
+                # Renumber all teas and reviews
+                dp.Button(label="Renumber All Teas and Reviews", callback=lambda s, a, u: renumberTeasAndReviews(save=True), user_data=None)
 
             # Table with collapsable rows for reviews
             teasTable = dp.Table(header_row=True, no_host_extendX=True,
@@ -4052,7 +4058,7 @@ def populateStatsCache():
                     dictCtrTeasFinished[tea.attributes["Type"]] += 1
 
         # Autocalc explanation for cost per gram
-        costPerGramExplanation = f"${tea.attributes["Cost"]:.2f} Cost\n/ {tea.attributes["Amount"]:.2f} Amount\n= ${autocalcCostPerGram:.2f} Price per gram"
+        costPerGramExplanation = f"${tea.attributes['Cost']:.2f} Cost\n/ {tea.attributes['Amount']:.2f} Amount\n= ${autocalcCostPerGram:.2f} Price per gram"
         # Add to tea.cache
         tea.calculated["remaining"] = ctrTeaRemaining
         tea.calculated["remainingExplanation"] = remainingExplanation
@@ -4139,7 +4145,6 @@ def populateStatsCache():
 
     # Top ten teas sold by value
     listTopTenTeasSoldByValue.sort(key=lambda x: x[1], reverse=True)
-    print(f"Sum of all tea sold by amt: {sum(x[1] for x in listTopTenTeasSoldByValue)}")
     cache["topTenTeasSoldByValue"] = listTopTenTeasSoldByValue[:10]  # Limit to top 10
     cache["totalTeasSold"] = ctrTotalTeasSold
 
@@ -5785,7 +5790,7 @@ class Window_Welcome(WindowBase):
             dpg.bind_item_font(dpg.last_item(), getFontName(2))
             dp.Separator()
             dp.Text("Welcome to Ratea!")
-            dp.Text(f"This is a simple tea stash manager (V{settings["APP_VERSION"]}) to keep track of your teas and reviews.")
+            dp.Text(f"This is a simple tea stash manager (V{settings['APP_VERSION']}) to keep track of your teas and reviews.")
             dp.Text("This is a In-Progress demo, so expect bugs and missing features. - Rex")
             dp.Text("Head over to the settings then to the categories window to get started, "
             "\nOnce you have added some teas, you can add reviews to them and view your stats!")
@@ -6483,8 +6488,8 @@ def LoadAll(baseDir=None):
     session["settingsPath"] = settingsPath
     settings = LoadSettings(session["settingsPath"])
     # Update version
-    categoriesPath = f"{baseDir}/{settings["TEA_CATEGORIES_PATH"]}"
-    teaReviewCategoriesPath = f"{baseDir}/{settings["TEA_REVIEW_CATEGORIES_PATH"]}"
+    categoriesPath = f"{baseDir}/{settings['TEA_CATEGORIES_PATH']}"
+    teaReviewCategoriesPath = f"{baseDir}/{settings['TEA_REVIEW_CATEGORIES_PATH']}"
     session["categoriesPath"] = categoriesPath
     session["reviewCategoriesPath"] = teaReviewCategoriesPath
     settings["APP_VERSION"] = default_settings["APP_VERSION"]
@@ -6990,15 +6995,15 @@ def main():
 
 
 
-    dataPath = f"{baseDir}/{settings["DIRECTORY"]}"
+    dataPath = f"{baseDir}/{settings['DIRECTORY']}"
     session["dataPath"] = dataPath
     hasDataDirectory = os.path.exists(dataPath)
     if hasDataDirectory and not DEBUG_ALWAYSNEWJSON:
-        RichPrintSuccess(f"Found {settings["DIRECTORY"]} at full path {os.path.abspath(settings["DIRECTORY"])}")
+        RichPrintSuccess(f"Found {settings['DIRECTORY']} at full path {os.path.abspath(settings['DIRECTORY'])}")
     else:
-        RichPrintError(f"Could not find {settings["DIRECTORY"]} at full path {os.path.abspath(settings["DIRECTORY"])}")
+        RichPrintError(f"Could not find {settings['DIRECTORY']} at full path {os.path.abspath(settings['DIRECTORY'])}")
         MakeFilePath(dataPath)
-        RichPrintInfo(f"Made {settings["DIRECTORY"]} at full path {os.path.abspath(settings["DIRECTORY"])}")
+        RichPrintInfo(f"Made {settings['DIRECTORY']} at full path {os.path.abspath(settings['DIRECTORY'])}")
 
     if len(TeaStash) == 0:
         RichPrintError("No teas found in stash! Potentially issue with loading teas. ")
