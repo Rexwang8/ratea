@@ -151,6 +151,7 @@ backupStopEvent = threading.Event()
 #region Helpers
 
 richPrintConsole = RichConsole()
+terminalConsoleLogs = []
 
 def MakeFilePath(path):
     # Make sure the folder exists
@@ -401,28 +402,36 @@ def StringToTimeStamp(string):
 
 
 
-def RichPrint(text, color):
+def RichPrint(text, color, typeText="console"):
     richPrintConsole.print(text, style=color)
+    # Add to logs
+    timeStr = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Remove if greater than 2500 entries
+    global terminalConsoleLogs
+    if len(terminalConsoleLogs) > 2500:
+        terminalConsoleLogs.pop(0)
+    terminalConsoleLogs.append(f"[{typeText}] {timeStr} -- {text}")
 
 def RichPrintCritical(text):
     if DEBUG_LEVEL == "CRITICAL" or DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "CRITICAL" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "INFO":
-        RichPrint(f"CRITICAL: {text}", "bold red")
+        RichPrint(f"CRITICAL: {text}", "bold red", typeText="CRITICAL")
 
 def RichPrintError(text):
     if DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "WARNING":
-        RichPrint(text, "bold red")
+        RichPrint(text, "bold red", typeText="ERROR")
 def RichPrintInfo(text):
     if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
-        RichPrint(text, "blue")
+        RichPrint(text, "blue", typeText="INFO")
 def RichPrintSuccess(text):
     if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "ALL":
-        RichPrint(text, "bold green")
+        RichPrint(text, "bold green", typeText="SUCCESS")
 def RichPrintSuccessMinor(text):
     if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ERROR" or DEBUG_LEVEL == "ALL":
-        RichPrint(text, "dark_green")
+        RichPrint(text, "dark_green", typeText="SUCCESS_MINOR")
 def RichPrintWarning(text):
     if DEBUG_LEVEL == "WARNING" or DEBUG_LEVEL == "ALL" or DEBUG_LEVEL == "INFO":
-        RichPrint(text, "bold yellow")
+        RichPrint(text, "bold yellow", typeText="WARNING")
 def RichPrintSeparator():
     if DEBUG_LEVEL == "INFO" or DEBUG_LEVEL == "ALL":
         RichPrint("--------------------------------------------------", "bold white")
@@ -5853,23 +5862,32 @@ class Window_About(WindowBase):
 
 # Terminal window
 def Menu_Terminal():
-    w = 640 * settings["UI_SCALE"]
-    h = 480 * settings["UI_SCALE"]
+    w = 880 * settings["UI_SCALE"]
+    h = 720 * settings["UI_SCALE"]
     terminal = Window_Terminal("Terminal", w, h, exclusive=True)
 
 class Window_Terminal(WindowBase):
     def windowDefintion(self, window):
         with window:
             dp.Text("Terminal")
-            dp.Text("Terminal goes here")
             # Add a text input box
-            textInput = dp.InputText(label="Input", default_value="", multiline=True, width=600 * settings["UI_SCALE"], height=400 * settings["UI_SCALE"])
+            defaultLogs = self.getTerminalConsoleLogs()
+            textInput = dp.InputText(default_value=defaultLogs, multiline=True, width=800 * settings["UI_SCALE"], height=600 * settings["UI_SCALE"], readonly=True)
             # Add a button to clear the terminal
-            dp.Button(label="Clear", callback=self.clearTerminal)
+            dp.Button(label="Clear", callback=self.clearTerminal, user_data=textInput)
+            dp.Separator()
+        RichPrintSuccess("Opened Terminal window")
 
-    def clearTerminal(self, sender, app_data):
+    def clearTerminal(self, sender, app_data, user_data):
         print("Clearing terminal")
-        pass
+        dpg.set_value(user_data, "")
+        terminalConsoleLogs.clear()
+        RichPrintSuccess("Cleared terminal logs")
+    def getTerminalConsoleLogs(self):
+        # Get the console logs
+        global terminalConsoleLogs
+        consoleLogs = '\n'.join(terminalConsoleLogs)
+        return consoleLogs
 
 
 class Manager_Windows:
@@ -6807,6 +6825,7 @@ def UI_CreateViewPort_MenuBar():
         with dp.Menu(label="Tools"):
             dp.MenuItem(label="Timer", callback=Menu_Timer)
             dp.MenuItem(label="Notepad", callback=Menu_Notepad)
+            dp.MenuItem(label="Terminal", callback=Menu_Terminal)
             dp.Button(label="Settings", callback=Menu_Settings)
         with dp.Menu(label="Windows"):
             dp.Button(label="Sort Windows", callback=windowManager.sortWindows)
