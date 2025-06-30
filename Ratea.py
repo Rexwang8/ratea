@@ -1207,7 +1207,48 @@ class TeaCategory:
             return data.calculated.get("costPerGram", None), data.calculated.get("costPerGramExplanation", None)
         elif self.categoryRole == "Total Score":
             # Pulls cached values from TeaCache and put into the calculated dict
-            return data.calculated.get("averageScore", None), data.calculated.get("totalScoreExplanation", None) 
+            return data.calculated.get("averageScore", None), data.calculated.get("totalScoreExplanation", None)
+        return None, None 
+        
+    # IsValidBase
+    def isValidBase(self, value):
+        # Checks based on data type
+        if self.categoryType == "string":
+            return isinstance(value, str)
+        elif self.categoryType == "int":
+            return isinstance(value, int)
+        elif self.categoryType == "float":
+            return isinstance(value, (int, float))
+        elif self.categoryType == "bool":
+            return isinstance(value, bool)
+        elif self.categoryType == "date" or self.categoryType == "datetime":
+            # Check if value is a valid datetime object or a timestamp
+            if isinstance(value, dt.datetime):
+                return True
+            elif isinstance(value, (int, float)):
+                # If it's a timestamp, check if it can be converted to a datetime object
+                try:
+                    dt.datetime.fromtimestamp(value, tz=dt.timezone.utc)
+                    return True
+                except (ValueError, OverflowError):
+                    return False
+        return False
+    
+    def isValid(self, value):
+        # Checks base, and on autocalculated values
+        if not self.isValidBase(value):
+            RichPrintWarning(f"Value {value} is not valid for category {self.name} of type {self.categoryType}")
+            return False
+        # If autocalculated, check if it is None
+        if self.isAutoCalculated:
+            if value is None:
+                RichPrintWarning(f"Value {value} is not valid for autocalculated category {self.name}")
+                return False
+            # If it is a string, check if it is empty
+            if isinstance(value, str) and value.strip() == "":
+                RichPrintWarning(f"Value {value} is not valid for autocalculated category {self.name}, it is empty")
+                return False
+        return True
 
 # Themes for coloring
 def create_cell_theme(color_rgba):
@@ -2538,6 +2579,8 @@ class Window_Stash(WindowBase):
     adjustmentsWindow = None
     adjustmentsDict = dict()
     refreshIcon = None
+    hideInvalid = False
+    hideFinished = False
 
     def onDelete(self):
         # Close all popups
@@ -2570,6 +2613,28 @@ class Window_Stash(WindowBase):
         if self.refreshIcon is not None and dpg.does_item_exist(self.refreshIcon):
             dpg.configure_item(self.refreshIcon, show=False)
 
+    def hideInvalidFlag(self, sender, app_data, user_data):
+        # Flag to hide invalid teas
+        self.hideInvalid = app_data
+        if self.hideInvalid:
+            RichPrintSuccessMinor("Hiding invalid teas.")
+        else:
+            RichPrintSuccessMinor("Showing all teas, including invalid ones.")
+        
+        # Refresh the table to apply the filter
+        self.softRefresh()
+    
+    def hideFinishedFlag(self, sender, app_data, user_data):
+        # Flag to hide finished teas
+        self.hideFinished = app_data
+        if self.hideFinished:
+            RichPrintSuccessMinor("Hiding finished teas.")
+        else:
+            RichPrintSuccessMinor("Showing all teas, including finished ones.")
+
+        # Refresh the table to apply the filter
+        self.softRefresh()
+
     def windowDefintion(self, window):
         self.addTeaList = dict()
         self.addReviewList = dict()
@@ -2582,6 +2647,8 @@ class Window_Stash(WindowBase):
         if TeaCache is None or (len(TeaCache) == 0 and len(TeaStash) > 0):
             TeaCache = populateStatsCache()
             RichPrintSuccessMinor("TeaCache populated from TeaStash")
+
+        numTeasDisplay = None
 
                 
         with window:
@@ -2630,8 +2697,9 @@ class Window_Stash(WindowBase):
                 filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value="Name", user_data=(None), callback=self._UpdateTableRowFilterKeys)
 
                 # Add two checkboxes for hide invalid, and hide finished
-                dp.Checkbox(label="Hide Invalid (DUMMY)", default_value=False, user_data=(None), callback=self.DummyCallback)
-                dp.Checkbox(label="Hide Finished (DUMMY)", default_value=False, user_data=(None), callback=self.DummyCallback)
+                dp.Checkbox(label="Hide Invalid", default_value=self.hideInvalid, user_data=(None), callback=self.hideInvalidFlag)
+                dp.Checkbox(label="Hide Finished", default_value=self.hideFinished, user_data=(None), callback=self.hideFinishedFlag)
+                numTeasDisplay = dpg.add_text(default_value=f"Total Teas: {len(TeaStash)}", user_data=(None), tag="numTeasDisplay")
 
                 dp.Separator()
             # Operations on the stash
@@ -2660,10 +2728,67 @@ class Window_Stash(WindowBase):
                     dp.TableColumn(label=cat.name, no_resize=False, no_clip=True, user_data=f"{i+1}")
                 dp.TableColumn(label="Reviews", no_resize=False, no_clip=True, width=300, no_hide=True)
                 dp.TableColumn(label="Actions", no_resize=False, no_clip=True, width=50, no_hide=True)
+
+
+                # Abridged TeaStash that factors in the hideInvalid and hideFinished flags
+                AbridgedTeaStash = list()
+                remainingCategory = None
+
+                if self.hideInvalid or self.hideFinished:
+                    RichPrintInfo("Filtering teas based on hideInvalid and hideFinished flags.")
+                    for cat in TeaCategories:
+                        if cat.categoryRole == "Remaining":
+                            remainingCategory = cat
+                            break
+                    for tea in TeaStash:
+                        # If hideInvalid is set, filter out invalid teas
+                        if self.hideInvalid:
+                            # We check if the tea has invalid attributes by looking at the 
+                            # attributes and checking if they are valid
+                            # Check if any of the attributes are invalid
+                            invalidAttributes = False
+                            for cat in TeaCategories:
+                                if cat.categoryRole in tea.attributes:
+                                    if not cat.isValid(tea.attributes[cat.categoryRole]):
+                                        invalidAttributes = True
+                                        break
+                            if invalidAttributes:
+                                RichPrintInfo(f"Tea {tea.name} has invalid attributes, skipping.")
+                                continue
+                            
+                        # If hideFinished is set, filter out finished teas
+                        if self.hideFinished:
+                            remainingCategory.autocalculate(tea)
+                            if tea.finished or (remainingCategory and remainingCategory.autocalculate(tea)[0] <= 0):
+                                RichPrintInfo(f"Tea {tea.name} is finished, skipping.")
+                                continue
+
+                        # If the tea passes the filters, add it to the abridged stash
+                        AbridgedTeaStash.append(tea)
+
+                    # If no teas are left after filtering, show a message
+                    if len(AbridgedTeaStash) == 0:
+                        dp.Text("No teas found after filtering. Please adjust your filters.")
+                        return
+
+                    # Update the number of teas display
+                    if numTeasDisplay is not None and dpg.does_item_exist(numTeasDisplay):
+                        dpg.set_value(numTeasDisplay, f"Total Teas: {len(AbridgedTeaStash)}")
+                    else:
+                        RichPrintError("numTeasDisplay text item does not exist. Cannot update number of teas display.")
+                else:
+                    # If no filtering is applied, use the full TeaStash
+                    AbridgedTeaStash = TeaStash
+
+                # If no teas are left after filtering, show a message
+                if len(AbridgedTeaStash) == 0:
+                    dp.Text("No teas found. Please add some teas to the stash.")
+                    return
+
                 
 
                 # Add rows
-                for i, tea in enumerate(TeaStash):
+                for i, tea in enumerate(AbridgedTeaStash):
                     tableRow = dp.TableRow(filter_key=tea.name)
                     tableRows.append((tea, tableRow))
                     with tableRow:
@@ -2781,9 +2906,9 @@ class Window_Stash(WindowBase):
                                 dp.Text(label=displayValue, default_value=displayValue)
 
                             if usingAutocalculatedValue and autocalculatingAlternateColor:
-                                    dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_AUTOCALCULATED_2)
+                                dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_AUTOCALCULATED_2)
                             elif usingAutocalculatedValue:
-                                    dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_AUTOCALCULATED_TABLE_CELL)
+                                dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_AUTOCALCULATED_TABLE_CELL)
                             if cellInvalidOrEmpty:
                                 dpg.highlight_table_cell(teasTable, i, j+1, color=COLOR_INVALID_EMPTY_TABLE_CELL)
 
