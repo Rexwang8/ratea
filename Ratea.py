@@ -4350,7 +4350,6 @@ def populateStatsCache():
     # Average purchase per month
     monthsSinceStart = cache["totalDays"] / 30.44  # Average days per month
     if monthsSinceStart > 0:
-        print(f"Months since start: {monthsSinceStart:.2f}")
         cache["averagePurchasePerMonth"] = cache["totalCost"] / monthsSinceStart
     else:
         cache["averagePurchasePerMonth"] = 0
@@ -7222,7 +7221,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.12.5", # Updates to most recently loaded
+        "APP_VERSION": "0.15.1", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
