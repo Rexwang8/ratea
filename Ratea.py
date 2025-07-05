@@ -4049,6 +4049,9 @@ def populateStatsCache():
     dictNumReviewsByType = {}
     listTopTenTeasSoldByValue = []
     ctrTotalTeasSold= 0
+
+    # Set to 1990-01-01 00:00:00 UTC as the default for latest purchase
+    ctrLatestPurchase = dt.datetime(1990, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc).timestamp()
     remainingCategory = None
     for cat in TeaCategories:
         if cat.categoryRole == "Remaining":
@@ -4079,6 +4082,11 @@ def populateStatsCache():
         if "Cost" in AllTypesCategoryRoleValid:
             if "Cost" in tea.attributes:
                 ctrTotalCost += tea.attributes["Cost"]
+
+        # If the tea has a date, check if it's the latest purchase
+        if "date" in tea.attributes:
+            if tea.attributes["date"] > ctrLatestPurchase:
+                ctrLatestPurchase = tea.attributes["date"]
 
         if "Standard" in tea.adjustments:
             ctrTeaStandardAdjustments = tea.adjustments["Standard"]
@@ -4339,6 +4347,23 @@ def populateStatsCache():
     cache["averageScore"] = ctrTotalScored / len(tea.reviews) if len(tea.reviews) > 0 else 0
     cache["scoreByType"] = dictCtrScoresByType
 
+    # Average purchase per month
+    monthsSinceStart = cache["totalDays"] / 30.44  # Average days per month
+    if monthsSinceStart > 0:
+        print(f"Months since start: {monthsSinceStart:.2f}")
+        cache["averagePurchasePerMonth"] = cache["totalCost"] / monthsSinceStart
+    else:
+        cache["averagePurchasePerMonth"] = 0
+    # Latest purchase date
+    cache["latestPurchase"] = ctrLatestPurchase
+    
+    # Days since last purchase
+    if ctrLatestPurchase > 0:
+        daysSinceLastPurchase = (dt.datetime.now(tz=dt.timezone.utc).timestamp() - ctrLatestPurchase) / (24 * 60 * 60)
+        cache["daysSinceLastPurchase"] = daysSinceLastPurchase
+    else:
+        cache["daysSinceLastPurchase"] = 0
+
     timeCacheEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
     timeCacheDuration = timeCacheEnd - timeCacheStart
     RichPrintSuccessMinor(f"Stats cache duration: {timeCacheDuration:.2f} seconds")
@@ -4486,24 +4511,91 @@ class Window_Stats(WindowBase):
                     dp.Text("Required Category role 'Type' for Review is not enabled.")
                 dp.Separator()
 
-    # Teaware, Teaware size
+    # Topline Stats
     def window_subwindow_0_1_categories(self, sender=None, app_data=None, user_data=None):
         allTypesCategoryRoleReviewsValid = user_data[1] if user_data and len(user_data) > 0 else []
-        # Teaware size (Reviews-Vessel Size-stats)
-        dp.Text("Teaware")
+        dp.Text("Topline")
         dpg.bind_item_font(dpg.last_item(), getFontName(2))
         dp.Separator()
-        with dp.CollapsingHeader(label="Teaware Type", default_open=True):
-            with dp.CollapsingHeader(label="Teaware Size", default_open=False, indent=20 * settings["UI_SCALE"]):
-                if "Vessel size" in allTypesCategoryRoleReviewsValid:
-                    sum, avrg, count, unique, uniqueDict = getStatsOnCategoryByRole("Vessel size", True)
-                    dp.Text(f"Sum: {sum}ml, Average: {avrg}ml, Count: {count}")
-                    dp.Text("Unique Sizes by Review:")
-                    for size, count in uniqueDict.items():
-                        dp.Text(f"{size}: {count}")
-                else:
-                    dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
-                dp.Separator()
+
+        # Topline stats
+        # Total purchased, total remaining, cost, consumption per day, days since start
+        # No collapsing header, just a list of stats
+        totalPurchased = self.cache["totalVolume"]
+        totalRemaining = self.cache["totalRemaining"]
+        totalCost = self.cache["totalCost"]
+        totalConsumed = self.cache["totalConsumed"]
+        startDay = self.cache["startDay"]
+        totalDays = self.cache["totalDays"]
+
+        # Days
+        dp.Text(f"-- Days --")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        dp.Text(f"Start day was: {dt.datetime.fromtimestamp(startDay, tz=dt.timezone.utc).strftime(settings['DATE_FORMAT'])}, which is {totalDays:.2f} days ago")
+        dp.Text(f"Total purchased: {totalPurchased:.2f}g, Total remaining: {totalRemaining:.2f}g")
+        
+        dp.Separator()
+
+        # Total teas. reviews, tried, finished
+        dp.Text(f"-- Teas and Reviews --")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        totalTeas = self.cache["numTeas"]
+        totalReviews = self.cache["numReviews"]
+        totalTeasTried = self.cache["totalTeasTried"]
+        totalTeasFinished = self.cache["totalTeasFinished"]
+        dp.Text(f"Total teas: {totalTeas}, Total reviews: {totalReviews}")
+        dp.Text(f"Total teas tried: {totalTeasTried}, Total teas finished: {totalTeasFinished}")
+        dp.Separator()
+
+        # Purchasing stats
+        dp.Text(f"-- Purchasing Stats --")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        averagePurchasePerMonth = self.cache["averagePurchasePerMonth"]
+        daysSinceLastPurchase = self.cache["daysSinceLastPurchase"]
+        totalCost = self.cache["totalCost"]
+        dp.Text(f"Total cost: ${totalCost:.2f}")
+        dp.Text(f"Average purchase per month: ${averagePurchasePerMonth:.2f}")
+        dp.Text(f"Days since last purchase: {daysSinceLastPurchase:.2f} days")
+        if totalPurchased > 0:
+            averageCostPerGram = totalCost / totalPurchased
+            dp.Text(f"Average cost per gram: ${averageCostPerGram:.2f}")
+        else:
+            dp.Text(f"Average cost per gram: N/A (no purchased teas)")
+        dp.Separator()
+
+        # Water consumption
+        dp.Text(f"-- Water Consumption --")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        totalWaterConsumed, averageWaterConsumed = statsWaterConsumed()
+        dp.Text(f"Total water consumed: {totalWaterConsumed:.2f}ml")
+        dp.Separator()
+
+        # Consumption of just personally consumed teas (finished + reviews + standard adjustments)
+        dp.Text(f"-- Personally Consumed --")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        totalConsumedByPersonal = self.cache["totalConsumedByPersonalSum"]
+        averagePerDay = totalConsumedByPersonal / totalDays if totalDays > 0 else 0
+        dp.Text(f"Total personally consumed: {totalConsumedByPersonal:.2f}g")
+        dp.Text(f"Average personally consumed per day: {averagePerDay:.2f}g/day")
+        # Years remaining
+        if totalPurchased > 0:
+            yearsRemaining = totalRemaining / (averagePerDay * 365) if averagePerDay > 0 else float('inf')
+            dp.Text(f"Years remaining based on current consumption: {yearsRemaining:.2f} years")
+        dp.Separator()
+
+        # Consumption from all sources
+        dp.Text(f"-- Total Consumption --")
+        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+        totalConsumed = self.cache["totalConsumed"]
+        averageConsumed = self.cache["averageConsumed"]
+        dp.Text(f"Total consumed (all sources): {totalConsumed:.2f}g")
+        dp.Text(f"Average consumed per tea (all sources): {averageConsumed:.2f}g")
+        # Years remaining based on all consumption
+        if totalPurchased > 0:
+            yearsRemainingAll = totalRemaining / (averageConsumed * 365) if averageConsumed > 0 else float('inf')
+            dp.Text(f"Years remaining based on all consumption: {yearsRemainingAll:.2f} years")
+        dp.Separator()
+        
 
     # Dates, spending, purchasing
     def window_subwindow_0_2_categories(self, sender=None, app_data=None, user_data=None):
@@ -4739,6 +4831,17 @@ class Window_Stats(WindowBase):
                             dp.Text(f" ({steeps} steeps, {numReviews} reviews)", color=COLOR_LIGHT_BLUE_TEXT)
                     else:
                         dp.Text(f"{teaType}: No reviews found", color=COLOR_RED_TEXT)
+                dp.Separator()
+            
+            with dp.CollapsingHeader(label="Teaware Size", default_open=False, indent=20 * settings["UI_SCALE"]):
+                if "Vessel size" in allTypesCategoryRoleReviewsValid:
+                    sum, avrg, count, unique, uniqueDict = getStatsOnCategoryByRole("Vessel size", True)
+                    dp.Text(f"Sum: {sum}ml, Average: {avrg}ml, Count: {count}")
+                    dp.Text("Unique Sizes by Review:")
+                    for size, count in uniqueDict.items():
+                        dp.Text(f"{size}: {count}")
+                else:
+                    dp.Text("Required Category role 'Vessel size' for Review is not enabled.")
                 dp.Separator()
 
 
