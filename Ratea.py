@@ -20,7 +20,6 @@ import RateaTexts
 
 # Reminders
 '''
-Need for basic functionality: 
 TODO: Features: Add in functionality for flags: isRequiredForTea, isRequiredForAll
 TODO: Validation: Validate that name and other important fields are not empty
 TODO: Features: Fill out or remove review tabs
@@ -35,10 +34,8 @@ TODO: Optional refresh on add tea/ review
 TODO: Section off autocalculate functions, account for remaining=0 or naegative values
 TODO: review window
 TODO: move delete category to popup or add confirmation
-TODO: Pagination for tables
 TODO: Caching calculations for stats table
-
-Nice To Have:
+TODO: Filter by category, exclude/include
 TODO: Documentation: Add ? tooltips to everything
 TODO: Customization: Add color themes
 TODO: Feature: Some form of category migration
@@ -55,10 +52,6 @@ TODO: Change log
 TODO: Windows list to manage open windows
 TODO: Reset to default buttons
 TODO: 1-5 as stars for rating system
-
-
-
-Looking Forward:
 TODO: Visualization: Single-review reports
 TODO: Visualization: Single-tea reports
 TODO: Documentation: Write in blog window
@@ -73,43 +66,6 @@ TODO: Highlight color customization
 TODO: Make a clean default page for new users
 TODO: Alternate calculation methods and a flag for that
 TODO: Visualization: Network graph, word cloud, tier list
-
-
----Done---
-Feat(0.9.0): First refresh icon for soft reload
-Feat(0.8.0): Reorder button for reviews
-Feat(0.7.0): Notepad and timer now have save and load buttons that call persist
-Feat(0.6.0): Move to end or top buttons for adjustments
-< Semantic change, any feature will get it's own minor version >
-Feat(0.5.9): StatsTeas Tried
-Feat(0.5.8): Add filter key change
-Feat(0.5.8): Optional rating system dropdown
-Feat(0.5.9): basic about and userguide
-Feat(0.5.8): Duplicate reviews button
-Feat(0.5.8): Gift adjustment
-Feat(0.5.8): Adjustment move tea index
-Feat(0.5.8): Overhaul ui a bit with bigger fonts, refresh button
-Feat(0.5.8): Calculate Start day and consumed/day
-Feat(0.5.8): Added adjustments window for teas
-Feat(0.5.7): Table filters by name search
-Feat(0.5.7): Stopwatch, combine stop/start button
-Feat(0.5.7): Stats: Volume, cost, weighted avrg stat
-Feat(0.5.7): Auto-Resize tea and review table with frame callbacks
-Feat(0.5.7): Put notes in tooltips when hovered
-Feat(0.5.7): Resize monitor on creation
-Feat(0.5.7): Rounding, dropdown size, prefix, postfix
-Feat(0.5.7): Added price/gram and total score autocalcs
-Feat(0.5.7): Notepad: Wrap text in notepad, add template for notepad
-Feat(0.5.6): Validation: Add in a proper default folder for settings and data
-Feat(0.5.6): Validation: Restrict categories to only if not already in use
-Feat(0.5.6): Add some metrics relating to steeps and amount of tea
-Feat(0.5.6): Code: Centralize tooltips and other large texts
-Feat(0.5.6): Stats: Basic stats for tea and reviews, like average rating, total amount of tea, etc.
-Feat(0.5.6): Files: Export To CSV
-Feat(0.5.6): Fix bug with edit category, add some toolltips
-Feat(0.5.6): Make dropdown widgets based on past inputs
-Feat(0.5.6): Tables: Dynamic Sizing of columns based on content
-Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
 '''
 
 

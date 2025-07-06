@@ -229,3 +229,48 @@ Visualizations are work in progress and will be added in the future.
 Settings
 Settings are available in the "Settings" window. You can change the app settings, backup your data, and more. Work in progress.        
 ''')
+
+
+ListTextUserGuide["changelog"] = Text(
+'''---Changelog---
+Feat(0.15.0): Update stats window, few new stats
+Feat(0.14.0): Filter invalid and finished teas flag
+Feat(0.13.0): Terminal logs window
+Feat(0.12.0): Sale adjustment
+Feat(0.11.0): Cache and pre-calc numbers for major optimizations
+Feat(0.10.0): Rework the stats UI Layout page
+Feat(0.9.0): First refresh icon for soft reload
+Feat(0.8.0): Reorder button for reviews
+Feat(0.7.0): Notepad and timer now have save and load buttons that call persist
+Feat(0.6.0): Move to end or top buttons for adjustments
+< Semantic change, any feature will get it's own minor version >
+Feat(0.5.9): StatsTeas Tried
+Feat(0.5.8): Add filter key change
+Feat(0.5.8): Optional rating system dropdown
+Feat(0.5.9): basic about and userguide
+Feat(0.5.8): Duplicate reviews button
+Feat(0.5.8): Gift adjustment
+Feat(0.5.8): Adjustment move tea index
+Feat(0.5.8): Overhaul ui a bit with bigger fonts, refresh button
+Feat(0.5.8): Calculate Start day and consumed/day
+Feat(0.5.8): Added adjustments window for teas
+Feat(0.5.7): Table filters by name search
+Feat(0.5.7): Stopwatch, combine stop/start button
+Feat(0.5.7): Stats: Volume, cost, weighted avrg stat
+Feat(0.5.7): Auto-Resize tea and review table with frame callbacks
+Feat(0.5.7): Put notes in tooltips when hovered
+Feat(0.5.7): Resize monitor on creation
+Feat(0.5.7): Rounding, dropdown size, prefix, postfix
+Feat(0.5.7): Added price/gram and total score autocalcs
+Feat(0.5.7): Notepad: Wrap text in notepad, add template for notepad
+Feat(0.5.6): Validation: Add in a proper default folder for settings and data
+Feat(0.5.6): Validation: Restrict categories to only if not already in use
+Feat(0.5.6): Add some metrics relating to steeps and amount of tea
+Feat(0.5.6): Code: Centralize tooltips and other large texts
+Feat(0.5.6): Stats: Basic stats for tea and reviews, like average rating, total amount of tea, etc.
+Feat(0.5.6): Files: Export To CSV
+Feat(0.5.6): Fix bug with edit category, add some toolltips
+Feat(0.5.6): Make dropdown widgets based on past inputs
+Feat(0.5.6): Tables: Dynamic Sizing of columns based on content
+Feat(0.5.6): Tables: Dynamic Sorting of columns based on content
+''')
