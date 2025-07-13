@@ -4522,7 +4522,9 @@ class Window_Stats(WindowBase):
         dp.Text(f"-- Water Consumption --")
         dpg.bind_item_font(dpg.last_item(), getFontName(2))
         totalWaterConsumed, averageWaterConsumed = statsWaterConsumed()
-        dp.Text(f"Total water consumed: {totalWaterConsumed:.2f}ml")
+        liters = totalWaterConsumed / 1000  # Convert to liters
+        litersPerDay = liters / totalDays if totalDays > 0 else 0
+        dp.Text(f"Total water consumed: {totalWaterConsumed:.2f}ml ({liters:.2f}L, {litersPerDay:.2f}L/day)")
         dp.Separator()
 
         # Consumption of just personally consumed teas (finished + reviews + standard adjustments)
@@ -4714,26 +4716,30 @@ class Window_Stats(WindowBase):
             # Total volume of consumed tea (Review-remaining-stats)
             dp.Text("Tea Consumed")
             days = self.cache["totalDays"]
+            totalPurchased = self.cache["totalVolume"]
             if "Amount" in allTypesCategoryRoleReviewsValid:
-                sum = self.cache["totalConsumedByPersonalSum"]
-                dp.Text(f"Total Consumed personally: {sum:.2f}g")
-                daysTilDepleted = self.cache["totalRemaining"] / (sum / days) if days > 0 else 0
-                yearsTilDepleted = daysTilDepleted / 365.25 if daysTilDepleted > 0 else 0
-                gramsPerDay = sum / days if days > 0 else 0
-                dp.Text(f"This is {gramsPerDay:.2f}g per day")
-                dp.Text(f"Days Til Depleted: {daysTilDepleted:.2f} days ({yearsTilDepleted:.2f} years)")
+                totalConsumedByPersonal = self.cache["totalConsumedByPersonalSum"]
+                averagePerDay = totalConsumedByPersonal / days if days > 0 else 0
+                dp.Text(f"Total personally consumed: {totalConsumedByPersonal:.2f}g")
+                dp.Text(f"Average personally consumed per day: {averagePerDay:.2f}g/day")
+                # Years remaining
+                if totalPurchased > 0:
+                    yearsRemaining = totalRemaining / (averagePerDay * 365) if averagePerDay > 0 else float('inf')
+                    dp.Text(f"Years remaining based on current consumption: {yearsRemaining:.2f} years")
+                dp.Separator()
             else:
                 dp.Text("Required Category role 'Amount' for Review is not enabled.")
             dp.Separator()
             dp.Text("Tea Consumed by all Methods")
             if "Amount" in AllTypesCategoryRoleValid:
-                totalConsumed = self.cache["totalConsumed"]
-                dp.Text(f"Total Consumed: {totalConsumed:.2f}g")
-                daysTilDepleted = self.cache["totalRemaining"] / (totalConsumed / days) if days > 0 else 0
-                yearsTilDepleted = daysTilDepleted / 365.25 if daysTilDepleted > 0 else 0
-                gramsPerDay = totalConsumed / days if days > 0 else 0
-                dp.Text(f"This is {gramsPerDay:.2f}g per day")
-                dp.Text(f"Days Til Depleted: {daysTilDepleted:.2f} days ({yearsTilDepleted:.2f} years)")
+                averageConsumed = self.cache["averageConsumed"]
+                dp.Text(f"Total consumed (all sources): {totalConsumed:.2f}g")
+                averagePerDay = totalConsumed / days if days > 0 else 0
+                dp.Text(f"Average consumed per day (all sources): {averagePerDay:.2f}g/day")
+                # Years remaining based on all consumption
+                if totalPurchased > 0:
+                    yearsRemainingAll = totalRemaining / (averageConsumed * 365) if averageConsumed > 0 else float('inf')
+                    dp.Text(f"Years remaining based on all consumption: {yearsRemainingAll:.2f} years")
             else:
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
             dp.Separator()
