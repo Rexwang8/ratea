@@ -4071,12 +4071,12 @@ def populateStatsCache():
                     listTopTenTeasSoldByValue.append((tea, ctrTeaSaleAdjustments, autocalcCostPerGram))
 
         # Teas tried
-        if len(tea.reviews) > 0 or tea.finished:
+        if len(tea.reviews) > 0 or tea.finished or ctrTeaStandardAdjustments > 0:
             # If the tea has reviews or is finished, count it as tried
             ctrTotalTeasTried += 1
             if "Type" in AllTypesCategoryRoleValid:
                 if tea.attributes["Type"] not in dictCtrTeasTried:
-                    dictCtrTeasTried[tea.attributes["Type"]] = 0
+                    dictCtrTeasTried[tea.attributes["Type"]] = 1
                 else:
                     dictCtrTeasTried[tea.attributes["Type"]] += 1
 
@@ -4151,7 +4151,7 @@ def populateStatsCache():
             ctrTeasFinished += 1
             if "Type" in AllTypesCategoryRoleValid:
                 if tea.attributes["Type"] not in dictCtrTeasFinished:
-                    dictCtrTeasFinished[tea.attributes["Type"]] = 0
+                    dictCtrTeasFinished[tea.attributes["Type"]] = 1
                 else:
                     dictCtrTeasFinished[tea.attributes["Type"]] += 1
 
