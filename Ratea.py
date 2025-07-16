@@ -4154,7 +4154,7 @@ def populateStatsCache():
                     dictCtrTeasFinished[tea.attributes["Type"]] = 1
                 else:
                     dictCtrTeasFinished[tea.attributes["Type"]] += 1
-
+            
         # Autocalc explanation for cost per gram
         costPerGramExplanation = f"${tea.attributes['Cost']:.2f} Cost\n/ {tea.attributes['Amount']:.2f} Amount\n= ${autocalcCostPerGram:.2f} Price per gram"
         # Add to tea.cache
@@ -4820,8 +4820,6 @@ class Window_Stats(WindowBase):
                 teasNotTriedPerType = self.cache["teasNotTriedByType"]
                 teasFinishedPerType = self.cache["teasFinishedByType"]
                 totalFinished = self.cache["totalTeasFinished"]
-                for teaType in teasTriedPerType:
-                    totalFinished += teasFinishedPerType.get(teaType, 0)
                 numTeasTried = self.cache["totalTeasTried"]
                 totalTeas = self.cache["numTeas"]
                 dp.Text(f"Number of Teas Tried: {numTeasTried} out of {totalTeas} total teas, {numTeasTried / totalTeas * 100:.2f}%")
