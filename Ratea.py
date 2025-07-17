@@ -86,9 +86,11 @@ COLOR_INVALID_EMPTY_TABLE_CELL = (100, 0, 0, 100)
 # Red
 COLOR_REQUIRED_TEXT = (255, 0, 0, 200)
 COLOR_RED_TEXT = (255, 0, 0, 200)
+COLOR_LIGHT_RED_TEXT = (255, 0, 0, 150)  # Light red
 # green
 COLOR_AUTO_CALCULATED_TEXT = (0, 255, 0, 200)
 COLOR_GREEN_TEXT = (0, 255, 0, 200)
+COLOR_LIGHT_GREEN_TEXT = (0, 255, 0, 150)  # Light green
 # blue
 COLOR_BLUE_TEXT = (0, 0, 255, 200)
 # Light blue
@@ -4319,6 +4321,17 @@ def populateStatsCache():
     else:
         cache["daysSinceLastPurchase"] = 0
 
+    # Purchases by month
+    purchasesByMonth = {}
+    for tea in TeaStash:
+        if "date" in tea.attributes and tea.attributes["date"] is not None:
+            purchaseDate = dt.datetime.fromtimestamp(tea.attributes["date"], tz=dt.timezone.utc)
+            monthYear = purchaseDate.strftime("%Y-%m")
+            if monthYear not in purchasesByMonth:
+                purchasesByMonth[monthYear] = 0
+            purchasesByMonth[monthYear] += tea.attributes.get("Cost", 0)
+    cache["purchasesByMonth"] = purchasesByMonth
+
     timeCacheEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
     timeCacheDuration = timeCacheEnd - timeCacheStart
     RichPrintSuccessMinor(f"Stats cache duration: {timeCacheDuration:.2f} seconds")
@@ -4570,6 +4583,54 @@ class Window_Stats(WindowBase):
                 totalDays = self.cache["totalDays"]
                 dp.Text(f"Total Days Since Start Day: {totalDays:.2f} days")
                 dp.Separator()
+            with dp.CollapsingHeader(label="Purchases", default_open=False, indent=20 * settings["UI_SCALE"]):
+            # Total spent
+                dp.Text(f"Total Spent: ${self.cache['totalCost']:.2f}")
+
+                # Total spent by month
+                dp.Text(f"Average Purchase per Month: ${self.cache['averagePurchasePerMonth']:.2f}")
+                dp.Text(f"Days Since Last Purchase: {self.cache['daysSinceLastPurchase']:.2f} days")
+                dp.Text(f"Latest Purchase: {dt.datetime.fromtimestamp(self.cache['latestPurchase'], tz=dt.timezone.utc).strftime(settings['DATE_FORMAT']) if self.cache['latestPurchase'] > 0 else 'N/A'}")
+                dp.Separator()
+                with dp.CollapsingHeader(label="Purchasing by Month", default_open=False, indent=20 * settings["UI_SCALE"]):
+                    # Purchasing by month
+                    dp.Text("Purchasing by Month")
+                    # Table of months and total spent
+                    purchasesByMonth = self.cache["purchasesByMonth"]
+                    i = 0
+                    if purchasesByMonth:
+                        # Make a table to display the months and total spent
+                        spendingTable = dp.Table(header_row=True, borders_innerH=True, borders_outerH=True, borders_innerV=True, borders_outerV=True)
+                        with spendingTable:
+                            dp.TableColumn(label="Month", width_fixed=True, init_width_or_weight=100 * settings["UI_SCALE"])
+                            dp.TableColumn(label="Total Spent", width_fixed=True, init_width_or_weight=100 * settings["UI_SCALE"])
+                            for month, total in purchasesByMonth.items():
+                                with dp.TableRow():
+                                    dp.Text(month)
+                                    # if month is latest, highlight cell light blue
+                                    if month == dt.datetime.fromtimestamp(self.cache["latestPurchase"], tz=dt.timezone.utc).strftime("%Y-%m"):
+                                        dpg.highlight_table_cell(spendingTable, i, 0, color=COLOR_LIGHT_BLUE_TEXT)  # Light blue
+                                    dp.Text(f"${total:.2f}")
+                                    # Highlight light red/dark red/light green/dark green if above +- 25/50% of average
+                                    col = None
+                                    if total > self.cache["averagePurchasePerMonth"] * 1.5:
+                                        col = COLOR_RED_TEXT
+                                    elif total > self.cache["averagePurchasePerMonth"] * 1.25:
+                                        col = COLOR_LIGHT_RED_TEXT
+                                    elif total < self.cache["averagePurchasePerMonth"] * 0.5:
+                                        col = COLOR_GREEN_TEXT
+                                    elif total < self.cache["averagePurchasePerMonth"] * 0.75:
+                                        col = COLOR_LIGHT_GREEN_TEXT
+
+                                    if col is not None:
+                                        col = col[0:3] + (col[3] * 0.5,)
+                                        dpg.highlight_table_cell(spendingTable, i, 1, color=col)
+
+                                i += 1
+                    else:
+                        dp.Text("No purchases found.")
+
+                    dp.Separator()
         with dp.CollapsingHeader(label="Resale", default_open=False, indent=20 * settings["UI_SCALE"]):
             # Get sale amount and returned value from cache
             totalSoldAmt = self.cache["totalConsumedBySaleAdjustmentsSum"]
