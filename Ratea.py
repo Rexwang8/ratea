@@ -741,7 +741,7 @@ def renumberTeasAndReviews(save=True):
 
     if save:
         # Save to file after renumbering
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
         RichPrintSuccess("Saved renumbered teas and reviews to file.")
 
 # Grade letter functions
@@ -2980,7 +2980,7 @@ class Window_Stash(WindowBase):
             RichPrintSuccess(f"Imported tea from clipboard: {newTea.name}")
 
             # Save the tea stash to file
-            saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+            saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
 
             # Refresh the window
             self.softRefresh()
@@ -3467,12 +3467,23 @@ class Window_Stash(WindowBase):
                 # Add a checkbox to mark the tea as finished
                 dp.Separator()
                 finished = teaCurrent.finished
-                finsihedCheckbox = dp.Checkbox(label="Finished", default_value=finished, callback=self.greyOutAdjustmentInput)                
+                finsihedCheckbox = dp.Checkbox(label="Finished", default_value=finished, callback=self.greyOutAdjustmentInput)     
 
 
                 # Add a text input for the adjustment
                 dp.Text("Adjustment:")
                 adjustmentInput = dp.InputFloat(default_value=currentAdjustmentAmt, enabled=not finished, step=1.0, format="%.2f")
+
+                # Button to set the above adjustmentInput to the current remaining amount
+                def _setAdjustmentToCurrentRemaining(sender, app_data, user_data):
+                    # Set the adjustment input to the current remaining amount
+                    adjustmentInput = user_data[0]
+                    currentRemaining = user_data[1]
+                    if adjustmentInput is not None:
+                        adjustmentInput.set_value(currentRemaining)
+                    else:
+                        RichPrintError("Error: Adjustment input is None.")
+                dp.Button(label="Set Adjustment to Current Remaining", callback=_setAdjustmentToCurrentRemaining, user_data=(adjustmentInput, currentRemaining))
 
                 self.addTeaList["Adjustment"] = adjustmentInput
 
@@ -3588,7 +3599,7 @@ class Window_Stash(WindowBase):
         for i, teaStash in enumerate(TeaStash):
             teaStash.id = i
         # Save the tea stash to file
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
         RichPrintSuccess(f"Moved tea {tea.name} to index {newIndex} from current index {currentIndex}, renumbered stash.")
         # Refresh the window
         self.deleteAdjustmentsWindow()
@@ -3638,7 +3649,7 @@ class Window_Stash(WindowBase):
         tea.adjustments[typeOfAdjustment] = round(adjustment, 2)
         tea.finished = finished
         # Save the tea stash to file
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
         RichPrintSuccess(f"Updated {typeOfAdjustment} adjustment amount for tea {tea.name} to {adjustment:.3f}g")
 
         # Delete the adjustments window
@@ -3684,7 +3695,7 @@ class Window_Stash(WindowBase):
         TeaStash.append(newTea)
 
         # Save to file
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
         
         # hide the popup
         dpg.configure_item(self.teasWindow.tag, show=False)
@@ -3744,7 +3755,7 @@ class Window_Stash(WindowBase):
                 break
 
         # Save to file
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
 
         # hide the popup
         dpg.configure_item(self.teasWindow.tag, show=False)
@@ -3779,7 +3790,7 @@ class Window_Stash(WindowBase):
         renumberTeasAndReviews(save=False)
 
         # Save to file
-        saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+        saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
 
         # Refresh the window to reflect the deletion
         self.softRefresh()
@@ -3968,6 +3979,14 @@ def populateStatsCache():
     timeCacheStart = dt.datetime.now(tz=dt.timezone.utc).timestamp()
     AllTypesCategoryRoleValid, AllTypesCategoryRole = getValidCategoryRolesList()
     allTypesCategoryRoleReviewsValid, allTypesCategoryRoleReviews = getValidReviewCategoryRolesList()
+
+    remainingCategory = None
+    for cat in TeaCategories:
+        if cat.categoryRole == "Remaining":
+            remainingCategory = cat
+            break
+
+
     # Num teas
     cache["numTeas"] = statsNumTeas()
     # Num reviews
@@ -4117,11 +4136,23 @@ def populateStatsCache():
         ctrTeaRemaining = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Standard", 0) - tea.adjustments.get("Gift", 0) - tea.adjustments.get("Sale", 0)
 
         # If finished, the remaining is set to 0 and added to the total consumed by finished teas
+        if ctrTeaRemaining <= 0:
+            ctrTeaRemaining = 0
+            # If the tea is finished, set the finished flag
+            tea.finished = True
         if tea.finished:
             ctrTotalConsumedByFinishedTeas += ctrTeaRemaining
             ctrTeaFinishedAmt = ctrTeaRemaining
             ctrTeaRemaining = 0
-            
+            ctrRemainingExcludingStandard = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Gift", 0) - tea.adjustments.get("Sale", 0)
+
+            if ctrRemainingExcludingStandard > 0:
+                RichPrintInfo(f"Tea {tea.name} is finished, adjusting standard amount to {ctrRemainingExcludingStandard:.2f}g and remaining amount to 0g.")
+                # back-adjust the tea's standard adjustment to reflect the remaining amount
+                tea.adjustments["Standard"] = ctrRemainingExcludingStandard
+                # back-adjust the tea's remaining amount to 0 to reflect the finished state, only if it is autocalculated
+                if "Remaining" in AllTypesCategoryRoleValid and remainingCategory.isAutoCalculated:
+                    tea.attributes["Remaining"] = 0
 
         ctrTotalRemaining += ctrTeaRemaining
 
@@ -6334,7 +6365,7 @@ def generateBackup():
     SaveAll(backupPath, saveCSV=True)
     RichPrintSuccess(f"Backup generated at {backupPath}")
 
-def saveTeasReviews(stash, path):
+def saveTeasData(stash, path):
     # Save as one file in yml format
     allData = []
     nowString = parseDTToString(dt.datetime.now(tz=dt.timezone.utc))  # Get current time as string for default dateAdded
@@ -6666,7 +6697,7 @@ def SaveAll(altPath=None, saveCSV=True):
     if altPath is not None:
         # This is a backup path, so save to the backup path
         newBaseDirectory = altPath
-        saveTeasReviews(TeaStash, f"{newBaseDirectory}/tea_reviews.yml")
+        saveTeasData(TeaStash, f"{newBaseDirectory}/tea_reviews.yml")
         saveTeaCategories(TeaCategories, f"{newBaseDirectory}/tea_categories.yml")
         saveTeaReviewCategories(TeaReviewCategories, f"{newBaseDirectory}/tea_review_categories.yml")
         WriteYaml(f"{newBaseDirectory}/user_settings.yml", settings)
@@ -6678,7 +6709,7 @@ def SaveAll(altPath=None, saveCSV=True):
             teaStashToCSV(f"{newBaseDirectory}/tea.csv", f"{newBaseDirectory}/review.csv")
             RichPrintSuccess(f"CSV files saved to {newBaseDirectory}")
         return
-    saveTeasReviews(TeaStash, settings["TEA_REVIEWS_PATH"])
+    saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
     saveTeaCategories(TeaCategories, settings["TEA_CATEGORIES_PATH"])
     saveTeaReviewCategories(TeaReviewCategories, settings["TEA_REVIEW_CATEGORIES_PATH"])
     WriteYaml(session["settingsPath"], settings)
