@@ -3562,10 +3562,21 @@ class Window_Stash(WindowBase):
         # Factor in renumbering and saving the tea stash
         moveInput = user_data[0]
         tea = user_data[1]
-        if moveInput is type(dp.InputInt):
+
+        # dp.InputInt or mvInputInt
+        if moveInput is type(dp.InputInt) or moveInput is type(dp.InputFloat):
             newIndex = moveInput.get_value()
         else:
-            newIndex = moveInput
+            # Try to convert to int, if fail, get value, if fail, raise error
+            newIndex = None
+            try:
+                newIndex = int(moveInput)
+            except ValueError:
+                try:
+                    newIndex = moveInput.get_value()
+                except Exception as e:
+                    RichPrintError(f"Error: Invalid move input {moveInput}, cannot convert to int or get value. Exception: {e}")
+                    return
         currentIndex = tea.id
 
 
