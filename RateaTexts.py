@@ -233,6 +233,9 @@ Settings are available in the "Settings" window. You can change the app settings
 
 ListTextUserGuide["changelog"] = Text(
 '''---Changelog---
+Feat(0.18.0): Add copy-to-clipboard button to terminal
+Feat(0.17.0): small housekeeping adjustment for finished, added a button to adjust to remaining amt
+Feat(0.16.0): Added a spend per month table to stats
 Feat(0.15.0): Update stats window, few new stats
 Feat(0.14.0): Filter invalid and finished teas flag
 Feat(0.13.0): Terminal logs window

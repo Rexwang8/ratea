@@ -6151,6 +6151,11 @@ class Window_About(WindowBase):
             text = RateaTexts.ListTextUserGuide["About"].wrap()
             dp.Text(text)
 
+            # Changelog section with collapsing header
+            with dp.CollapsingHeader(label="Changelog", default_open=False):
+                changelogText = RateaTexts.ListTextUserGuide["changelog"].wrap()
+                dp.Text(changelogText)
+
 # Terminal window
 def Menu_Terminal():
     w = 880 * settings["UI_SCALE"]
