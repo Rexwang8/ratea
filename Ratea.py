@@ -66,6 +66,7 @@ TODO: Highlight color customization
 TODO: Make a clean default page for new users
 TODO: Alternate calculation methods and a flag for that
 TODO: Visualization: Network graph, word cloud, tier list
+TODO: Allow copying of table cells on right click
 '''
 
 
@@ -6165,6 +6166,7 @@ class Window_Terminal(WindowBase):
             textInput = dp.InputText(default_value=defaultLogs, multiline=True, width=800 * settings["UI_SCALE"], height=600 * settings["UI_SCALE"], readonly=True)
             # Add a button to clear the terminal
             dp.Button(label="Clear", callback=self.clearTerminal, user_data=textInput)
+            dp.Button(label="Copy to Clipboard", callback=self.copyTerminalToClipboard, user_data=textInput)
             dp.Separator()
         RichPrintSuccess("Opened Terminal window")
 
@@ -6178,6 +6180,12 @@ class Window_Terminal(WindowBase):
         global terminalConsoleLogs
         consoleLogs = '\n'.join(terminalConsoleLogs)
         return consoleLogs
+    def copyTerminalToClipboard(self, sender, app_data, user_data):
+        # Copy the console logs to clipboard
+        global terminalConsoleLogs
+        consoleLogs = '\n'.join(terminalConsoleLogs)
+        dpg.set_clipboard_text(consoleLogs)
+        RichPrintSuccess("Copied terminal logs to clipboard")
 
 
 class Manager_Windows:
