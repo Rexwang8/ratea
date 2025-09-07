@@ -1748,6 +1748,8 @@ class Window_Stash_Reviews(WindowBase):
         # Create a new window for editing the review
         w = 620 * settings["UI_SCALE"]
         h = 720 * settings["UI_SCALE"]
+
+        itemType = "Review"
         
         editReviewWindowItems = dict()
         review = user_data[0]
@@ -1761,16 +1763,16 @@ class Window_Stash_Reviews(WindowBase):
 
         windowName = ""
         if operation == "edit":
-            windowName = f"Edit Review {review.id} - {parentTea.name}"
+            windowName = f"Edit | {itemType} | {review.id} - {parentTea.name}"
         elif operation == "add":
-            windowName = f"Add Review - {parentTea.name}"
+            windowName = f"Add | {itemType} | - {parentTea.name}"
         elif operation == "duplicate":
             # Get last review
             lastReview = parentTea.reviews[-1] if parentTea.reviews else None
             if lastReview is not None:
                 review = Review(lastReview.id, lastReview.name, lastReview.dateAdded, lastReview.attributes.copy(), lastReview.rating)
                 review.id = len(parentTea.reviews)  # New review ID is the length of existing reviews
-                windowName = f"Duplicate Review {review.id} - {parentTea.name}"
+                windowName = f"Duplicate | {itemType} | {review.id} - {parentTea.name}"
             # Duplicate the review, but don't save it yet
             else:
                 # Change operation to add if no last review
@@ -3008,6 +3010,7 @@ class Window_Stash(WindowBase):
         duplicateTea = False
         operation = user_data[1]
         self.addTeaList = dict()
+        itemType = "Tea"
         if operation == "add":
             teasData = None
         elif operation == "edit" or operation == "duplicate":
@@ -3033,17 +3036,18 @@ class Window_Stash(WindowBase):
         # Create a new window
         w = 580 * settings["UI_SCALE"]
         h = 540 * settings["UI_SCALE"]
-        self.teasWindow = dp.Window(label="Teas", width=w, height=h, show=True)
+        windowName = f"{operation.capitalize()} | {itemType} | {idTea}"
+        self.teasWindow = dp.Window(label=windowName, width=w, height=h, show=True)
         dpg.bind_item_font(dpg.last_item(), getFontName(2))
         windowManager.addSubWindow(self.teasWindow)
         with self.teasWindow:
             if operation == "add":
-                dp.Text(f"Add New Tea {idTea}")
+                dp.Text(f"Add | {itemType} | {idTea}")
             elif operation == "edit":
-                dp.Text(f"Edit Tea {idTea}:\n{teasData.name if teasData else 'Unknown name'}")
+                dp.Text(f"Edit | {itemType} | {idTea}:\n{teasData.name if teasData else 'Unknown name'}")
             elif operation == "duplicate":
                 if duplicateTea:
-                    dp.Text(f"Duplicate Tea {idTea}:\n{teasData.name if teasData else 'Unknown name'}")
+                    dp.Text(f"Duplicate | {itemType} | {idTea}:\n{teasData.name if teasData else 'Unknown name'}")
                 else:
                     RichPrintError("Error: No teas in stash to duplicate.")
                     return
@@ -3561,26 +3565,14 @@ class Window_Stash(WindowBase):
         # user_data[0] is the moveInput, user_data[1] is the tea object
         # Factor in renumbering and saving the tea stash
         newIndex = user_data[0].get_value()
-        tea = user_data[1]
 
-        # dp.InputInt or mvInputInt
-        #if moveInput is type(dp.InputInt) or moveInput is type(dp.InputFloat):
-        #    newIndex = moveInput.get_value()
-        #else:
-        #    # Try to convert to int, if fail, get value, if fail, raise error
-        #    newIndex = None
-        #    try:
-        #        newIndex = int(moveInput)
-        #    except ValueError:
-        #        try:
-        #            newIndex = moveInput.get_value()
-        #        except Exception as e:
-        #            RichPrintError(f"Error: Invalid move input {moveInput}, cannot convert to int or get value. Exception: {e}")
-        #            return
+        if newIndex is None:
+            RichPrintError("Error: New index is None, cannot move tea.")
+            return
+
+        tea = user_data[1]
         currentIndex = tea.id
 
-
-        # DEBUG print
         global TeaStash
         RichPrintInfo(f"Moving tea {tea.name} to index {newIndex} from current index {currentIndex}")
         
@@ -3665,8 +3657,6 @@ class Window_Stash(WindowBase):
 
         # Delete the adjustments window
         self.deleteAdjustmentsWindow()
-                   
-                    
 
 
     def AddTea(self, sender, app_data, user_data):
