@@ -48,7 +48,6 @@ TODO: Terminal window to print out debug info
 TODO: Grades support for scores
 TODO: operation: Link reviews
 TODO: Optional non-refreshing table updates, limit number of items on first load
-TODO: Change log
 TODO: Windows list to manage open windows
 TODO: Reset to default buttons
 TODO: 1-5 as stars for rating system
@@ -3561,23 +3560,23 @@ class Window_Stash(WindowBase):
         # Move tea index to the index below the specified index
         # user_data[0] is the moveInput, user_data[1] is the tea object
         # Factor in renumbering and saving the tea stash
-        moveInput = user_data[0]
+        newIndex = user_data[0].get_value()
         tea = user_data[1]
 
         # dp.InputInt or mvInputInt
-        if moveInput is type(dp.InputInt) or moveInput is type(dp.InputFloat):
-            newIndex = moveInput.get_value()
-        else:
-            # Try to convert to int, if fail, get value, if fail, raise error
-            newIndex = None
-            try:
-                newIndex = int(moveInput)
-            except ValueError:
-                try:
-                    newIndex = moveInput.get_value()
-                except Exception as e:
-                    RichPrintError(f"Error: Invalid move input {moveInput}, cannot convert to int or get value. Exception: {e}")
-                    return
+        #if moveInput is type(dp.InputInt) or moveInput is type(dp.InputFloat):
+        #    newIndex = moveInput.get_value()
+        #else:
+        #    # Try to convert to int, if fail, get value, if fail, raise error
+        #    newIndex = None
+        #    try:
+        #        newIndex = int(moveInput)
+        #    except ValueError:
+        #        try:
+        #            newIndex = moveInput.get_value()
+        #        except Exception as e:
+        #            RichPrintError(f"Error: Invalid move input {moveInput}, cannot convert to int or get value. Exception: {e}")
+        #            return
         currentIndex = tea.id
 
 
@@ -7297,7 +7296,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.15.1", # Updates to most recently loaded
+        "APP_VERSION": "0.19.1", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
