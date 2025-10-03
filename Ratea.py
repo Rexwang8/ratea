@@ -14,6 +14,7 @@ import yaml
 import threading
 import pyperclip
 import textwrap
+from PIL import Image, ImageDraw, ImageFont
 
 # From local files
 import RateaTexts
@@ -214,6 +215,8 @@ def parseDTToStringWithHoursMinutes(stringOrDT):
         datetimeobj = dt.datetime.strptime(stringOrDT, format)
     elif isinstance(stringOrDT, dt.datetime):
         datetimeobj = stringOrDT
+    else:
+        raise ValueError(f"Input must be a string or datetime object., got {type(stringOrDT)}")
 
     # Convert to timezone
     timezoneObj = dt.timezone(dt.timedelta(hours=timezoneToOffset(timezone)))
@@ -1106,6 +1109,8 @@ class Review:
         self.calculateFinalScore()
 
 
+
+
 class TeaCategory:
     name = ""
     categoryType = ""
@@ -1254,6 +1259,223 @@ class ReviewCategory:
     def setRequired(self, isRequiredForTea, isRequiredForAll):
         self.isRequiredForTea = isRequiredForTea
         self.isRequiredForAll = isRequiredForAll
+
+    def format_attribute(self, key, value):
+        """Formats a review attribute based on its category metadata."""
+        correctTeaReviewCat = TeaReviewCategories # This should be a list of ReviewCategory objects
+        correct_cat = None
+        for cat in correctTeaReviewCat:
+            if cat.categoryRole == key:
+                correct_cat = cat
+                break
+
+        if not value:
+            return "N/A"
+            
+        # Don't warn for vendor or cost per gram since they are injected from parent tea and may not have a category
+        if not correct_cat and not key in ["Vendor", "Cost per Gram"]:
+            RichPrintWarning(f"No category found for key: {key}. Returning raw value.")
+            return str(value)
+        
+        # Special handling for injected attributes
+        if key == "Vendor":
+            return str(value)
+        if key == "Cost per Gram":
+            try:
+                value = float(value)
+            except ValueError:
+                RichPrintWarning(f"Value {value} for key {key} is not a valid float for Cost per Gram.")
+                return str(value)
+            return f"${value:.2f}/g"
+
+        # Handle datetime formatting
+        if correct_cat.categoryType == "date" or correct_cat.categoryType == "datetime":
+            return TimeStampToStringWithFallback(value, "Can't parse date")
+        
+        # Handle grading display by displaying both letter and number regardless of internal setting
+        if correct_cat.categoryRole == "Score" or correct_cat.categoryRole == "Final Score":
+            numerical_value = None
+            try:
+                numerical_value = float(value)
+            except ValueError:
+                RichPrintWarning(f"Value {value} for key {key} is not a valid float for grading.")
+                return str(value)
+            letter_grade = getGradeLetterFuzzy(numerical_value)
+            # Will return either None, just the Letter if exact match, or Letter (value) if fuzzy match, we want it to always be letter (value/5)
+            if letter_grade:
+                return f"{letter_grade.split(' (')[0]} ({numerical_value:.{correct_cat.rounding}f}/5)"
+            else:
+                return f"{numerical_value:.{correct_cat.rounding}f}"
+            
+        
+        # Handle numeric formatting
+        if isinstance(value, (int, float)):
+            formatted_value = f"{value:.{correct_cat.rounding}f}"
+            # if int
+            if correct_cat.categoryType == "int":
+                formatted_value = str(int(float(formatted_value)))
+            return f"{correct_cat.prefix}{formatted_value}{correct_cat.suffix}"
+        
+        
+
+        return str(value)
+    
+    def generate_review_outputs(self, review: Review, font_size: int = 24):
+        """
+        Ingests a Review object and creates a text-only review, an HTML review, and a PNG image.
+
+        Args:
+            review: A Review object.
+            review_categories: A dictionary mapping attribute names to ReviewCategory objects.
+            font_size: The font size to use for the image generation.
+
+        Returns:
+            A tuple containing (text_review, html_review, image_path).
+        """
+
+        # Get the tea parent for the name of the tea, the vendor, and other info
+        teaParent = None
+        for tea in TeaStash:
+            if tea.id == review.parentID:
+                teaParent = tea
+                break
+
+        if teaParent is None:
+            RichPrintError(f"Could not find parent tea for review {review.name} with parent ID {review.parentID}")
+            return None, None, None
+        RichPrintInfo(f"Generating review outputs for review: {review.name} of tea: {teaParent.name}")
+        sessionNum = 1
+        for r in teaParent.reviews:
+            if r.id == review.id:
+                break
+            sessionNum += 1
+        teaYear = teaParent.attributes.get("Year", "")
+
+        reviewAttributes = review.attributes.items()
+        # inject attribute from parent: vendor if it exists, Cost per gram if exists
+        if "Vendor" in teaParent.attributes:
+            reviewAttributes = list(reviewAttributes) + [("Vendor", teaParent.attributes["Vendor"])]
+        if "Cost per Gram" in teaParent.attributes:
+            reviewAttributes = list(reviewAttributes) + [("Cost per Gram", teaParent.attributes["Cost per Gram"])]
+
+        # Sort attributes to have notes at the end, date and type near the beginning
+        sortedAttributes = sorted(reviewAttributes, key=lambda x: (("note" in x[0].lower(), x[0] != "date", x[0] != "Type", x[0])))
+        reviewAttributes = sortedAttributes
+
+        # --- Text & HTML Review Generation ---
+        text_review = f"Review for: {teaYear} {teaParent.name} (Session {sessionNum})\n"
+        html_review = f"<h3>Review for: {teaYear} {teaParent.name} (Session {sessionNum})</h3>\n"
+        image_title = f"Review for: {teaYear} {teaParent.name} (Session {sessionNum})"
+
+        for key, value in reviewAttributes:
+            if key in ["Name", "dateAdded"]:  # Filter out redundant or internal fields
+                continue
+            # If word "note" in key, lookup and use category description
+            #if "note" in key.lower():
+            
+            formatted_value = self.format_attribute(key, value)
+            for cat in TeaReviewCategories:
+                if cat.categoryRole == key:
+                    key = cat.name
+                    break
+            text_review += f"\n{key}: {formatted_value}"
+            html_review += f"  <li><b>{key}:</b> {formatted_value.replace(chr(10), '<br>')}</li>\n"
+
+        html_review += "</ul>"
+
+        # --- Image Review Generation ---
+        padding = 50
+        image_width = 1200
+        line_spacing = 12
+        try:
+            title_font = ImageFont.truetype("arialbd.ttf", size=font_size + 8)
+            body_font = ImageFont.truetype("arial.ttf", size=font_size)
+        except IOError:
+            title_font = ImageFont.load_default()
+            body_font = ImageFont.load_default()
+
+        # --- Calculate Dynamic Image Height ---
+        current_y = padding
+        # Title height
+        current_y += title_font.getbbox(teaParent.name)[3] - title_font.getbbox(teaParent.name)[1] + line_spacing * 2
+
+        # Attributes height
+        reviewAttributes = sortedAttributes
+        for key, value in reviewAttributes:
+            if key in ["Name", "dateAdded"]:
+                continue
+            
+            # If word "note" in key, lookup and use category description
+            if "note" in key.lower():
+                for cat in TeaReviewCategories:
+                    if cat.categoryRole == key:
+                        key = cat.name
+                        break
+            
+            formatted_value = self.format_attribute(key, value)
+            for cat in TeaReviewCategories:
+                if cat.categoryRole == key:
+                    key = cat.name
+                    break
+            key_text = f"{key}: "
+
+            # Calculate height for the key
+            key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
+
+            # Calculate height for the wrapped value
+            wrapped_lines = textwrap.wrap(str(formatted_value), width=100)
+            value_height = len(wrapped_lines) * (key_height + line_spacing)
+
+            current_y += value_height + line_spacing
+
+        image_height = current_y + padding
+
+        # --- Create and Draw Image ---
+        img = Image.new('RGB', (image_width, image_height), color=(240, 240, 240))
+        draw = ImageDraw.Draw(img)
+
+        # Draw Title
+        current_y = padding
+        draw.text((padding, current_y), image_title, fill=(0, 0, 0), font=title_font)
+        current_y += title_font.getbbox(image_title)[3] - title_font.getbbox(image_title)[1] + line_spacing * 2
+
+        # Draw Attributes
+        for key, value in reviewAttributes:
+            if key in ["Name", "dateAdded"]:
+                continue
+
+            formatted_value = self.format_attribute(key, value)
+            for cat in TeaReviewCategories:
+                if cat.categoryRole == key:
+                    key = cat.name
+                    break
+            key_text = f"{key}: "
+
+            # Get line height from a sample character
+            line_height = body_font.getbbox('A')[3] - body_font.getbbox('A')[1] + line_spacing
+
+            draw.text((padding, current_y), key_text, fill=(80, 80, 80), font=body_font)
+            key_width = draw.textlength(key_text, font=body_font)
+
+            # Handle multi-line values
+            lines = str(formatted_value).split('\n')
+            for i, line in enumerate(lines):
+                wrapped_sublines = textwrap.wrap(line, width=100) # Adjust width as needed
+                if not wrapped_sublines: # Handle empty lines
+                     current_y += line_height
+                for sub_line in wrapped_sublines:
+                    # Indent subsequent lines of a wrapped value
+                    text_x = padding + key_width if i == 0 else padding + key_width + 20
+                    draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font)
+                    current_y += line_height
+            current_y += line_spacing # Extra space between attributes
+
+        # Save image to unique path with timestamp, review, parent id, parent name abridged, using underscores
+        image_path = f"review_{review.id}_{review.parentID}_{sessionNum}_{teaParent.name[:20].replace(' ', '_')}_{int(dt.datetime.now().timestamp())}.png"
+        img.save(image_path)
+        RichPrintSuccess(f"Generated review image at {image_path}")
+
+        return text_review, html_review, image_path
 
 #endregion
 
@@ -2297,8 +2519,8 @@ class Window_Stash_Reviews(WindowBase):
                 for i, cat in enumerate(TeaReviewCategories):
                     dp.TableColumn(label=cat.name, no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
                                      width=50, default_sort=True, no_hide=True, user_data=f"{i+1}")
-                # Add Edit button
-                dp.TableColumn(label="Edit", no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
+                # Add Action button
+                dp.TableColumn(label="Action", no_resize=False, no_clip=True, prefer_sort_ascending=True, width_fixed=True, 
                                      width=50, default_sort=True, no_hide=True)
                 # Add rows
                 for i, review in enumerate(tea.reviews):
@@ -2417,7 +2639,10 @@ class Window_Stash_Reviews(WindowBase):
                         
 
                         # button that opens a modal with reviews
-                        dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
+                        with dp.Group(horizontal=True):
+                            dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
+                            # Button that generates review exports for copy-pasting elsewhere
+                            dp.Button(label="Export", callback=self.exportReview, user_data=review)
 
             # Footer
             timeLoadEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
@@ -2527,6 +2752,42 @@ class Window_Stash_Reviews(WindowBase):
 
     def softRefresh(self):
         return super().softRefresh()
+    
+    def exportReview(self, sender, app_data, user_data):
+        review = user_data
+        review: Review
+        if review is None:
+            RichPrintError("No review provided for export.")
+            return
+        # Generate the export text
+        textReview, htmlReview, imagePath = TeaReviewCategories[0].generate_review_outputs(review)
+        # Copy the text review to clipboard
+        try:
+            pyperclip.copy(textReview)
+            RichPrintSuccess(f"Copied text review for {review.name} to clipboard.")
+        except pyperclip.PyperclipException as e:
+            RichPrintError(f"Failed to copy text review to clipboard: {e}")
+        
+        # Show a popup with the html review and image path
+        exportWindow = dp.Window(label="Export Review", width=800 * settings["UI_SCALE"], height=600 * settings["UI_SCALE"], modal=True, show=True)
+        with exportWindow:
+            dp.Text(f"Text Review (copied to clipboard):")
+            dp.InputText(default_value=textReview, multiline=True, readonly=True, width=760 * settings["UI_SCALE"], height=200 * settings["UI_SCALE"])
+            dp.Separator()
+            dp.Text(f"HTML Review:")
+            dp.InputText(default_value=htmlReview, multiline=True, readonly=True, width=760 * settings["UI_SCALE"], height=200 * settings["UI_SCALE"])
+            dp.Separator()
+            if imagePath is not None:
+                dp.Text(f"Image Path (screenshot of review): {imagePath}")
+                # Add image to registry
+                addImageToRegistryFromFile(imagePath, f"{imagePath[:-4]}")
+                dp.Image(f"{imagePath[:-4]}", width=400 * settings["UI_SCALE"], height=300 * settings["UI_SCALE"])
+            else:
+                dp.Text("No image generated.")
+            dp.Separator()
+            dp.Button(label="Close", callback=lambda s, a, u: exportWindow.delete())
+
+        # End of exportReview
 
 def Menu_Stash():
     w = 500 * settings["UI_SCALE"]
@@ -7204,8 +7465,19 @@ def bind_image_registry():
         width, height, channels, data = dpg.load_image("assets/images/icons8-refresh-64.png")
         dpg.add_static_texture(width=width, height=height, default_value=data, tag="refresh_icon")
 
+def addImageToRegistryFromFile(path, tag):
+    if not os.path.exists(path):
+        RichPrintError(f"Image {path} does not exist, cannot add to registry")
+        return False
     
-            
+    # check if alias tag already exists, if does, delete old one
+    if dpg.does_item_exist(tag):
+        dpg.delete_item(tag)
+        RichPrintInfo(f"Deleted old texture for {tag}")
+    width, height, channels, data = dpg.load_image(path)
+    with dpg.texture_registry(show=False):
+        dpg.add_static_texture(width=width, height=height, default_value=data, tag=tag)
+    return True
 
 def printSettings():
     for key, value in settings.items():
@@ -7286,7 +7558,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.19.1", # Updates to most recently loaded
+        "APP_VERSION": "0.20.0", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
