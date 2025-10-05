@@ -943,7 +943,7 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
         highlight = float(highlight)
         highlight_x = highlight
         highlight_y = 0.96
-        
+
     if grade_labels == True:
         labels = {
         0: "F",
@@ -1705,9 +1705,7 @@ class ReviewCategory:
 
 
 
-        # inject attribute from parent: vendor if it exists, Cost per gram if exists
-        if "Vendor" in teaParent.attributes:
-            reviewAttributes = list(reviewAttributes) + [("Vendor", teaParent.attributes["Vendor"])]
+        # inject attribute from parent: Cost per gram if exists, don't inject vendor because this is already covered in the graphs
         if "Cost" in teaParent.attributes and "Amount" in teaParent.attributes:
             # Calculate cost per gram if possible
             cpg = teaParent.getCalcedValue("Cost per Gram")
