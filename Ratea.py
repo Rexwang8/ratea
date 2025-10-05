@@ -440,6 +440,11 @@ def getCategoryIDByrole(role):
             return i
         
     return noneFoundValue
+def getCategoryByrole(role):
+    catID = getCategoryIDByrole(role)
+    if catID == -1:
+        return None
+    return TeaCategories[catID]
 
 def getAlLCategoryEntriesByID(categoryID, review=False):
     # Get the values of all entries of a category by ID, returning the list of values
@@ -922,7 +927,7 @@ def getAverageRatingsByYear(year):
                     ratings.append(review.attributes.get("Final Score"))
     return ratings
 
-def make_rating_bubble_image(points, width=300, height=125, highlight=None, name=""):
+def make_rating_bubble_image(points, width=300, height=125, highlight=None, name="", grade_labels=True):
 
     # Create figure
     fig, ax = plt.subplots(figsize=(width/100, height/100), dpi=100)
@@ -938,6 +943,20 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
         highlight = float(highlight)
         highlight_x = highlight
         highlight_y = 0.96
+        
+    if grade_labels == True:
+        labels = {
+        0: "F",
+        0.5: "D",
+        1.5: "C",
+        2.5: "B",
+        3.5: "A",
+        4.5: "S",
+        }
+        # map 0-5 to the xlabels
+        # Set tick positions and labels
+        ax.set_xticks(list(labels.keys()))
+        ax.set_xticklabels(list(labels.values()))
 
     ax.scatter(x, y, s=bubble_sizes, alpha=0.6, edgecolors='black', linewidths=0.5)
     if highlight is not None:
@@ -1199,6 +1218,32 @@ class StashedTea:
         global TeaCache
         if self in TeaCache:
             return TeaCache[self.id].get("remaining", None)
+        
+    def getCalcedValue(self, categoryRole="Cost per Gram"):
+        # Get the category role
+        cat = getCategoryByrole(categoryRole)
+        
+        # Check if flagged as autocalculated
+        if cat is None:
+            RichPrintError(f"Category role {categoryRole} not found")
+            return None
+        if not cat.isAutoCalculated:
+            return self.attributes.get(categoryRole, None)
+
+        # Get the calculated cost per gram from the cache
+        global TeaCache
+        if self in TeaCache:
+            print(F"Getting {categoryRole} from cache")
+            return TeaCache[self.id].get(categoryRole, None)
+        # if not found, get calculated
+        if categoryRole in self.calculated:
+            print(F"Getting {categoryRole} from calculated")
+            return self.calculated[categoryRole]
+        # if not found, run autocalculate
+        print(F"Calculating {categoryRole}")
+        value, explanation = cat.autocalculate(self)
+        self.calculated[categoryRole] = value
+        return value
 
 # Defines a review for a tea
 class Review:
@@ -1663,8 +1708,11 @@ class ReviewCategory:
         # inject attribute from parent: vendor if it exists, Cost per gram if exists
         if "Vendor" in teaParent.attributes:
             reviewAttributes = list(reviewAttributes) + [("Vendor", teaParent.attributes["Vendor"])]
-        if "Cost per Gram" in teaParent.attributes:
-            reviewAttributes = list(reviewAttributes) + [("Cost per Gram", teaParent.attributes["Cost per Gram"])]
+        if "Cost" in teaParent.attributes and "Amount" in teaParent.attributes:
+            # Calculate cost per gram if possible
+            cpg = teaParent.getCalcedValue("Cost per Gram")
+            if cpg is not None:
+                reviewAttributes = list(reviewAttributes) + [("Cost per Gram", cpg)]
 
         # Sort attributes to have notes at the end, date and type near the beginning
         sortedAttributes = sorted(reviewAttributes, key=lambda x: (("note" in x[0].lower(), x[0] != "date", x[0] != "Type", x[0])))
