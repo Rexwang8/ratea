@@ -1,6 +1,9 @@
 import csv
 import datetime as dt
+from io import BytesIO
 import json
+import random
+from statistics import stdev
 import time
 import uuid
 import dearpypixl as dp
@@ -8,13 +11,15 @@ import dearpygui.dearpygui as dpg
 import dearpygui.demo as demo
 import os
 import re
+from matplotlib import pyplot as plt
+import numpy as np
 from rich.console import Console as RichConsole
 import screeninfo
 import yaml
 import threading
 import pyperclip
 import textwrap
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageTk
 
 # From local files
 import RateaTexts
@@ -277,8 +282,8 @@ def parseStringToDT(string, default=None, format=None, silent=False):
             raise ValueError("Default value must be a datetime object or a string in the correct format.")
     else:
         # If no valid date found and no default provided, return None
-        if not silent:
-            RichPrintError(f"Failed to parse date string: {string}. No valid date found and no default provided.")
+        if silent == False:
+            RichPrintError(f"Failed to parse date string: {string}. No valid date found and no default provided (Silent={silent})")
     return False  # Return False if no valid date found and no default provided
     
 
@@ -355,9 +360,9 @@ def AnyDTFormatToTimeStamp(unknownDT):
         return int(unknownDT)
     else:
         raise ValueError("Invalid datetime format")
-def StringToTimeStamp(string):
+def StringToTimeStamp(string, silent=False):
     # Convert string to timestamp
-    dt = parseStringToDT(string)
+    dt = parseStringToDT(string, silent=silent)
     return DateTimeToTimeStamp(dt)
 
 
@@ -830,6 +835,133 @@ def getGradeDropdownValueByFloat(value):
     return None
 
 
+# Visualization stuff. 
+# 1. Given a type of tea, return a list of average ratings for all reviews of that type of tea in list form
+# 2. Given a vendor of tea, return a list of average ratings for all reviews of that vendor in list form
+# 3. Given a year of tea, return a list of average ratings for all reviews of that year in list form
+# 4. Given a list from 1-3, automatically find range, return a tuple of (x, y, size) points deduping similar points
+
+def getAverageRatingRange(teaType=None, vendor=None, year=None, overlap_threshold=0.05):
+    # if more than 1 are provided, error for now
+    if sum([teaType is not None, vendor is not None, year is not None]) != 1:
+        RichPrintError("Only one of teaType, vendor, or year must be provided")
+        return None
+    # Get the average ratings for the specified criteria
+    if teaType:
+        ratings = getAverageRatingsByTeaType(teaType)
+    elif vendor:
+        ratings = getAverageRatingsByVendor(vendor)
+    elif year:
+        ratings = getAverageRatingsByYear(year)
+    else:
+        RichPrintError("No valid criteria provided")
+        return None
+
+    # If no ratings found, return None
+    if not ratings:
+        RichPrintError("No ratings found")
+        return None
+
+    # Sort ratings for easier clustering
+    ratings = sorted(ratings)
+    min_r, max_r = min(ratings), max(ratings)
+    r_range = max_r - min_r if max_r != min_r else 1e-6  # avoid divide by zero
+
+    # Define max distance considered "overlapping"
+    threshold = overlap_threshold * r_range
+
+    clusters = []
+    current_cluster = [ratings[0]]
+
+    # Group nearby points
+    for r in ratings[1:]:
+        if abs(r - current_cluster[-1]) <= threshold:
+            current_cluster.append(r)
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [r]
+    clusters.append(current_cluster)
+
+    # Now convert clusters into (x, y, size) points
+    points = []
+    for cluster in clusters:
+        x = np.mean(cluster)  # average rating in cluster
+        # y should be static as the plot is very flat
+        y = 1
+        size = len(cluster)
+        # Round y to 2 decimal places
+        y = round(y, 2)
+        points.append((x, y, size))
+
+    return points
+
+def getAverageRatingsByTeaType(teaType):
+    ratings = []
+    for tea in TeaStash:
+        if teaType.lower() in tea.attributes.get("Type", "").lower():
+            for review in tea.reviews:
+                if review.attributes.get("Final Score") is not None:
+                    ratings.append(review.attributes.get("Final Score"))
+    return ratings
+
+def getAverageRatingsByVendor(vendor):
+    ratings = []
+    for tea in TeaStash:
+        if vendor.lower() in tea.attributes.get("Vendor", "").lower():
+            for review in tea.reviews:
+                if review.attributes.get("Final Score") is not None:
+                    ratings.append(review.attributes.get("Final Score"))
+    return ratings
+
+def getAverageRatingsByYear(year):
+    ratings = []
+    for tea in TeaStash:
+        if tea.attributes.get("Year") == year:
+            for review in tea.reviews:
+                if review.attributes.get("Final Score") is not None:
+                    ratings.append(review.attributes.get("Final Score"))
+    return ratings
+
+def make_rating_bubble_image(points, width=300, height=125, highlight=None, name=""):
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(width/100, height/100), dpi=100)
+    x, y, size = zip(*points)
+
+    # Normalize size for bubbles
+    # largest bubble shouldnt exceed 800 in size
+    # smallest bubble shouldnt be smaller than 50
+    bubble_sizes = [min(max(s * 20, 50), 800) for s in size]
+
+    # Add a highlight for highlight if provided
+    if highlight is not None:
+        highlight = float(highlight)
+        highlight_x = highlight
+        highlight_y = 0.96
+
+    ax.scatter(x, y, s=bubble_sizes, alpha=0.6, edgecolors='black', linewidths=0.5)
+    if highlight is not None:
+        ax.scatter([highlight_x], [highlight_y], s=85, color='red', edgecolors='black', linewidths=1.5, label='This Rating')
+    ax.set_xlabel("")
+    ax.set_ylabel("")  # y is just jitter
+    ax.set_title(name if name else "Rating Distribution")
+    ax.set_ylim(min(y) - 0.1, max(y) + 0.1)
+    ax.set_xlim(-0.5, 5.5)
+    ax.get_yaxis().set_visible(False)
+    ax.grid(alpha=0.2)
+
+    # Save figure to BytesIO buffer
+    buf = BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format="png", transparent=True)
+    plt.close(fig)
+    buf.seek(0)
+
+    # Load as Pillow image
+    chart_img = Image.open(buf)
+    return chart_img
+
+
 # Defines valid categories, and role as categories
 # Also defines the types of role
 
@@ -907,7 +1039,7 @@ def _table_sort_callback(sender, sortSpec):
         # If date string, try to parse it, if succeeds, use timestamp
         if isinstance(item[1], str):
             try:
-                parsed_date = StringToTimeStamp(item[1])
+                parsed_date = StringToTimeStamp(item[1], silent=True)
                 if parsed_date:
                     return parsed_date
             except:
@@ -1334,6 +1466,11 @@ class ReviewCategory:
         """
 
         # Get the tea parent for the name of the tea, the vendor, and other info
+        overrideDoNotGenerateImage = False
+        overrideDoNotgenerateTeaLevelAttributes = False
+        overrideDoNotDrawGraphs_relativeBubbles = False
+
+        
         teaParent = None
         for tea in TeaStash:
             if tea.id == review.parentID:
@@ -1352,6 +1489,177 @@ class ReviewCategory:
         teaYear = teaParent.attributes.get("Year", "")
 
         reviewAttributes = review.attributes.items()
+        # Tea level attributes, for multiple reviews across one tea.
+        hasTeaLevelAttributes = False
+        # Check if there are reviews dated before this one
+        allReviewsIncludingThisOne = []
+        thisReviewTimestamp = review.attributes.get("date", None)
+        for r in teaParent.reviews:
+            if "date" in r.attributes and thisReviewTimestamp is not None:
+                if r.attributes["date"] <= thisReviewTimestamp:
+                    allReviewsIncludingThisOne.append(r)
+        if len(allReviewsIncludingThisOne) <= 1:
+            hasTeaLevelAttributes = False  # Only this review, no tea-level attributes
+        else:
+            hasTeaLevelAttributes = True
+        RichPrintInfo(f"Found {len(allReviewsIncludingThisOne)} reviews including this one for tea {teaParent.name}")
+
+        # Attributes to derive tea-level: Average ratio, Average rating, earliest review date, latest review date (this review), average time between reviews, total amount drank
+        teaLevelAttributes = dict()
+        formattedTeaLevelAttributes = dict()
+        numReviewsIncludingThisOne = len(allReviewsIncludingThisOne)
+        if hasTeaLevelAttributes:
+            # Average ratio
+            totalRatio = 0
+            countRatio = 0
+            for r in allReviewsIncludingThisOne:
+                if "Score" in r.attributes:
+                    try:
+                        totalRatio += float(r.attributes["Score"])
+                        countRatio += 1
+                    except ValueError:
+                        RichPrintWarning(f"Score {r.attributes['Score']} is not a valid float for review {r.name}")
+            if countRatio > 0:
+                teaLevelAttributes["Average Score"] = round(totalRatio / countRatio, 2)
+            else:
+                teaLevelAttributes["Average Score"] = "N/A"
+
+            # Average rating
+            totalRating = 0
+            countRating = 0
+            for r in allReviewsIncludingThisOne:
+                if r.rating is not None:
+                    try:
+                        totalRating += float(r.rating)
+                        countRating += 1
+                    except ValueError:
+                        RichPrintWarning(f"Rating {r.rating} is not a valid float for review {r.name}")
+            if countRating > 0:
+                teaLevelAttributes["Average Rating"] = round(totalRating / countRating, 2)
+            else:
+                teaLevelAttributes["Average Rating"] = "N/A"
+
+            # Stdev of rating
+            if countRating > 1:
+                ratings = [r.rating for r in allReviewsIncludingThisOne if r.rating is not None]
+                if len(ratings) > 1:
+                    teaLevelAttributes["Rating Std Dev"] = round(stdev(ratings), 2)
+                else:
+                    teaLevelAttributes["Rating Std Dev"] = "N/A"
+
+            # Earliest review date
+            earliestDate = None
+            for r in allReviewsIncludingThisOne:
+                if "date" in r.attributes:
+                    try:
+                        review_date = dt.datetime.fromtimestamp(r.attributes["date"], tz=dt.timezone.utc)
+                        if earliestDate is None or review_date < earliestDate:
+                            earliestDate = review_date
+                    except (ValueError, OSError):
+                        RichPrintWarning(f"Date {r.attributes['date']} is not a valid timestamp for review {r.name}")
+            if earliestDate is not None:
+                teaLevelAttributes["First Reviewed"] = earliestDate.strftime(settings["DATE_FORMAT"])
+            else:
+                teaLevelAttributes["First Reviewed"] = "N/A"
+
+            # Latest review date (this review)
+            if "date" in review.attributes:
+                try:
+                    latestDate = dt.datetime.fromtimestamp(review.attributes["date"], tz=dt.timezone.utc)
+                    teaLevelAttributes["Last Reviewed"] = latestDate.strftime(settings["DATE_FORMAT"])
+                except (ValueError, OSError):
+                    RichPrintWarning(f"Date {review.attributes['date']} is not a valid timestamp for review {review.name}")
+                    teaLevelAttributes["Last Reviewed"] = "N/A"
+            else:
+                teaLevelAttributes["Last Reviewed"] = "N/A"
+
+
+            # Average time between reviews
+            daysBetweenFirstAndLast = 0
+            if earliestDate is not None and latestDate is not None:
+                daysBetweenFirstAndLast = (latestDate - earliestDate).days
+                teaLevelAttributes["Days Between First and Last Review"] = daysBetweenFirstAndLast
+            if numReviewsIncludingThisOne > 1 and daysBetweenFirstAndLast > 0:
+                teaLevelAttributes["Average Time Between Reviews"] = daysBetweenFirstAndLast / numReviewsIncludingThisOne
+            else:
+                teaLevelAttributes["Average Time Between Reviews"] = "N/A"
+
+            # Total amount drank
+            totalAmount = 0
+            for r in allReviewsIncludingThisOne:
+                if "Amount" in r.attributes:
+                    try:
+                        totalAmount += float(r.attributes["Amount"])
+                    except ValueError:
+                        RichPrintWarning(f"Amount {r.attributes['Amount']} is not a valid float for review {r.name}")
+            teaLevelAttributes["Total Amount Drank"] = f"{totalAmount:.2f} g"
+        else:
+            teaLevelAttributes["Average Score"] = "N/A"
+            teaLevelAttributes["Average Rating"] = "N/A"
+            teaLevelAttributes["First Reviewed"] = "N/A"
+            if "date" in review.attributes:
+                try:
+                    latestDate = dt.datetime.fromtimestamp(review.attributes["date"], tz=dt.timezone.utc)
+                    teaLevelAttributes["Last Reviewed"] = latestDate.strftime(settings["DATE_FORMAT"])
+                except (ValueError, OSError):
+                    RichPrintWarning(f"Date {review.attributes['date']} is not a valid timestamp for review {review.name}")
+                    teaLevelAttributes["Last Reviewed"] = "N/A"
+            else:
+                teaLevelAttributes["Last Reviewed"] = "N/A"
+            teaLevelAttributes["Average Time Between Reviews"] = "N/A"
+            if "Amount" in review.attributes:
+                try:
+                    totalAmount = float(review.attributes["Amount"])
+                    teaLevelAttributes["Total Amount Drank"] = totalAmount
+                except ValueError:
+                    RichPrintWarning(f"Amount {review.attributes['Amount']} is not a valid float for review {review.name}")
+                    teaLevelAttributes["Total Amount Drank"] = "N/A"
+            else:
+                teaLevelAttributes["Total Amount Drank"] = "N/A"
+
+
+
+        # Formatted tea level attributes
+        # Grade/rating should be formatted
+        if isinstance(teaLevelAttributes.get("Average Score", None), (int, float)):
+            formattedTeaLevelAttributes["Average Score"] = self.format_attribute("Score", teaLevelAttributes["Average Score"])
+        if isinstance(teaLevelAttributes.get("Average Rating", None), (int, float)):
+            formattedTeaLevelAttributes["Average Rating"] = f"{self.format_attribute("Final Score", teaLevelAttributes["Average Rating"])} (Std Dev: {teaLevelAttributes.get('Rating Std Dev', 'N/A')})"
+
+        # if average rating is n/a, set to current rating
+        if teaLevelAttributes.get("Average Rating", "N/A") == "N/A" and review.attributes.get("Final Score", None) is not None:
+            formattedTeaLevelAttributes["Average Rating"] = f"{self.format_attribute("Final Score", review.attributes["Final Score"])} (only one review)"
+
+        # First , last, average review time before should  be combined into 1 line
+        reviewDateString = ""
+        if teaLevelAttributes.get("First Reviewed", "N/A") != "N/A" and teaLevelAttributes.get("Last Reviewed", "N/A") != "N/A":
+            reviewDateString += f"From {teaLevelAttributes['First Reviewed']} to {teaLevelAttributes['Last Reviewed']}"
+        else:
+            reviewDateString += "N/A"
+        if teaLevelAttributes.get("Average Time Between Reviews", "N/A") != "N/A":
+            if reviewDateString != "":
+                reviewDateString += ", "
+            reviewDateString += f"avg. {teaLevelAttributes['Average Time Between Reviews']:.1f} days between reviews"
+            if numReviewsIncludingThisOne <= 1:
+                reviewDateString += " (only one review)"
+            formattedTeaLevelAttributes["Review Dates"] = reviewDateString
+        else:
+            if reviewDateString != "":
+                reviewDateString += "."
+            formattedTeaLevelAttributes["Review Dates"] = reviewDateString
+        # Amount drank and number of reviews, should include both total and avrg
+        reviewAmtString = ""
+        if teaLevelAttributes.get("Total Amount Drank", "N/A") != "N/A":
+            if reviewAmtString != "":
+                reviewAmtString += " "
+            reviewAmtString += f"Total amount drank: {teaLevelAttributes['Total Amount Drank']} over {numReviewsIncludingThisOne} review(s)."
+        else:
+            reviewAmtString += "N/A"
+        
+        formattedTeaLevelAttributes["Amount Drank"] = reviewAmtString
+
+
+
         # inject attribute from parent: vendor if it exists, Cost per gram if exists
         if "Vendor" in teaParent.attributes:
             reviewAttributes = list(reviewAttributes) + [("Vendor", teaParent.attributes["Vendor"])]
@@ -1362,10 +1670,39 @@ class ReviewCategory:
         sortedAttributes = sorted(reviewAttributes, key=lambda x: (("note" in x[0].lower(), x[0] != "date", x[0] != "Type", x[0])))
         reviewAttributes = sortedAttributes
 
+
+        # Graph data getting
+        thisTeaAverageRating = teaLevelAttributes["Average Rating"] if isinstance(teaLevelAttributes["Average Rating"], (int, float)) else review.attributes.get("Final Score", None)
+        typeDatapts = getAverageRatingRange(teaType=teaParent.attributes.get("Type", None))
+        vendorDatapts = getAverageRatingRange(vendor=teaParent.attributes.get("Vendor", None))
+        sumTypeData = 0
+        totalTypeData = 0
+        sumvendorData = 0
+        totalvendorData = 0
+        for pt in typeDatapts:
+            sumTypeData += pt[0] * pt[2]
+            totalTypeData += pt[2]
+        for pt in vendorDatapts:
+            sumvendorData += pt[0] * pt[2]
+            totalvendorData += pt[2]
+        typeAvrg = sumTypeData / totalTypeData if totalTypeData > 0 else 0
+
+        vendorAvrg = sumvendorData / totalvendorData if totalvendorData > 0 else 0
+
+
         # --- Text & HTML Review Generation ---
-        text_review = f"Review for: {teaYear} {teaParent.name} (Session {sessionNum})\n"
-        html_review = f"<h3>Review for: {teaYear} {teaParent.name} (Session {sessionNum})</h3>\n"
-        image_title = f"Review for: {teaYear} {teaParent.name} (Session {sessionNum})"
+        doIncludeTeaYear = teaYear != "" and teaYear is not None
+        # Dont include if year is already in the name
+        if doIncludeTeaYear and str(teaYear) in teaParent.name:
+            doIncludeTeaYear = False
+
+        if doIncludeTeaYear:
+            teaYear = str(teaYear) + " "
+        else:
+            teaYear = ""
+        text_review = f"Session {sessionNum}: {teaYear}{teaParent.name}\n"
+        html_review = f"<h3>Session {sessionNum}: {teaYear}{teaParent.name}</h3>\n"
+        image_title = f"Session {sessionNum}: {teaYear}{teaParent.name}"
 
         for key, value in reviewAttributes:
             if key in ["Name", "dateAdded"]:  # Filter out redundant or internal fields
@@ -1380,6 +1717,23 @@ class ReviewCategory:
                     break
             text_review += f"\n{key}: {formatted_value}"
             html_review += f"  <li><b>{key}:</b> {formatted_value.replace(chr(10), '<br>')}</li>\n"
+
+        if hasTeaLevelAttributes:
+            text_review += "\n\n--- Cross-Review Summary ---"
+            html_review += "\n<h4>--- Cross-Review Summary ---</h4>\n<ul>"
+            for key, value in formattedTeaLevelAttributes.items():
+                if value == "N/A":
+                    continue
+                text_review += f"\n{key}: {value}"
+                html_review += f"  <li><b>{key}:</b> {value}</li>\n"
+
+            # Add type and vendor average ratings if available as a sub for graphs
+            if typeAvrg > 0:
+                text_review += f"\n Teas of this type ({teaParent.attributes.get('Type', 'N/A')}) average {typeAvrg:.2f} rating. (t={len(typeDatapts)} data points)"
+                html_review += f"  <li>Teas of this type ({teaParent.attributes.get('Type', 'N/A')}) average {typeAvrg:.2f} rating. (t={len(typeDatapts)} data points)</li>\n"
+            if vendorAvrg > 0:
+                text_review += f"\n Teas from this vendor ({teaParent.attributes.get('Vendor', 'N/A')}) average {vendorAvrg:.2f} rating. (t={len(vendorDatapts)} data points)"
+                html_review += f"  <li>Teas from this vendor ({teaParent.attributes.get('Vendor', 'N/A')}) average {vendorAvrg:.2f} rating. (t={len(vendorDatapts)} data points)</li>\n"
 
         html_review += "</ul>"
 
@@ -1423,10 +1777,31 @@ class ReviewCategory:
             key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
 
             # Calculate height for the wrapped value
-            wrapped_lines = textwrap.wrap(str(formatted_value), width=100)
+            wrapped_lines = textwrap.wrap(str(formatted_value), width=80)
             value_height = len(wrapped_lines) * (key_height + line_spacing)
 
             current_y += value_height + line_spacing
+
+        # Add tea-level attributes height if applicable
+        if hasTeaLevelAttributes:
+            current_y += title_font.getbbox("--- Cross-Review Summary ---")[3] - title_font.getbbox("--- Cross-Review Summary ---")[1] + line_spacing * 2
+            for key, value in formattedTeaLevelAttributes.items():
+                if value == "N/A":
+                    continue
+                key_text = f"{key}: "
+
+                # Calculate height for the key
+                key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
+
+                # Calculate height for the wrapped value
+                wrapped_lines = textwrap.wrap(str(value), width=100)
+                value_height = len(wrapped_lines) * (key_height + line_spacing)
+
+                current_y += value_height + line_spacing
+
+        # Add space for graphs if applicable
+        if not overrideDoNotDrawGraphs_relativeBubbles:
+            current_y += 100  # Arbitrary space for graphs
 
         image_height = current_y + padding
 
@@ -1452,7 +1827,7 @@ class ReviewCategory:
             key_text = f"{key}: "
 
             # Get line height from a sample character
-            line_height = body_font.getbbox('A')[3] - body_font.getbbox('A')[1] + line_spacing
+            line_height = (body_font.getbbox('A')[3] - body_font.getbbox('A')[1] + line_spacing)
 
             draw.text((padding, current_y), key_text, fill=(80, 80, 80), font=body_font)
             key_width = draw.textlength(key_text, font=body_font)
@@ -1462,13 +1837,55 @@ class ReviewCategory:
             for i, line in enumerate(lines):
                 wrapped_sublines = textwrap.wrap(line, width=100) # Adjust width as needed
                 if not wrapped_sublines: # Handle empty lines
-                     current_y += line_height
+                     current_y += line_height 
                 for sub_line in wrapped_sublines:
                     # Indent subsequent lines of a wrapped value
                     text_x = padding + key_width if i == 0 else padding + key_width + 20
                     draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font)
                     current_y += line_height
             current_y += line_spacing # Extra space between attributes
+
+        # Draw Tea-level attributes if applicable
+        if hasTeaLevelAttributes:
+            draw.text((padding, current_y), "--- Cross-Review Summary ---", fill=(0, 0, 0), font=title_font)
+            current_y += title_font.getbbox("--- Cross-Review Summary ---")[3] - title_font.getbbox("--- Cross-Review Summary ---")[1] + line_spacing * 2
+            for key, value in formattedTeaLevelAttributes.items():
+                if value == "N/A":
+                    continue
+                key_text = f"{key}: "
+
+                # Get line height from a sample character
+                line_height = body_font.getbbox('A')[3] - body_font.getbbox('A')[1] + line_spacing
+
+                draw.text((padding, current_y), key_text, fill=(80, 80, 80), font=body_font)
+                key_width = draw.textlength(key_text, font=body_font)
+
+                # Handle multi-line values
+                lines = str(value).split('\n')
+                for i, line in enumerate(lines):
+                    wrapped_sublines = textwrap.wrap(line, width=100)
+
+                    if not wrapped_sublines: # Handle empty lines
+                        current_y += line_height
+                    for sub_line in wrapped_sublines:
+                        # Indent subsequent lines of a wrapped value
+                        text_x = padding + key_width if i == 0 else padding + key_width + 20
+                        draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font)
+                        current_y += line_height
+                current_y += line_spacing # Extra space between attributes
+
+        # Image only graphing
+        print(f"Type datapts: {typeDatapts}, Vendor datapts: {vendorDatapts}, This tea avg rating: {thisTeaAverageRating}")
+        chart_img_type = make_rating_bubble_image(typeDatapts, highlight=thisTeaAverageRating, name="Type: " + teaParent.attributes.get("Type", "Unknown") +f" (t={totalTypeData})")
+        chart_img_vendor = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (t={totalvendorData})")
+        # Group the images horizontally with a title.
+        if chart_img_type is not None:
+            img.paste(chart_img_type, (padding, current_y))
+        if chart_img_vendor is not None:
+            img.paste(chart_img_vendor, (padding + (chart_img_type.width if chart_img_type is not None else 0) + 20, current_y))
+        current_y += max(chart_img_type.height, chart_img_vendor.height) + 20
+        # --- Save Image ---
+
 
         # Save image to unique path with timestamp, review, parent id, parent name abridged, using underscores
         image_path = f"review_{review.id}_{review.parentID}_{sessionNum}_{teaParent.name[:20].replace(' ', '_')}_{int(dt.datetime.now().timestamp())}.png"
@@ -7233,7 +7650,7 @@ def loadReviewFromDictNewID(reviewData, id, parentId):
         if isinstance(value, str):
             try:
                 # Attempt to parse as datetime
-                parsed_date = parseStringToDT(value)
+                parsed_date = parseStringToDT(value, silent=True)
                 if type(parsed_date) is dt.datetime:
                     review.__dict__[key] = parsed_date
                 else:
@@ -7558,7 +7975,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.20.0", # Updates to most recently loaded
+        "APP_VERSION": "0.21.0", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
@@ -7645,10 +8062,18 @@ def main():
     RichPrintSuccess(f"Loaded RaTea in {timeDiffSeconds:.2f} seconds")
     print(f"Loaded RaTea in {timeDiffSeconds:.2f} seconds")
 
+    dpg.set_exit_callback(on_exit_callback)
+
     dp.Runtime.start()
 
 
-
+def on_exit_callback():
+    print("Exiting...")
+    # Strange errors with image pil and tkiner to surpress
+    import warnings
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
+    startStopBackupThread(False)  # Stop the backup thread if running
+    dp.Runtime.stop()
 
 if __name__ == "__main__":
     main()

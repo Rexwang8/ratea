@@ -233,6 +233,7 @@ Settings are available in the "Settings" window. You can change the app settings
 
 ListTextUserGuide["changelog"] = Text(
 '''---Changelog---
+Feat(0.21.0): Expanded review exports to include some more stats.
 Feat(0.20.0): Added button to generate exportable reviews and text format reviews.
 Feat(0.19.0): Added changelog to aboutme
 Feat(0.18.0): Add copy-to-clipboard button to terminal
