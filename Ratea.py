@@ -6016,7 +6016,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(default_value="")
             addCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(default_value=5, min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(default_value=5, min_value=3, max_value=30, format="%d")
             addCategoryWindowItems["maxItems"] = maxItemsItem
 
             gradingAsLetterItem = dp.Checkbox(label="Grading as Letter", default_value=False)
@@ -6149,7 +6149,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(default_value="")
             addReviewCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(default_value=5, min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(default_value=5, min_value=3, max_value=30, format="%d")
             addReviewCategoryWindowItems["maxItems"] = maxItemsItem
 
             # Grading as letter
@@ -6338,7 +6338,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(label="Suffix", default_value=category.suffix)
             editCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(label="Max Items", default_value=int(category.dropdownMaxLength), min_value=3, max_value=30, format="%d")
             editCategoryWindowItems["maxItems"] = maxItemsItem
             # Grading as letter
             dp.Text("Grading as Letter")
@@ -6548,7 +6548,7 @@ class Window_EditCategories(WindowBase):
             suffixItem = dp.InputText(default_value=category.suffix)
             editReviewCategoryWindowItems["suffix"] = suffixItem
             dp.Text("Dropdown - Max Items")
-            maxItemsItem = dp.SliderInt(default_value=int(category.dropdownMaxLength), min_value=3, max_value=20, format="%d")
+            maxItemsItem = dp.SliderInt(default_value=int(category.dropdownMaxLength), min_value=3, max_value=30, format="%d")
             editReviewCategoryWindowItems["maxItems"] = maxItemsItem
 
             # Grading as letter
