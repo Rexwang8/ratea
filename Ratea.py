@@ -20,6 +20,8 @@ import threading
 import pyperclip
 import textwrap
 from PIL import Image, ImageDraw, ImageFont, ImageTk
+from thefuzz import fuzz
+
 
 # From local files
 import RateaTexts
@@ -979,6 +981,49 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
     # Load as Pillow image
     chart_img = Image.open(buf)
     return chart_img
+
+
+# TODO: Fuzzy tea name matching under same vendor and type (ie sample vs cake or year differences)
+def fuzzy_tea_name_matching(tea, strict_vendor=True, strict_type=True, strict_year=False):
+    teaType = tea.attributes.get("Type", "").lower()
+    vendor = tea.attributes.get("Vendor", "").lower()
+    year = tea.attributes.get("Year", None)
+    name = tea.name.lower().strip()
+    allMatchedTeas = []
+    allMatchedReviews = [] # return list of reviews as well for various display stuff
+    # Implement fuzzy matching logic here
+    for other_tea in TeaStash:
+        if other_tea.id == tea.id:
+            continue
+        otherTea_vendor = other_tea.attributes.get("Vendor", "").lower().strip()
+        otherTea_type = other_tea.attributes.get("Type", "").lower().strip()
+        otherTea_year = other_tea.attributes.get("Year", None)
+        otherTea_name = other_tea.name.lower().strip()
+        if strict_vendor and otherTea_vendor != vendor:
+            continue
+        if strict_type and otherTea_type != teaType:
+            continue
+        if strict_year and otherTea_year != year:
+            continue
+        # If we reach here, we need to strip year and vendor from the name and do fuzzy matching
+        # Remove year from name if it exists
+        name_no_year = re.sub(r'\b(19|20)\d{2}\b', '', name).strip()
+        other_name_no_year = re.sub(r'\b(19|20)\d{2}\b', '', otherTea_name).strip()
+        # Remove vendor from name if it exists
+        name_no_vendor = re.sub(r'\b' + re.escape(vendor) + r'\b', '', name_no_year).strip()
+        other_name_no_vendor = re.sub(r'\b' + re.escape(otherTea_vendor) + r'\b', '', other_name_no_year).strip()
+        # Perform fuzzy matching with package fuzzywuzzy
+        lvratio = fuzz.partial_ratio(name_no_vendor, other_name_no_vendor)
+        ratio = fuzz.ratio(name_no_vendor, other_name_no_vendor)
+        print(f"Fuzzy matching {name_no_vendor} and {other_name_no_vendor}: LVRatio={lvratio}, Ratio={ratio}")
+        # If either ratio is above 80, we consider it a match
+        if lvratio >= 80 or ratio >= 70:
+            allMatchedTeas.append(other_tea)
+            allMatchedReviews.extend(other_tea.reviews)
+    # add self tea and reviews to the list
+    allMatchedTeas.append(tea)
+    allMatchedReviews.extend(tea.reviews)
+    return allMatchedTeas, allMatchedReviews
 
 
 # Defines valid categories, and role as categories
