@@ -28,9 +28,6 @@ import RateaTexts
 
 # Reminders
 '''
-TODO: Features: Add in functionality for flags: isRequiredForTea, isRequiredForAll
-TODO: Validation: Validate that name and other important fields are not empty
-TODO: Features: Fill out or remove review tabs
 TODO: Menus: Update settings menu with new settings
 TODO: Files: Persistant windows in settings
 TODO: fix monitor ui sizing
@@ -41,10 +38,8 @@ TODO: Optional refresh on add tea/ review
 TODO: Section off autocalculate functions, account for remaining=0 or naegative values
 TODO: review window
 TODO: move delete category to popup or add confirmation
-TODO: Documentation: Add ? tooltips to everything
 TODO: Customization: Add color themes
 TODO: Feature: Some form of category migration
-TODO: Code: Centralize tooltips and other large texts
 TODO: Tables: Non-tea items, like teaware, shipping, etc.
 TODO: Category: Write in description for each category role
 TODO: Slider for textbox size for notepad, wrap too
@@ -1592,9 +1587,10 @@ class ReviewCategory:
         """
 
         # Get the tea parent for the name of the tea, the vendor, and other info
-        overrideDoNotGenerateImage = False
-        overrideDoNotgenerateTeaLevelAttributes = False
-        overrideDoNotDrawGraphs_relativeBubbles = False
+        overrideDoNotGenerateImage = settings.get("EXPORT_REVIEW_DONT_GENERATE_IMAGES", False)
+        overrideDoNotgenerateTeaLevelAttributes = settings.get("EXPORT_REVIEW_DONT_GENERATE_TEA_LEVEL", False)
+        overrideDoNotDrawGraphs_relativeBubbles = settings.get("EXPORT_REVIEW_DONT_DRAW_BUBBLES", False)
+        # EXPORT_REVIEW_DONT_DRAW_BUBBLES, EXPORT_REVIEW_DONT_GENERATE_IMAGES, EXPORT_REVIEW_DONT_GENERATE_TEA_LEVEL
 
         
         teaParent = None
@@ -1859,7 +1855,7 @@ class ReviewCategory:
             text_review += f"\n{key}: {formatted_value}"
             html_review += f"  <li><b>{key}:</b> {formatted_value.replace(chr(10), '<br>')}</li>\n"
 
-        if hasTeaLevelAttributes:
+        if hasTeaLevelAttributes and not overrideDoNotgenerateTeaLevelAttributes:
             text_review += "\n\n--- Cross-Review Summary ---"
             html_review += "\n<h4>--- Cross-Review Summary ---</h4>\n<ul>"
             for key, value in formattedTeaLevelAttributes.items():
@@ -1879,135 +1875,107 @@ class ReviewCategory:
         html_review += "</ul>"
 
         # --- Image Review Generation ---
-        padding = 50
-        image_width = 1200
-        line_spacing = 12
-        try:
-            title_font = ImageFont.truetype("arialbd.ttf", size=font_size + 8)
-            body_font = ImageFont.truetype("arial.ttf", size=font_size)
-        except IOError:
-            title_font = ImageFont.load_default()
-            body_font = ImageFont.load_default()
+        if not overrideDoNotGenerateImage:
+            padding = 50
+            image_width = 1200
+            line_spacing = 12
+            try:
+                title_font = ImageFont.truetype("arialbd.ttf", size=font_size + 8)
+                body_font = ImageFont.truetype("arial.ttf", size=font_size)
+            except IOError:
+                title_font = ImageFont.load_default()
+                body_font = ImageFont.load_default()
 
-        # --- Calculate Dynamic Image Height ---
-        current_y = padding
-        # Title height
-        current_y += title_font.getbbox(teaParent.name)[3] - title_font.getbbox(teaParent.name)[1] + line_spacing * 2
+            # --- Calculate Dynamic Image Height ---
+            current_y = padding
+            # Title height
+            current_y += title_font.getbbox(teaParent.name)[3] - title_font.getbbox(teaParent.name)[1] + line_spacing * 2
 
-        # Attributes height
-        reviewAttributes = sortedAttributes
-        for key, value in reviewAttributes:
-            if key in ["Name", "dateAdded"]:
-                continue
-            
-            # If word "note" in key, lookup and use category description
-            if "note" in key.lower():
+            # Attributes height
+            reviewAttributes = sortedAttributes
+            for key, value in reviewAttributes:
+                if key in ["Name", "dateAdded"]:
+                    continue
+                
+                # If word "note" in key, lookup and use category description
+                if "note" in key.lower():
+                    for cat in TeaReviewCategories:
+                        if cat.categoryRole == key:
+                            key = cat.name
+                            break
+                        
+                formatted_value = self.format_attribute(key, value)
                 for cat in TeaReviewCategories:
                     if cat.categoryRole == key:
                         key = cat.name
                         break
-            
-            formatted_value = self.format_attribute(key, value)
-            for cat in TeaReviewCategories:
-                if cat.categoryRole == key:
-                    key = cat.name
-                    break
-            key_text = f"{key}: "
-
-            # Calculate height for the key
-            key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
-
-            # Calculate height for the wrapped value
-            wrapped_lines = textwrap.wrap(str(formatted_value), width=90)
-            value_height = len(wrapped_lines) * (key_height + line_spacing)
-
-            current_y += value_height + line_spacing
-
-        # Add tea-level attributes height if applicable
-        if hasTeaLevelAttributes:
-            current_y += title_font.getbbox("--- Cross-Review Summary ---")[3] - title_font.getbbox("--- Cross-Review Summary ---")[1] + line_spacing * 2
-            for key, value in formattedTeaLevelAttributes.items():
-                if value == "N/A":
-                    continue
                 key_text = f"{key}: "
 
                 # Calculate height for the key
                 key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
 
                 # Calculate height for the wrapped value
-                wrapped_lines = textwrap.wrap(str(value), width=90)
+                wrapped_lines = textwrap.wrap(str(formatted_value), width=90)
                 value_height = len(wrapped_lines) * (key_height + line_spacing)
 
                 current_y += value_height + line_spacing
 
-        # Add space for graphs if applicable
-        if not overrideDoNotDrawGraphs_relativeBubbles:
-            current_y += 100  # Arbitrary space for graphs
+            # Add tea-level attributes height if applicable
+            if hasTeaLevelAttributes and not overrideDoNotgenerateTeaLevelAttributes:
+                current_y += title_font.getbbox("--- Cross-Review Summary ---")[3] - title_font.getbbox("--- Cross-Review Summary ---")[1] + line_spacing * 2
+                for key, value in formattedTeaLevelAttributes.items():
+                    if value == "N/A":
+                        continue
+                    key_text = f"{key}: "
 
-        image_height = current_y + padding
+                    # Calculate height for the key
+                    key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
 
-        # --- Create and Draw Image ---
-        img = Image.new('RGB', (image_width, image_height), color=(240, 240, 240))
-        draw = ImageDraw.Draw(img)
+                    # Calculate height for the wrapped value
+                    wrapped_lines = textwrap.wrap(str(value), width=90)
+                    value_height = len(wrapped_lines) * (key_height + line_spacing)
 
-        # Draw Title
-        current_y = padding
-        draw.text((padding, current_y), image_title, fill=(0, 0, 0), font=title_font)
-        current_y += title_font.getbbox(image_title)[3] - title_font.getbbox(image_title)[1] + line_spacing * 2
+                    current_y += value_height + line_spacing
 
-        # Draw Attributes
-        for key, value in reviewAttributes:
-            if key in ["Name", "dateAdded"]:
-                continue
+            # Add space for graphs if applicable
+            if not overrideDoNotDrawGraphs_relativeBubbles:
+                current_y += 100  # Arbitrary space for graphs
 
-            formatted_value = self.format_attribute(key, value)
-            for cat in TeaReviewCategories:
-                if cat.categoryRole == key:
-                    key = cat.name
-                    break
-            key_text = f"{key}: "
+            image_height = current_y + padding
 
-            # Get line height from a sample character
-            line_height = (body_font.getbbox('A')[3] - body_font.getbbox('A')[1] + line_spacing)
+            # --- Create and Draw Image ---
+            img = Image.new('RGB', (image_width, image_height), color=(240, 240, 240))
+            draw = ImageDraw.Draw(img)
 
-            draw.text((padding, current_y), key_text, fill=(80, 80, 80), font=body_font)
-            key_width = draw.textlength(key_text, font=body_font)
+            # Draw Title
+            current_y = padding
+            draw.text((padding, current_y), image_title, fill=(0, 0, 0), font=title_font)
+            current_y += title_font.getbbox(image_title)[3] - title_font.getbbox(image_title)[1] + line_spacing * 2
 
-            # Handle multi-line values
-            lines = str(formatted_value).split('\n')
-            for i, line in enumerate(lines):
-                wrapped_sublines = textwrap.wrap(line, width=90) # Adjust width as needed
-                if not wrapped_sublines: # Handle empty lines
-                     current_y += line_height 
-                for sub_line in wrapped_sublines:
-                    # Indent subsequent lines of a wrapped value
-                    text_x = padding + key_width if i == 0 else padding + key_width + 20
-                    draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font)
-                    current_y += line_height
-            current_y += line_spacing # Extra space between attributes
-
-        # Draw Tea-level attributes if applicable
-        if hasTeaLevelAttributes:
-            draw.text((padding, current_y), "--- Cross-Review Summary ---", fill=(0, 0, 0), font=title_font)
-            current_y += title_font.getbbox("--- Cross-Review Summary ---")[3] - title_font.getbbox("--- Cross-Review Summary ---")[1] + line_spacing * 2
-            for key, value in formattedTeaLevelAttributes.items():
-                if value == "N/A":
+            # Draw Attributes
+            for key, value in reviewAttributes:
+                if key in ["Name", "dateAdded"]:
                     continue
+
+                formatted_value = self.format_attribute(key, value)
+                for cat in TeaReviewCategories:
+                    if cat.categoryRole == key:
+                        key = cat.name
+                        break
                 key_text = f"{key}: "
 
                 # Get line height from a sample character
-                line_height = body_font.getbbox('A')[3] - body_font.getbbox('A')[1] + line_spacing
+                line_height = (body_font.getbbox('A')[3] - body_font.getbbox('A')[1] + line_spacing)
 
                 draw.text((padding, current_y), key_text, fill=(80, 80, 80), font=body_font)
                 key_width = draw.textlength(key_text, font=body_font)
 
                 # Handle multi-line values
-                lines = str(value).split('\n')
+                lines = str(formatted_value).split('\n')
                 for i, line in enumerate(lines):
-                    wrapped_sublines = textwrap.wrap(line, width=90)
-
+                    wrapped_sublines = textwrap.wrap(line, width=90) # Adjust width as needed
                     if not wrapped_sublines: # Handle empty lines
-                        current_y += line_height
+                         current_y += line_height 
                     for sub_line in wrapped_sublines:
                         # Indent subsequent lines of a wrapped value
                         text_x = padding + key_width if i == 0 else padding + key_width + 20
@@ -2015,30 +1983,61 @@ class ReviewCategory:
                         current_y += line_height
                 current_y += line_spacing # Extra space between attributes
 
-        # Image only graphing
-        chart_img_all = make_rating_bubble_image(allDatrapts, highlight=thisTeaAverageRating, name="All" +f" (t={totalAllData})")
-        chart_img_type = make_rating_bubble_image(typeDatapts, highlight=thisTeaAverageRating, name="Type: " + teaParent.attributes.get("Type", "Unknown") +f" (t={totalTypeData})")
-        chart_img_vendor = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (t={totalvendorData})")
-        
-        # Group the images horizontally with a title.
-        if not overrideDoNotDrawGraphs_relativeBubbles:
-            chart_title = "Relative Rating Comparison"
-            draw.text((padding, current_y), chart_title, fill=(0, 0, 0), font=body_font)
-            current_y += body_font.getbbox(chart_title)[3] - body_font.getbbox(chart_title)[1] + line_spacing
-            if chart_img_all is not None:
-                img.paste(chart_img_all, (padding, current_y))
-            if chart_img_type is not None:
-                img.paste(chart_img_type, (padding + (chart_img_all.width if chart_img_all is not None else 0) + 20, current_y))
-            if chart_img_vendor is not None:
-                img.paste(chart_img_vendor, (padding + (chart_img_all.width if chart_img_all is not None else 0) + (chart_img_type.width if chart_img_type is not None else 0) + 40, current_y))
-        current_y += max(chart_img_type.height, chart_img_vendor.height) + 20
-        # --- Save Image ---
+            # Draw Tea-level attributes if applicable
+            if hasTeaLevelAttributes and not overrideDoNotgenerateTeaLevelAttributes:
+                draw.text((padding, current_y), "--- Cross-Review Summary ---", fill=(0, 0, 0), font=title_font)
+                current_y += title_font.getbbox("--- Cross-Review Summary ---")[3] - title_font.getbbox("--- Cross-Review Summary ---")[1] + line_spacing * 2
+                for key, value in formattedTeaLevelAttributes.items():
+                    if value == "N/A":
+                        continue
+                    key_text = f"{key}: "
+
+                    # Get line height from a sample character
+                    line_height = body_font.getbbox('A')[3] - body_font.getbbox('A')[1] + line_spacing
+
+                    draw.text((padding, current_y), key_text, fill=(80, 80, 80), font=body_font)
+                    key_width = draw.textlength(key_text, font=body_font)
+
+                    # Handle multi-line values
+                    lines = str(value).split('\n')
+                    for i, line in enumerate(lines):
+                        wrapped_sublines = textwrap.wrap(line, width=90)
+
+                        if not wrapped_sublines: # Handle empty lines
+                            current_y += line_height
+                        for sub_line in wrapped_sublines:
+                            # Indent subsequent lines of a wrapped value
+                            text_x = padding + key_width if i == 0 else padding + key_width + 20
+                            draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font)
+                            current_y += line_height
+                    current_y += line_spacing # Extra space between attributes
 
 
-        # Save image to unique path with timestamp, review, parent id, parent name abridged, using underscores
-        image_path = f"review_{review.id}_{review.parentID}_{sessionNum}_{teaParent.name[:20].replace(' ', '_')}_{int(dt.datetime.now().timestamp())}.png"
-        img.save(image_path)
-        RichPrintSuccess(f"Generated review image at {image_path}")
+            # Group the images horizontally with a title.
+            if not overrideDoNotDrawGraphs_relativeBubbles:
+                # Image only graphing
+                chart_img_all = make_rating_bubble_image(allDatrapts, highlight=thisTeaAverageRating, name="All" +f" (t={totalAllData})")
+                chart_img_type = make_rating_bubble_image(typeDatapts, highlight=thisTeaAverageRating, name="Type: " + teaParent.attributes.get("Type", "Unknown") +f" (t={totalTypeData})")
+                chart_img_vendor = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (t={totalvendorData})")
+                chart_title = "Relative Rating Comparison"
+                draw.text((padding, current_y), chart_title, fill=(0, 0, 0), font=body_font)
+                current_y += body_font.getbbox(chart_title)[3] - body_font.getbbox(chart_title)[1] + line_spacing
+                if chart_img_all is not None:
+                    img.paste(chart_img_all, (padding, current_y))
+                if chart_img_type is not None:
+                    img.paste(chart_img_type, (padding + (chart_img_all.width if chart_img_all is not None else 0) + 20, current_y))
+                if chart_img_vendor is not None:
+                    img.paste(chart_img_vendor, (padding + (chart_img_all.width if chart_img_all is not None else 0) + (chart_img_type.width if chart_img_type is not None else 0) + 40, current_y))
+            current_y += max(chart_img_type.height, chart_img_vendor.height) + 20
+            # --- Save Image ---
+
+
+            # Save image to unique path with timestamp, review, parent id, parent name abridged, using underscores
+            image_path = f"review_{review.id}_{review.parentID}_{sessionNum}_{teaParent.name[:20].replace(' ', '_')}_{int(dt.datetime.now().timestamp())}.png"
+            img.save(image_path)
+            RichPrintSuccess(f"Generated review image at {image_path}")
+        else:
+            image_path = None
 
         return text_review, html_review, image_path
 
@@ -2436,6 +2435,15 @@ class Window_Settings(WindowBase):
             defaultFont = getFontName(1)  # Default font is the first one in the list
             dp.Combo(label="Font", items=validFonts, default_value=defaultFont, callback=self.UpdateSettings, user_data="DEFAULT_FONT")
 
+            # Exporting reviews
+            # EXPORT_REVIEW_DONT_DRAW_BUBBLES, EXPORT_REVIEW_DONT_GENERATE_IMAGES, EXPORT_REVIEW_DONT_GENERATE_TEA_LEVEL
+            dp.Separator()
+            dp.Text("Exporting Reviews (Stash -> Review -> Export)")
+            dp.Text("These settings affect the exported reviews from the stash reviews window.")
+            dp.Checkbox(label="Override Do Not Generate Graphs (Relative Bubbles)", default_value=settings["EXPORT_REVIEW_DONT_DRAW_BUBBLES"], callback=self.UpdateSettings, user_data="EXPORT_REVIEW_DONT_DRAW_BUBBLES")
+            dp.Checkbox(label="Override Do Not Generate Graphs (All)", default_value=settings["EXPORT_REVIEW_DONT_GENERATE_IMAGES"], callback=self.UpdateSettings, user_data="EXPORT_REVIEW_DONT_GENERATE_IMAGES")
+            dp.Checkbox(label="Override Do Not Include Tea-Level Attributes", default_value=settings["EXPORT_REVIEW_DONT_GENERATE_TEA_LEVEL"], callback=self.UpdateSettings, user_data="EXPORT_REVIEW_DONT_GENERATE_TEA_LEVEL")
+            dp.Text("These settings are saved immediately when changed.")
     # Callback function for the input text to update the settings
     def UpdateSettings(self, sender, data, user_data):
         settings[user_data] = data
@@ -3346,7 +3354,7 @@ class Window_Stash_Reviews(WindowBase):
             dp.Text(f"HTML Review:")
             dp.InputText(default_value=htmlReview, multiline=True, readonly=True, width=760 * settings["UI_SCALE"], height=200 * settings["UI_SCALE"])
             dp.Separator()
-            if imagePath is not None:
+            if imagePath is not None and not settings.get("EXPORT_REVIEW_DONT_GENERATE_IMAGES", False):
                 dp.Text(f"Image Path (screenshot of review): {imagePath}")
                 # Add image to registry
                 addImageToRegistryFromFile(imagePath, f"{imagePath[:-4]}")
@@ -7657,6 +7665,12 @@ def LoadSettings(path=None):
         return False
     session["settingsPath"] = path
     RichPrintSuccess(f"Loaded settings from {path}")
+
+    # If there are any keys missing from the settings, add them from the default settings
+    for key, value in default_settings.items():
+        if key not in settings:
+            RichPrintWarning(f"Key {key} missing from settings, adding default value {value}")
+            settings[key] = value
     return settings
 
 def hasLoadableFiles():
@@ -8156,8 +8170,11 @@ def main():
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
-        "DEFAULT_FONT": "OpenSans",
-        "START_DAY": "" # If none, will find the earliest tea date, else will use the date set here
+        "DEFAULT_FONT": "OpenSans", # OpenSans, Roboto, Merriweather, Montserrat
+        "START_DAY": "", # If none, will find the earliest tea date, else will use the date set here
+        "EXPORT_REVIEW_DONT_DRAW_BUBBLES": False, # If true, will not draw bubbles on export review graph (Will still write the text if images are disabled)
+        "EXPORT_REVIEW_DONT_GENERATE_IMAGES": False, # If true, will not generate images on export review graph
+        "EXPORT_REVIEW_DONT_GENERATE_TEA_LEVEL": False, # If true, will not generate tea level on export review graph
     }
     global settings
     settings = default_settings
