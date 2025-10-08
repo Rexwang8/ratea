@@ -34,7 +34,6 @@ TODO: Features: Fill out or remove review tabs
 TODO: Menus: Update settings menu with new settings
 TODO: Files: Persistant windows in settings
 TODO: fix monitor ui sizing
-TODO: Export to google sheets readable format
 TODO: Button to re-order reviews and teas based on current view
 TODO: save table sort state
 TODO: Sold: Support adjustment
@@ -42,8 +41,6 @@ TODO: Optional refresh on add tea/ review
 TODO: Section off autocalculate functions, account for remaining=0 or naegative values
 TODO: review window
 TODO: move delete category to popup or add confirmation
-TODO: Caching calculations for stats table
-TODO: Filter by category, exclude/include
 TODO: Documentation: Add ? tooltips to everything
 TODO: Customization: Add color themes
 TODO: Feature: Some form of category migration
@@ -52,14 +49,10 @@ TODO: Tables: Non-tea items, like teaware, shipping, etc.
 TODO: Category: Write in description for each category role
 TODO: Slider for textbox size for notepad, wrap too
 TODO: Confirmation window for deleting tea/review
-TODO: Terminal window to print out debug info
-TODO: Grades support for scores
-TODO: operation: Link reviews
 TODO: Optional non-refreshing table updates, limit number of items on first load
 TODO: Windows list to manage open windows
 TODO: Reset to default buttons
 TODO: 1-5 as stars for rating system
-TODO: Visualization: Single-review reports
 TODO: Visualization: Single-tea reports
 TODO: Documentation: Write in blog window
 TODO: Documentation: Add Image Support to blog window.
@@ -73,7 +66,8 @@ TODO: Highlight color customization
 TODO: Make a clean default page for new users
 TODO: Alternate calculation methods and a flag for that
 TODO: Visualization: Network graph, word cloud, tier list
-TODO: Allow copying of table cells on right click
+TODO: Allow copying of table cells on right 
+TODO: Some sort of tea linking system, or review linking system.
 '''
 
 
@@ -849,12 +843,18 @@ def getGradeDropdownValueByFloat(value):
 # 4. Given a list from 1-3, automatically find range, return a tuple of (x, y, size) points deduping similar points
 
 def getAverageRatingRange(teaType=None, vendor=None, year=None, overlap_threshold=0.05):
+    # If none are provided, it is considered "All"
+    getAll = False
+    if sum([teaType is None, vendor is None, year is None]) == 3:
+        getAll = True
     # if more than 1 are provided, error for now
-    if sum([teaType is not None, vendor is not None, year is not None]) != 1:
+    elif sum([teaType is not None, vendor is not None, year is not None]) != 1:
         RichPrintError("Only one of teaType, vendor, or year must be provided")
         return None
     # Get the average ratings for the specified criteria
-    if teaType:
+    if getAll:
+        ratings = getAverageRatingsAll()
+    elif teaType:
         ratings = getAverageRatingsByTeaType(teaType)
     elif vendor:
         ratings = getAverageRatingsByVendor(vendor)
@@ -901,6 +901,13 @@ def getAverageRatingRange(teaType=None, vendor=None, year=None, overlap_threshol
         points.append((x, y, size))
 
     return points
+def getAverageRatingsAll():
+    ratings = []
+    for tea in TeaStash:
+        for review in tea.reviews:
+            if review.attributes.get("Final Score") is not None:
+                ratings.append(review.attributes.get("Final Score"))
+    return ratings
 
 def getAverageRatingsByTeaType(teaType):
     ratings = []
@@ -936,9 +943,19 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
     x, y, size = zip(*points)
 
     # Normalize size for bubbles
-    # largest bubble shouldnt exceed 800 in size
+    # largest bubble shouldnt exceed 750 in size
     # smallest bubble shouldnt be smaller than 50
-    bubble_sizes = [min(max(s * 20, 50), 800) for s in size]
+    # If any bubbles are greater than 750, scale all down proportionally
+    bubble_sizes = [s * 100 for s in size]  # Scale sizes for better visibility
+    if max(bubble_sizes) > 750:
+        scale_factor = 750 / max(bubble_sizes)
+        bubble_sizes = [s * scale_factor for s in bubble_sizes]
+    elif min(bubble_sizes) < 50:
+        scale_factor = 50 / min(bubble_sizes)
+        bubble_sizes = [s * scale_factor for s in bubble_sizes]
+    # Ensure at least 50 to most 750
+    bubble_sizes = [max(50, min(s, 750)) for s in bubble_sizes]
+
 
     # Add a highlight for highlight if provided
     if highlight is not None:
@@ -954,6 +971,7 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
         2.5: "B",
         3.5: "A",
         4.5: "S",
+        5: "S+"
         }
         # map 0-5 to the xlabels
         # Set tick positions and labels
@@ -1198,6 +1216,11 @@ class StashedTea:
     # Finished flag
     finished = False
 
+    # Teas may be copies of other teas aquired in other methods. We would like to link them together somehow.
+    # We can either link them with IDs or with names. For now, we will use names.
+    # When we call a function with the keywork incLinkedTeas=True, it will include all linked teas in the calculation.
+    linkedTeas = []  # List of tea IDs that are linked to this tea
+
     def __init__(self, id, name, dateAdded=None, attributes={}):
         self.id = id
         self.name = name
@@ -1215,6 +1238,7 @@ class StashedTea:
         self.reviews = [review for review in self.reviews if review.id != reviewID]
         # Recalculate the average rating after removing a review
         self.calculateAverageRating()
+
     def calculate(self):
         # call all the calculate functions
         self.calculateAverageRating()
@@ -1237,6 +1261,7 @@ class StashedTea:
             return None
         latestReview = max(self.reviews, key=lambda r: r.attributes["date"])
         return latestReview
+    
     def getEarliestReview(self):
         # Get the earliest review by date added
         if len(self.reviews) == 0:
@@ -1246,6 +1271,7 @@ class StashedTea:
             return None
         earliestReview = min(self.reviews, key=lambda r: r.attributes["date"])
         return earliestReview
+    
     def getEstimatedConsumedByReviews(self):
         # Get the estimated consumed amount by reviews
         if len(self.reviews) == 0:
@@ -1289,6 +1315,16 @@ class StashedTea:
         value, explanation = cat.autocalculate(self)
         self.calculated[categoryRole] = value
         return value
+    
+    def _getLinkedTeas(self):
+        # Get the linked teas as StashedTea objects
+        linkedTeas = [] # self is implicitly included
+        global TeaCache
+        for teaID in self.linkedTeas:
+            tea = TeaCache.get(teaID, None)
+            if tea is not None:
+                linkedTeas.append(tea)
+        return linkedTeas
 
 # Defines a review for a tea
 class Review:
@@ -1491,7 +1527,7 @@ class ReviewCategory:
                 correct_cat = cat
                 break
 
-        if not value:
+        if value is None:
             return "N/A"
             
         # Don't warn for vendor or cost per gram since they are injected from parent tea and may not have a category
@@ -1708,9 +1744,16 @@ class ReviewCategory:
                 teaLevelAttributes["Total Amount Drank"] = "N/A"
 
 
+        # If first reviewed is n/a but last reviewed is not, set first reviewed to last reviewed
+        if teaLevelAttributes["First Reviewed"] == "N/A" and teaLevelAttributes["Last Reviewed"] != "N/A":
+            teaLevelAttributes["First Reviewed"] = teaLevelAttributes["Last Reviewed"]
+
+
 
         # Formatted tea level attributes
         # Grade/rating should be formatted
+        
+
         if isinstance(teaLevelAttributes.get("Average Score", None), (int, float)):
             formattedTeaLevelAttributes["Average Score"] = self.format_attribute("Score", teaLevelAttributes["Average Score"])
         if isinstance(teaLevelAttributes.get("Average Rating", None), (int, float)):
@@ -1718,7 +1761,8 @@ class ReviewCategory:
 
         # if average rating is n/a, set to current rating
         if teaLevelAttributes.get("Average Rating", "N/A") == "N/A" and review.attributes.get("Final Score", None) is not None:
-            formattedTeaLevelAttributes["Average Rating"] = f"{self.format_attribute("Final Score", review.attributes["Final Score"])} (only one review)"
+            formatted_value = self.format_attribute("Final Score", review.attributes["Final Score"])
+            formattedTeaLevelAttributes["Average Rating"] = f"{formatted_value} (only one review)"
 
         # First , last, average review time before should  be combined into 1 line
         reviewDateString = ""
@@ -1742,7 +1786,7 @@ class ReviewCategory:
         if teaLevelAttributes.get("Total Amount Drank", "N/A") != "N/A":
             if reviewAmtString != "":
                 reviewAmtString += " "
-            reviewAmtString += f"Total amount drank: {teaLevelAttributes['Total Amount Drank']} over {numReviewsIncludingThisOne} review(s)."
+            reviewAmtString += f"Total amount drank: {teaLevelAttributes['Total Amount Drank']}g over {numReviewsIncludingThisOne} review(s)."
         else:
             reviewAmtString += "N/A"
         
@@ -1766,19 +1810,25 @@ class ReviewCategory:
         thisTeaAverageRating = teaLevelAttributes["Average Rating"] if isinstance(teaLevelAttributes["Average Rating"], (int, float)) else review.attributes.get("Final Score", None)
         typeDatapts = getAverageRatingRange(teaType=teaParent.attributes.get("Type", None))
         vendorDatapts = getAverageRatingRange(vendor=teaParent.attributes.get("Vendor", None))
+        allDatrapts = getAverageRatingRange()
         sumTypeData = 0
         totalTypeData = 0
         sumvendorData = 0
         totalvendorData = 0
+        sumAllData = 0
+        totalAllData = 0
         for pt in typeDatapts:
             sumTypeData += pt[0] * pt[2]
             totalTypeData += pt[2]
         for pt in vendorDatapts:
             sumvendorData += pt[0] * pt[2]
             totalvendorData += pt[2]
+        for pt in allDatrapts:
+            sumAllData += pt[0] * pt[2]
+            totalAllData += pt[2]
         typeAvrg = sumTypeData / totalTypeData if totalTypeData > 0 else 0
-
         vendorAvrg = sumvendorData / totalvendorData if totalvendorData > 0 else 0
+        allAvrg = sumAllData / totalAllData if totalAllData > 0 else 0
 
 
         # --- Text & HTML Review Generation ---
@@ -1868,7 +1918,7 @@ class ReviewCategory:
             key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
 
             # Calculate height for the wrapped value
-            wrapped_lines = textwrap.wrap(str(formatted_value), width=80)
+            wrapped_lines = textwrap.wrap(str(formatted_value), width=90)
             value_height = len(wrapped_lines) * (key_height + line_spacing)
 
             current_y += value_height + line_spacing
@@ -1885,7 +1935,7 @@ class ReviewCategory:
                 key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
 
                 # Calculate height for the wrapped value
-                wrapped_lines = textwrap.wrap(str(value), width=100)
+                wrapped_lines = textwrap.wrap(str(value), width=90)
                 value_height = len(wrapped_lines) * (key_height + line_spacing)
 
                 current_y += value_height + line_spacing
@@ -1926,7 +1976,7 @@ class ReviewCategory:
             # Handle multi-line values
             lines = str(formatted_value).split('\n')
             for i, line in enumerate(lines):
-                wrapped_sublines = textwrap.wrap(line, width=100) # Adjust width as needed
+                wrapped_sublines = textwrap.wrap(line, width=90) # Adjust width as needed
                 if not wrapped_sublines: # Handle empty lines
                      current_y += line_height 
                 for sub_line in wrapped_sublines:
@@ -1954,7 +2004,7 @@ class ReviewCategory:
                 # Handle multi-line values
                 lines = str(value).split('\n')
                 for i, line in enumerate(lines):
-                    wrapped_sublines = textwrap.wrap(line, width=100)
+                    wrapped_sublines = textwrap.wrap(line, width=90)
 
                     if not wrapped_sublines: # Handle empty lines
                         current_y += line_height
@@ -1966,14 +2016,21 @@ class ReviewCategory:
                 current_y += line_spacing # Extra space between attributes
 
         # Image only graphing
-        print(f"Type datapts: {typeDatapts}, Vendor datapts: {vendorDatapts}, This tea avg rating: {thisTeaAverageRating}")
+        chart_img_all = make_rating_bubble_image(allDatrapts, highlight=thisTeaAverageRating, name="All" +f" (t={totalAllData})")
         chart_img_type = make_rating_bubble_image(typeDatapts, highlight=thisTeaAverageRating, name="Type: " + teaParent.attributes.get("Type", "Unknown") +f" (t={totalTypeData})")
         chart_img_vendor = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (t={totalvendorData})")
+        
         # Group the images horizontally with a title.
-        if chart_img_type is not None:
-            img.paste(chart_img_type, (padding, current_y))
-        if chart_img_vendor is not None:
-            img.paste(chart_img_vendor, (padding + (chart_img_type.width if chart_img_type is not None else 0) + 20, current_y))
+        if not overrideDoNotDrawGraphs_relativeBubbles:
+            chart_title = "Relative Rating Comparison"
+            draw.text((padding, current_y), chart_title, fill=(0, 0, 0), font=body_font)
+            current_y += body_font.getbbox(chart_title)[3] - body_font.getbbox(chart_title)[1] + line_spacing
+            if chart_img_all is not None:
+                img.paste(chart_img_all, (padding, current_y))
+            if chart_img_type is not None:
+                img.paste(chart_img_type, (padding + (chart_img_all.width if chart_img_all is not None else 0) + 20, current_y))
+            if chart_img_vendor is not None:
+                img.paste(chart_img_vendor, (padding + (chart_img_all.width if chart_img_all is not None else 0) + (chart_img_type.width if chart_img_type is not None else 0) + 40, current_y))
         current_y += max(chart_img_type.height, chart_img_vendor.height) + 20
         # --- Save Image ---
 
@@ -2711,15 +2768,11 @@ class Window_Stash_Reviews(WindowBase):
             for i, tea in enumerate(TeaStash):
                 if tea.id == review.parentID:
                     parentTea = tea
-                    print("Found parent tea")
-                    print(parentTea.name)
                     break
             else:
             # If review is None, we are adding a new review, so set the parent tea to the current tea
-                print("Parent tea not found, setting to current tea")
                 parentTea = self.tea
 
-        
         if review is not None:
             if review.name == "" or review.name is None:
                 # Review name can be empty but it should instead be set to the tea name
