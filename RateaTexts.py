@@ -94,8 +94,52 @@ ListTextCategory["gradingAsLetter"] = Text("If enabled, and this is a grading-re
 # Text used for the menu/Window help text
 ListTextHelpMenu = dict()
 ListTextHelpMenu["menuStopwatchHelp"] = Text("This is a tool to help you time your tea sessions. Copy the times into your notes!")
-ListTextHelpMenu["menuTeaStash"] = Text("This is one of the primary windows of the app. It shows a list of all the teas in your stash. You can add, edit, and delete teas from this window. You can also filter the list of teas by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n\n Green - Autocalculated \n Red - Invalid/Empty\n")
-ListTextHelpMenu["menuTeaReviews"] = Text("This is one of the primary windows of the app. It shows a list of all the reviews in your stash. You can add, edit, and delete reviews from this window. You can also filter the list of reviews by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.\n\n Green - Autocalculated \n Red - Invalid/Empty\n")
+ListTextHelpMenu["menuTeaStash"] = Text('''This is one of the primary windows of the app. It shows a list of all the teas in your stash. You can add, edit, and delete teas from this window. You can also filter the list of teas by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.
+                                        Green - Autocalculated
+                                        Light Blue - Finished/0g remaining
+                                        Red - Invalid/Empty
+                                        ''')
+ListTextHelpMenu["menuTeaReviews"] = Text('''This is one of the primary windows of the app. It shows a list of all the teas in your stash. You can add, edit, and delete teas from this window. You can also filter the list of teas by category, type, and other criteria. You can right click the column header for some filter options. Columns can be customized at the respective column window.
+                                        Green - Autocalculated
+                                        Light Blue - Finished/0g remaining
+                                        Red - Invalid/Empty
+                                        ''')
+
+ListTextHelpMenu["menuTeaStash_ExportReviews"] = Text('''This button will export this specific review to a text format that can be copy-pasted into other apps. It will also export an image of the tea review, which can be used for sharing on social media or other platforms.
+                                                      If you select a review that is not the most recent, it will exclude later reviews from averaging calculations.
+                                                      
+                                                      WIP''')
+ListTextHelpMenu["menuTeaStash_Filter"] = Text('''You can filter your teas by name with the search bar at the top of the "Tea Stash" window.
+                                               You can change the filter key by clicking the "Filter by" button.
+                                               
+                                               You can hide finished teas by clicking the "Hide Finished" button.
+                                               You can hide invalid entries by clicking the "Hide Invalid" button. (Invalid entries are those that are missing required fields or have invalid data.)''')
+
+ListTextHelpMenu["menuTeaStash_Operations"] = Text('''Operations that affect the entire stash. Use them with caution. I suggest making a backup of your data first. Most are intended to "Fix" common issues with the stash. or do bulk operations.
+                                               renumber IDs - Renumbers all teas in the stash to be sequential. This is useful if you have deleted teas and want to clean up the IDs. This is (probably) "Safe" and will not delete any teas.
+                                               Mark all teas finished - Marks all teas with 0g remaining as finished. This is useful if you have teas that you have finished but haven't marked as such.
+                                               Also WIP 
+                                               ''')
+
+ListTextHelpMenu["menuCategories_TeaCategory"] = Text('''Your Tea stash is made up of Teas which are defined by a few basic attribbutes as well as user-defined Categories.
+                                                      These categories can be customized to fit your needs. Be careful when adding or removing categories, as this can affect your existing teas and reviews.
+                                                      This may delete data, so be sure to back up your data before making any changes. 
+
+                                                      You can move the order of categories around, as well as change number of dropdown items, rounding and prefix/suffix without much risk.
+                                                      You can also change the name of a category without much risk. Changing role, adding or removing categories has, adding duplicates, etc is more risky (ie untested, likely to break stuff.)
+                                                      
+                                                      NOT AS DEVELOPED AS I WOULD LIKE, MAKE SURE TO BACKUP, USE CAUTION. I SET THE DEFAULT VALUES TO WHAT I PERSONALLY USE.
+                                                      ''')
+
+ListTextHelpMenu["menuCategories_ReviewCategory"] = Text('''Reviews are made up of a few basic attribbutes as well as user-defined Categories.
+                                                      These categories can be customized to fit your needs. Be careful when adding or removing categories, as this can affect your existing teas and reviews.
+                                                      This may delete data, so be sure to back up your data before making any changes.
+                                                         
+                                                      You can move the order of categories around, as well as change number of dropdown items, rounding and prefix/suffix without much risk.
+                                                      You can also change the name of a category without much risk. Changing role, adding or removing categories has, adding duplicates, etc is more risky (ie untested, likely to break stuff.)
+
+                                                      NOT AS DEVELOPED AS I WOULD LIKE, MAKE SURE TO BACKUP, USE CAUTION. I SET THE DEFAULT VALUES TO WHAT I PERSONALLY USE.
+                                                      ''')
 
 # User Guide Text
 ListTextUserGuide = dict()

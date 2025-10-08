@@ -3066,6 +3066,11 @@ class Window_Stash_Reviews(WindowBase):
                     if cat.categoryRole not in filterOptions:
                         filterOptions.append(cat.categoryRole)
                 filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value="Name", user_data=(None), callback=self._UpdateTableRowFilterKeys)
+                # Tooltip
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    tooltipText = RateaTexts.ListTextHelpMenu["menuTeaStash_Filter"].wrap()
+                    dp.Text(tooltipText)
                 dp.Separator()
             reviewsTable = dp.Table(header_row=True, no_host_extendX=True,
                                 borders_innerH=True, borders_outerH=True, borders_innerV=True,
@@ -3204,6 +3209,9 @@ class Window_Stash_Reviews(WindowBase):
                             dp.Button(label="Edit", callback=self.GenerateEditReviewWindow, user_data=(review, "edit", self.tea))
                             # Button that generates review exports for copy-pasting elsewhere
                             dp.Button(label="Export", callback=self.exportReview, user_data=review)
+                            with dpg.tooltip(dpg.last_item(), delay=0.5):
+                                tooltipText = RateaTexts.ListTextHelpMenu["menuTeaStash_ExportReviews"].wrap()
+                                dp.Text(tooltipText)
 
             # Footer
             timeLoadEnd = dt.datetime.now(tz=dt.timezone.utc).timestamp()
@@ -3481,12 +3489,24 @@ class Window_Stash(WindowBase):
                 # Add two checkboxes for hide invalid, and hide finished
                 dp.Checkbox(label="Hide Invalid", default_value=self.hideInvalid, user_data=(None), callback=self.hideInvalidFlag)
                 dp.Checkbox(label="Hide Finished", default_value=self.hideFinished, user_data=(None), callback=self.hideFinishedFlag)
+                # Tooltip
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    tooltipText = RateaTexts.ListTextHelpMenu["menuTeaStash_Filter"].wrap()
+                    dp.Text(tooltipText)
+                dp.Separator()
                 numTeasDisplay = dpg.add_text(default_value=f"Total Teas: {len(TeaStash)}", user_data=(None), tag="numTeasDisplay")
 
                 dp.Separator()
             # Operations on the stash
             with dp.CollapsingHeader(label="Operations", default_open=False, border=True):
                 # Operations that cover the stash as a whole
+                # Tooltip
+                dp.Button(label="?")
+                with dpg.tooltip(dpg.last_item()):
+                    tooltipText = RateaTexts.ListTextHelpMenu["menuTeaStash_Operations"].wrap()
+                    dp.Text(tooltipText)
+                dp.Separator()
 
                 # Mark all teas zeroed or negative as finished, zero all negative
                 dp.Button(label="Mark All Teas Finished (TODO)", callback=self.DummyCallback, user_data=None)
@@ -5873,8 +5893,14 @@ class Window_EditCategories(WindowBase):
                 with dp.Group(horizontal=False):
                     dp.Text("Tea Categories")
                     dpg.bind_item_font(dpg.last_item(), getFontName(3))
-                    dp.Button(label="Add Stash Category", callback=self.showAddCategory)
-                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                    with dp.Group(horizontal=True):
+                        dp.Button(label="Add Stash Category", callback=self.showAddCategory)
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                        # Tooltip
+                        dp.Button(label="?")
+                        with dpg.tooltip(dpg.last_item()):
+                            tooltipText = RateaTexts.ListTextHelpMenu["menuCategories_TeaCategory"].wrap()
+                            dp.Text(tooltipText)
                     scaledHeight = 480 * settings["UI_SCALE"]
                     with dpg.child_window(label="Tea Categories", width=scaledWidth, height=scaledHeight):
                         self.teaCategoryGroup = dp.Group(horizontal=False)
@@ -5886,8 +5912,15 @@ class Window_EditCategories(WindowBase):
                 with dp.Group(horizontal=False):
                     dp.Text("Review Categories")
                     dpg.bind_item_font(dpg.last_item(), getFontName(3))
-                    dp.Button(label="Add Review Category", callback=self.showAddReviewCategory)
-                    dpg.bind_item_font(dpg.last_item(), getFontName(2))
+                    with dp.Group(horizontal=True):
+                        dp.Button(label="Add Review Category", callback=self.showAddReviewCategory)
+                        dpg.bind_item_font(dpg.last_item(), getFontName(2))
+
+                        # Tooltip
+                        dp.Button(label="?")
+                        with dpg.tooltip(dpg.last_item()):
+                            tooltipText = RateaTexts.ListTextHelpMenu["menuCategories_ReviewCategory"].wrap()
+                            dp.Text(tooltipText)
                     scaledHeight = 480 * settings["UI_SCALE"]
                     with dpg.child_window(label="Review Categories", width=scaledWidth, height=scaledHeight):
                         dp.Separator()
