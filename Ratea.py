@@ -21,6 +21,8 @@ import pyperclip
 import textwrap
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 from thefuzz import fuzz
+import matplotlib
+matplotlib.use('agg')
 
 
 # From local files
@@ -1714,7 +1716,7 @@ class ReviewCategory:
                         totalAmount += float(r.attributes["Amount"])
                     except ValueError:
                         RichPrintWarning(f"Amount {r.attributes['Amount']} is not a valid float for review {r.name}")
-            teaLevelAttributes["Total Amount Drank"] = f"{totalAmount:.2f} g"
+            teaLevelAttributes["Total Amount Drank"] = f"{totalAmount:.2f}"
         else:
             teaLevelAttributes["Average Score"] = "N/A"
             teaLevelAttributes["Average Rating"] = "N/A"
@@ -1740,9 +1742,8 @@ class ReviewCategory:
                 teaLevelAttributes["Total Amount Drank"] = "N/A"
 
 
-        # If first reviewed is n/a but last reviewed is not, set first reviewed to last reviewed
-        if teaLevelAttributes["First Reviewed"] == "N/A" and teaLevelAttributes["Last Reviewed"] != "N/A":
-            teaLevelAttributes["First Reviewed"] = teaLevelAttributes["Last Reviewed"]
+
+       
 
 
 
@@ -1796,6 +1797,31 @@ class ReviewCategory:
             cpg = teaParent.getCalcedValue("Cost per Gram")
             if cpg is not None:
                 reviewAttributes = list(reviewAttributes) + [("Cost per Gram", cpg)]
+
+         # -- Adjustments to review level attributes for formatting --
+
+        # If first reviewed is n/a but last reviewed is not, set first reviewed to last reviewed
+        if teaLevelAttributes["First Reviewed"] == "N/A" and teaLevelAttributes["Last Reviewed"] != "N/A":
+            teaLevelAttributes["First Reviewed"] = teaLevelAttributes["Last Reviewed"]
+
+        # combine amount and cost per gram into one line if both exist
+        if "Amount" in dict(reviewAttributes) and "Cost per Gram" in dict(reviewAttributes):
+            amount = dict(reviewAttributes)["Amount"]
+            costPerGram = dict(reviewAttributes)["Cost per Gram"]
+            newAmtCPG = f"{amount}g @ {self.format_attribute('Cost per Gram', costPerGram)}"
+            # Remove both and add new
+            reviewAttributes = [(k, v) for k, v in reviewAttributes if k not in ["Amount", "Cost per Gram"]]
+            reviewAttributes.append(("Amount & $/g", newAmtCPG))
+
+        # Combine "Steeps", "Brew Method", vessel size
+        if "Steeps" in dict(reviewAttributes) or "Method" in dict(reviewAttributes) or "Vessel size" in dict(reviewAttributes):
+            steeps = dict(reviewAttributes).get("Steeps", "N/A")
+            brewMethod = dict(reviewAttributes).get("Method", "N/A")
+            vesselSize = dict(reviewAttributes).get("Vessel size", "N/A")
+            newBrewInfo = f"{steeps} steeps, {brewMethod} method, {vesselSize}ml vessel."
+            # Remove all three and add new
+            reviewAttributes = [(k, v) for k, v in reviewAttributes if k not in ["Steeps", "Method", "Vessel size"]]
+            reviewAttributes.append(("Brewing Info", newBrewInfo))
 
         # Sort attributes to have notes at the end, date and type near the beginning
         sortedAttributes = sorted(reviewAttributes, key=lambda x: (("note" in x[0].lower(), x[0] != "date", x[0] != "Type", x[0])))
@@ -1939,7 +1965,8 @@ class ReviewCategory:
 
             # Add space for graphs if applicable
             if not overrideDoNotDrawGraphs_relativeBubbles:
-                current_y += 100  # Arbitrary space for graphs
+                current_y += 110  # Arbitrary space for graphs
+                current_y += line_spacing * 2 # space for seperator line
 
             image_height = current_y + padding
 
@@ -2016,6 +2043,9 @@ class ReviewCategory:
             # Group the images horizontally with a title.
             if not overrideDoNotDrawGraphs_relativeBubbles:
                 # Image only graphing
+                # add a line separator
+                draw.line((padding, current_y, image_width - padding, current_y), fill=(200, 200, 200), width=2)
+                current_y += line_spacing * 2
                 chart_img_all = make_rating_bubble_image(allDatrapts, highlight=thisTeaAverageRating, name="All" +f" (t={totalAllData})")
                 chart_img_type = make_rating_bubble_image(typeDatapts, highlight=thisTeaAverageRating, name="Type: " + teaParent.attributes.get("Type", "Unknown") +f" (t={totalTypeData})")
                 chart_img_vendor = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (t={totalvendorData})")
@@ -3358,7 +3388,7 @@ class Window_Stash_Reviews(WindowBase):
                 dp.Text(f"Image Path (screenshot of review): {imagePath}")
                 # Add image to registry
                 addImageToRegistryFromFile(imagePath, f"{imagePath[:-4]}")
-                dp.Image(f"{imagePath[:-4]}", width=400 * settings["UI_SCALE"], height=300 * settings["UI_SCALE"])
+                dp.Image(f"{imagePath[:-4]}", width=600 * settings["UI_SCALE"], height=450 * settings["UI_SCALE"])
             else:
                 dp.Text("No image generated.")
             dp.Separator()
@@ -3521,6 +3551,8 @@ class Window_Stash(WindowBase):
 
                 # Renumber all teas and reviews
                 dp.Button(label="Renumber All Teas and Reviews", callback=lambda s, a, u: renumberTeasAndReviews(save=True), user_data=None)
+
+
 
             # Table with collapsable rows for reviews
             teasTable = dp.Table(header_row=True, no_host_extendX=True,
