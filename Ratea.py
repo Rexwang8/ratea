@@ -2064,6 +2064,8 @@ class ReviewCategory:
 
             # Save image to unique path with timestamp, review, parent id, parent name abridged, using underscores
             image_path = f"review_{review.id}_{review.parentID}_{sessionNum}_{teaParent.name[:20].replace(' ', '_')}_{int(dt.datetime.now().timestamp())}.png"
+            # | is invalid character for file names, remove it
+            image_path = image_path.replace("|", "")
             img.save(image_path)
             RichPrintSuccess(f"Generated review image at {image_path}")
         else:
