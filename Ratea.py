@@ -1908,9 +1908,11 @@ class ReviewCategory:
             try:
                 title_font = ImageFont.truetype("arialbd.ttf", size=font_size + 8)
                 body_font = ImageFont.truetype("arial.ttf", size=font_size)
+                body_font_smaller = ImageFont.truetype("arial.ttf", size=font_size - 2)
             except IOError:
                 title_font = ImageFont.load_default()
                 body_font = ImageFont.load_default()
+                body_font_smaller = ImageFont.load_default()
 
             # --- Calculate Dynamic Image Height ---
             current_y = padding
@@ -1938,11 +1940,11 @@ class ReviewCategory:
                 key_text = f"{key}: "
 
                 # Calculate height for the key
-                key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
+                key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 10
 
                 # Calculate height for the wrapped value
-                wrapped_lines = textwrap.wrap(str(formatted_value), width=90)
-                value_height = len(wrapped_lines) * (key_height + line_spacing)
+                wrapped_lines = textwrap.wrap(str(formatted_value), width=80)
+                value_height = len(wrapped_lines) * (key_height + line_spacing + 4)
 
                 current_y += value_height + line_spacing
 
@@ -1955,17 +1957,17 @@ class ReviewCategory:
                     key_text = f"{key}: "
 
                     # Calculate height for the key
-                    key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 3
+                    key_height = (body_font.getbbox(key_text)[3] - body_font.getbbox(key_text)[1]) + 10
 
                     # Calculate height for the wrapped value
-                    wrapped_lines = textwrap.wrap(str(value), width=90)
-                    value_height = len(wrapped_lines) * (key_height + line_spacing)
+                    wrapped_lines = textwrap.wrap(str(value), width=80)
+                    value_height = len(wrapped_lines) * (key_height + line_spacing + 4)
 
                     current_y += value_height + line_spacing
 
             # Add space for graphs if applicable
             if not overrideDoNotDrawGraphs_relativeBubbles:
-                current_y += 110  # Arbitrary space for graphs
+                current_y += 125  # Arbitrary space for graphs
                 current_y += line_spacing * 2 # space for seperator line
 
             image_height = current_y + padding
@@ -2006,7 +2008,7 @@ class ReviewCategory:
                     for sub_line in wrapped_sublines:
                         # Indent subsequent lines of a wrapped value
                         text_x = padding + key_width if i == 0 else padding + key_width + 20
-                        draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font)
+                        draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font_smaller)
                         current_y += line_height
                 current_y += line_spacing # Extra space between attributes
 
@@ -2035,7 +2037,7 @@ class ReviewCategory:
                         for sub_line in wrapped_sublines:
                             # Indent subsequent lines of a wrapped value
                             text_x = padding + key_width if i == 0 else padding + key_width + 20
-                            draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font)
+                            draw.text((text_x, current_y), sub_line, fill=(0, 0, 0), font=body_font_smaller)
                             current_y += line_height
                     current_y += line_spacing # Extra space between attributes
 
