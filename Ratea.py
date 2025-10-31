@@ -1863,9 +1863,10 @@ class ReviewCategory:
             teaYear = str(teaYear) + " "
         else:
             teaYear = ""
-        text_review = f"Session {sessionNum}: {teaYear}{teaParent.name}\n"
-        html_review = f"<h3>Session {sessionNum}: {teaYear}{teaParent.name}</h3>\n"
-        image_title = f"Session {sessionNum}: {teaYear}{teaParent.name}"
+        vendorName = teaParent.attributes.get("Vendor", "N/A")
+        text_review = f"Session {sessionNum}: {vendorName} {teaYear}{teaParent.name}\n"
+        html_review = f"<h3>Session {sessionNum}: {vendorName} {teaYear}{teaParent.name}</h3>\n"
+        image_title = f"Session {sessionNum}: {vendorName} {teaYear}{teaParent.name}"
 
         for key, value in reviewAttributes:
             if key in ["Name", "dateAdded"]:  # Filter out redundant or internal fields
