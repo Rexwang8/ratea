@@ -1704,7 +1704,7 @@ class ReviewCategory:
                 daysBetweenFirstAndLast = (latestDate - earliestDate).days
                 teaLevelAttributes["Days Between First and Last Review"] = daysBetweenFirstAndLast
             if numReviewsIncludingThisOne > 1 and daysBetweenFirstAndLast > 0:
-                teaLevelAttributes["Average Time Between Reviews"] = daysBetweenFirstAndLast / numReviewsIncludingThisOne
+                teaLevelAttributes["Average Time Between Reviews"] = daysBetweenFirstAndLast / (numReviewsIncludingThisOne - 1) # time between reviews is total time divided by number of intervals (num reviews - 1)
             else:
                 teaLevelAttributes["Average Time Between Reviews"] = "N/A"
 
