@@ -3640,7 +3640,7 @@ class Window_Stash(WindowBase):
                     tableRows.append((tea, tableRow))
                     with tableRow:
                         # Add ID index based on position in list
-                        dp.Text(label=f"{i}", default_value=f"{i}")
+                        dp.Text(label=f"{tea.id}", default_value=f"{tea.id}")
                         # Add the tea attributes
 
                         cat: TeaCategory
@@ -4914,6 +4914,15 @@ def populateStatsCache():
     dictNumReviewsByType = {}
     listTopTenTeasSoldByValue = []
     ctrTotalTeasSold= 0
+    # Samples are defined as under or including 30g of total amount original.
+    ctrTotalSamples = 0
+    ctrSumTotalSampleAmount = 0
+    # Bags are defined as 30-150g of total amount original.
+    ctrTotalBags = 0
+    ctrSumTotalBagAmount = 0
+    # Bulk is defined as over 150g of total amount original.
+    ctrTotalBulk = 0
+    ctrSumTotalBulkAmount = 0
 
     # Set to 1990-01-01 00:00:00 UTC as the default for latest purchase
     ctrLatestPurchase = dt.datetime(1990, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc).timestamp()
@@ -4944,6 +4953,17 @@ def populateStatsCache():
         if "Amount" in AllTypesCategoryRoleValid:
             if "Amount" in tea.attributes:
                 ctrTotalVolume += tea.attributes["Amount"]
+                # Classify as sample, bag, or bulk
+                if tea.attributes["Amount"] <= 30:
+                    ctrTotalSamples += 1
+                    ctrSumTotalSampleAmount += tea.attributes["Amount"]
+                elif tea.attributes["Amount"] <= 150:
+                    ctrTotalBags += 1
+                    ctrSumTotalBagAmount += tea.attributes["Amount"]
+                else:
+                    ctrTotalBulk += 1
+                    ctrSumTotalBulkAmount += tea.attributes["Amount"]
+
         if "Cost" in AllTypesCategoryRoleValid:
             if "Cost" in tea.attributes:
                 ctrTotalCost += tea.attributes["Cost"]
@@ -5091,12 +5111,21 @@ def populateStatsCache():
     else:
         cache["averageVolume"] = 0
 
+    # Samples, bags, bulk
+    cache["totalSamples"] = ctrTotalSamples
+    cache["totalBags"] = ctrTotalBags
+    cache["totalBulk"] = ctrTotalBulk
+    cache["sumTotalSampleAmount"] = ctrSumTotalSampleAmount
+    cache["sumTotalBagAmount"] = ctrSumTotalBagAmount
+    cache["sumTotalBulkAmount"] = ctrSumTotalBulkAmount
+
     cache["totalVolume"] = ctrTotalVolume
     if cache["numTeas"] > 0:
         cache["averageCost"] = ctrTotalCost / cache["numTeas"]
     else:
         cache["averageCost"] = 0
     cache["totalCost"] = ctrTotalCost
+
     # Weighted average cost
     if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
         if ctrTotalVolume > 0:
@@ -5828,10 +5857,33 @@ class Window_Stats(WindowBase):
                             if numFinished > 0:
                                 dp.Text(f"({numFinished} finished)", color=COLOR_LIGHT_BLUE_TEXT)
                 dp.Separator()
-    
 
+            # Sample, bag, bulk stats
+            with dp.CollapsingHeader(label="Sample, Bag, Bulk Stats", default_open=False, indent=20 * settings["UI_SCALE"]):
+                sampleCount = self.cache["totalSamples"]
+                bagCount = self.cache["totalBags"]
+                bulkCount = self.cache["totalBulk"]
+                sumSampleAmt = self.cache["sumTotalSampleAmount"]
+                sumBagAmt = self.cache["sumTotalBagAmount"]
+                sumBulkAmt = self.cache["sumTotalBulkAmount"]
+                total = sumSampleAmt + sumBagAmt + sumBulkAmt
+                sampleCtTxt = f"{sampleCount} / {self.cache['numTeas']} total teas ({(sampleCount / self.cache['numTeas'] * 100) if self.cache['numTeas'] > 0 else 0:.2f}%)"
+                bagCtTxt = f"{bagCount} / {self.cache['numTeas']} total teas ({(bagCount / self.cache['numTeas'] * 100) if self.cache['numTeas'] > 0 else 0:.2f}%)"
+                bulkCtTxt = f"{bulkCount} / {self.cache['numTeas']} total teas ({(bulkCount / self.cache['numTeas'] * 100) if self.cache['numTeas'] > 0 else 0:.2f}%)"
+                sampleSumTxt = f"{sumSampleAmt:.2f}g / {total:.2f}g total amount ({(sumSampleAmt / total * 100) if total > 0 else 0:.2f}%)"
+                bagSumTxt = f"{sumBagAmt:.2f}g / {total:.2f}g total amount ({(sumBagAmt / total * 100) if total > 0 else 0:.2f}%)"
+                bulkSumTxt = f"{sumBulkAmt:.2f}g / {total:.2f}g total amount ({(sumBulkAmt / total * 100) if total > 0 else 0:.2f}%)"
+                dp.Text("Break down by Count:")
+                dp.Text(f"Samples (30g or less): {sampleCtTxt}")
+                dp.Text(f"Bags (31g to 250g): {bagCtTxt}")
+                dp.Text(f"Bulks (over 250g): {bulkCtTxt}")
+                dp.Separator()
+                dp.Text("Break down by Amount:")
+                dp.Text(f"Samples (30g or less): {sampleSumTxt}")
+                dp.Text(f"Bags (31g to 250g): {bagSumTxt}")
+                dp.Text(f"Bulks (over 250g): {bulkSumTxt}")
+                dp.Separator()
 
-        
     def windowDefintion(self, window):
         self.win = window
         window = self.win
