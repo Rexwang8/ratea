@@ -4957,7 +4957,7 @@ def populateStatsCache():
                 if tea.attributes["Amount"] <= 30:
                     ctrTotalSamples += 1
                     ctrSumTotalSampleAmount += tea.attributes["Amount"]
-                elif tea.attributes["Amount"] <= 150:
+                elif tea.attributes["Amount"] < 200:
                     ctrTotalBags += 1
                     ctrSumTotalBagAmount += tea.attributes["Amount"]
                 else:
@@ -5875,13 +5875,13 @@ class Window_Stats(WindowBase):
                 bulkSumTxt = f"{sumBulkAmt:.2f}g / {total:.2f}g total amount ({(sumBulkAmt / total * 100) if total > 0 else 0:.2f}%)"
                 dp.Text("Break down by Count:")
                 dp.Text(f"Samples (30g or less): {sampleCtTxt}")
-                dp.Text(f"Bags (31g to 250g): {bagCtTxt}")
-                dp.Text(f"Bulks (over 250g): {bulkCtTxt}")
+                dp.Text(f"Bags (31g to 199g): {bagCtTxt}")
+                dp.Text(f"Bulks (200g and above): {bulkCtTxt}")
                 dp.Separator()
                 dp.Text("Break down by Amount:")
                 dp.Text(f"Samples (30g or less): {sampleSumTxt}")
-                dp.Text(f"Bags (31g to 250g): {bagSumTxt}")
-                dp.Text(f"Bulks (over 250g): {bulkSumTxt}")
+                dp.Text(f"Bags (31g to 199g): {bagSumTxt}")
+                dp.Text(f"Bulks (200g and above): {bulkSumTxt}")
                 dp.Separator()
 
     def windowDefintion(self, window):
