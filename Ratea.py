@@ -1110,11 +1110,33 @@ def _table_sort_callback(sender, sortSpec):
                 cell = rowData[column_index]
                 cellValue = dpg.get_value(cell)
                 # If value is an number, convert it to float
-                if isinstance(cellValue, str) and cellValue.replace('.', '', 1).isdigit():
-                    cellValue = float(cellValue)
-                sortableItems.append((row, cellValue))
+
+                parsed_possible_number = cellValue
+                if isinstance(cellValue, str):
+                    # Try to strip periods and "g" suffixes for grams
+                    possibleNumber = cellValue.lower().replace('g', '').replace(',', '', 1).strip()
+                    possibleNumber = possibleNumber.replace('$', '', 1).strip()
+                    possibleNumber = possibleNumber.replace('%', '', 1).strip()
+                    possibleNumber = possibleNumber.replace('ml', '', 1).strip()
+                    if possibleNumber.isdigit():
+                        cellValue = float(possibleNumber)
+                    else:
+                        try:
+                            parsed_possible_number = float(possibleNumber)
+                        except ValueError:
+                            pass
+
+                sortableItems.append((row, parsed_possible_number))
     # Define sort key
     def sort_key(item):
+        suffixes = ['g', 'ml', '$', '%']
+        if isinstance(item[1], str):
+            for suffix in suffixes:
+                if item[1].endswith(suffix):
+                    try:
+                        return float(item[1][:-len(suffix)].strip())
+                    except ValueError:
+                        pass
         # If date string, try to parse it, if succeeds, use timestamp
         if isinstance(item[1], str):
             try:
@@ -4913,6 +4935,7 @@ def populateStatsCache():
     dictSteepsByType = {}
     dictNumReviewsByType = {}
     listTopTenTeasSoldByValue = []
+    dictTeaVolByType = {}
     ctrTotalTeasSold= 0
     # Samples are defined as under or including 30g of total amount original.
     ctrTotalSamples = 0
@@ -4946,6 +4969,10 @@ def populateStatsCache():
         teaType = None
         if "Type" in AllTypesCategoryRoleValid:
             teaType = tea.attributes["Type"]
+
+            if teaType not in dictTeaVolByType:
+                dictTeaVolByType[teaType] = 0
+            dictTeaVolByType[teaType] += tea.attributes["Amount"]
 
         if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
             if "Cost" in tea.attributes and "Amount" in tea.attributes:
@@ -5118,6 +5145,9 @@ def populateStatsCache():
     cache["sumTotalSampleAmount"] = ctrSumTotalSampleAmount
     cache["sumTotalBagAmount"] = ctrSumTotalBagAmount
     cache["sumTotalBulkAmount"] = ctrSumTotalBulkAmount
+
+    # Tea volume by type
+    cache["teaVolumeByType"] = dictTeaVolByType
 
     cache["totalVolume"] = ctrTotalVolume
     if cache["numTeas"] > 0:
@@ -5427,6 +5457,31 @@ class Window_Stats(WindowBase):
                     dp.Text("Required Category role 'Type' for Review is not enabled.")
                 dp.Separator()
 
+        # Tea volume by type
+        with dp.CollapsingHeader(label="Tea Volume by Type", default_open=False):
+            dp.Text("Tea Volume by Type")
+            totalVolume = self.cache["totalVolume"]
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            for teaType, volume in self.cache["teaVolumeByType"].items():
+                frac = (volume / totalVolume) * 100 if totalVolume > 0 else 0
+                dp.Text(f"{teaType}: {volume:.2f}g ({frac:.2f}%)")
+            dp.Separator()
+
+            pieLabelsValues = {}
+            for teaType, volume in self.cache["teaVolumeByType"].items():
+                pieLabelsValues[teaType] = volume
+
+            # Test table
+            dp.Text("Tea Volume by Type Table")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2))
+            self.makeTable(pieLabelsValues, kLabel="Tea Type", vLabel="Volume (g)", addPercentColumn=True)
+            dp.Separator()
+
+            # Pie Chart
+            if len(pieLabelsValues) > 0:
+                self.makePieChart(pieLabelsValues, "Tea Volume by Type Pie Chart")
+            else:
+                dp.Text("No data available for pie chart.")
     # Topline Stats
     def window_subwindow_0_1_categories(self, sender=None, app_data=None, user_data=None):
         allTypesCategoryRoleReviewsValid = user_data[1] if user_data and len(user_data) > 0 else []
@@ -5964,10 +6019,37 @@ class Window_Stats(WindowBase):
         RichPrintSuccess(f"Stats window loaded in {timeLoadEnd - timeLoadStart:.2f} seconds.")
         self.afterWindowDefinition()
         
+    def makePieChart(self, dataDict, title="Pie Chart", size=400):
+        labels = list(dataDict.keys())
+        values = list(dataDict.values())
 
+        # Use dearpygui's pie chart
+        with dpg.plot(label=title, height=size * settings["UI_SCALE"], width=size * settings["UI_SCALE"], no_mouse_pos=True):
+            dpg.add_plot_legend(outside=True, no_highlight_item=False)
+            # create xy axis
+            dpg.add_plot_axis(dpg.mvXAxis, label="", no_tick_marks=True, no_tick_labels=True)
+            dpg.set_axis_limits(dpg.last_item(), -0.1, 1.1)
+            with dpg.plot_axis(dpg.mvYAxis, label="", no_tick_marks=True, no_tick_labels=True):
+                dpg.set_axis_limits(dpg.last_item(), -0.4, 1.4)
+                dpg.add_pie_series(0.5, 0.5, 0.7, values, labels, parent=dpg.last_item())
 
+    def makeTable(self, dataDict, title="Table", addPercentColumn=False, kLabel="Category", vLabel="Value"):
+        totalSum = sum(dataDict.values())
+        labels = list(dataDict.keys())
+        values = list(dataDict.values())
+        with dpg.table(header_row=True, borders_innerH=True, borders_outerH=True, borders_innerV=True, borders_outerV=True, label=title, sortable=True, callback=_table_sort_callback):
+            dp.TableColumn(label=kLabel, width_fixed=True, init_width_or_weight=250 * settings["UI_SCALE"], hideable=False, prefer_sort_ascending=True, user_data="0")
+            dp.TableColumn(label=vLabel, width_fixed=True, init_width_or_weight=75 * settings["UI_SCALE"], hideable=False, prefer_sort_ascending=True, user_data="1")
+            if addPercentColumn:
+                dp.TableColumn(label="Percentage", width_fixed=True, init_width_or_weight=75 * settings["UI_SCALE"], hideable=False, prefer_sort_ascending=True, user_data="2")
+            for key, value in zip(labels, values):
+                value = round(value, 2)
+                with dpg.table_row():
+                    dp.Text(label=key, default_value=key, height=25 * settings["UI_SCALE"])
+                    dp.Text(label=value, default_value=value, height=25 * settings["UI_SCALE"])
+                    if addPercentColumn:
+                        dp.Text(label=f"{(value / totalSum * 100):.2f}", default_value=f"{(value / totalSum * 100):.2f}%", height=25 * settings["UI_SCALE"])
 
-        
 def Menu_EditCategories():
     w = 800 * settings["UI_SCALE"]
     h = 600 * settings["UI_SCALE"]
