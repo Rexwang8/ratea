@@ -1064,6 +1064,7 @@ def setValidTypes():
     
 
 def _table_sort_callback(sender, sortSpec):
+    suffixes = ['g', 'ml', '$', '%']
     # If num rows is less than 2, return
     numRows = dpg.get_item_children(sender, 1)
     if numRows is None or len(numRows) < 2:
@@ -1156,8 +1157,24 @@ def _table_sort_callback(sender, sortSpec):
         for i, item in enumerate(sortableItems):
             if item[1] == "N/A":
                 unsortableItems.append(item)
+            elif item[1] is None:
+                unsortableItems.append(item)
+            # Can convert to int or float
+            elif isinstance(item[1], str):
+                possibleNumber = item[1].lower()
+                for suffix in suffixes:
+                    if possibleNumber.endswith(suffix):
+                        possibleNumber = possibleNumber[:-len(suffix)].strip()
+                possibleNumber = possibleNumber.replace(',', '', 1).strip()
+                try:
+                    possibleFloat = float(possibleNumber)
+                    cleanSortableItems.append((item[0], possibleFloat))
+                except ValueError:
+                    cleanSortableItems.append(item)
             else:
                 cleanSortableItems.append(item)
+
+    # Sort the items            
     cleanSortableItems.sort(key=sort_key, reverse=not ascending)
     
     if len(cleanSortableItems) < 2:
