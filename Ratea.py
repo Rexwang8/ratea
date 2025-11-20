@@ -65,6 +65,7 @@ TODO: Alternate calculation methods and a flag for that
 TODO: Visualization: Network graph, word cloud, tier list
 TODO: Allow copying of table cells on right 
 TODO: Some sort of tea linking system, or review linking system.
+TODO: Sort reviews by date then renumber operation
 '''
 
 
@@ -755,18 +756,22 @@ def renumberTeasAndReviews(save=True):
 def getGradeList():
     return ["S+ (5.0)", "S (4.5)", "S- (4.25)", "A+ (4.0)", "A (3.5)", "A- (3.25)", "B+ (3.0)", "B (2.5)", "B- (2.25)", "C+ (2.0)", "C (1.5)", "C- (1.25)", "D+ (1.0)", "D (0.5)", "D- (0.25)", "F (0)"]
 
-def getGradeValue(grade):
+def getGradeValue(grade, silent=False):
     # Get the value of a grade
     if grade is None or grade == "":
-        RichPrintError("Grade is None or empty")
+        if not silent:
+            RichPrintError("Grade is None or empty")
         return None
     gradingOptions = getGradeList()
     if grade in gradingOptions:
         return float(grade.split("(")[1].split(")")[0])
     else:
-        RichPrintError(f"Grade {grade} not found in grading options")
+        if grade == "---":
+            return 0.0
+        if not silent:
+            RichPrintError(f"Grade {grade} not found in grading options")
         return None
-    
+
 def getGradeNumericalList():
     # Get a list of numerical values for the grades
     return [getGradeValue(grade) for grade in getGradeList() if getGradeValue(grade) is not None]
@@ -1090,6 +1095,14 @@ def _table_sort_callback(sender, sortSpec):
     # Convert user data to int
     try:
         column_index = int(columnUserData)
+        RichPrintInfo(f"Sorting by column index: {column_index}, direction: {'ascending' if direction > 0 else 'descending'}")
+
+        # Unsure why this is the case but past col. 9 (score), its offset by 2, so we adjust for that, maybe tooltips?
+        # Investigate later if needed. TODO
+        if column_index == 9:
+            column_index += 1
+        elif column_index >= 10:
+            column_index += 2
     except ValueError:
         RichPrintError(f"Column user data is not an int: {columnUserData}")
         return
@@ -1121,13 +1134,20 @@ def _table_sort_callback(sender, sortSpec):
                     possibleNumber = possibleNumber.replace('ml', '', 1).strip()
                     if possibleNumber.isdigit():
                         cellValue = float(possibleNumber)
+                        sortableItems.append((row, parsed_possible_number))
                     else:
                         try:
                             parsed_possible_number = float(possibleNumber)
+                            sortableItems.append((row, parsed_possible_number))
                         except ValueError:
-                            pass
+                            sortableItems.append((row, cellValue))
+                else:
+                    sortableItems.append((row, cellValue))
+            else:
+                RichPrintWarning(f"Row {row} has no data, skipping")
+            
 
-                sortableItems.append((row, parsed_possible_number))
+
     # Define sort key
     def sort_key(item):
         suffixes = ['g', 'ml', '$', '%']
@@ -1155,12 +1175,14 @@ def _table_sort_callback(sender, sortSpec):
     # Remove N/A from the list
     if len(sortableItems) > 1:
         for i, item in enumerate(sortableItems):
-            if item[1] == "N/A":
+            print(f"Processing item {i}: {item}")
+            if item[1] == "N/A" or item[1] == "" or item[1] == "None":
                 unsortableItems.append(item)
             elif item[1] is None:
                 unsortableItems.append(item)
             # Can convert to int or float
             elif isinstance(item[1], str):
+                #print(item)
                 possibleNumber = item[1].lower()
                 for suffix in suffixes:
                     if possibleNumber.endswith(suffix):
@@ -1170,17 +1192,43 @@ def _table_sort_callback(sender, sortSpec):
                     possibleFloat = float(possibleNumber)
                     cleanSortableItems.append((item[0], possibleFloat))
                 except ValueError:
-                    cleanSortableItems.append(item)
+                    # Try to convert and parse as grade letter
+                    try:
+                        gradeValue = getGradeValue(item[1], silent=True)
+                        print(f"Converted grade {item[1]} to value {gradeValue} for sorting")
+                        if gradeValue is not None:
+                            cleanSortableItems.append((item[0], gradeValue))
+                        else:
+                            cleanSortableItems.append(item)
+                    except ValueError:
+                        cleanSortableItems.append(item)
+                        RichPrintWarning(f"Could not convert item (str) to float or grade: {item[1]}")
             else:
                 cleanSortableItems.append(item)
 
-    # Sort the items            
-    cleanSortableItems.sort(key=sort_key, reverse=not ascending)
+    # string/number comparisons not supported in python3, so we need to separate them
+    # Put all items that are not of the same type as the first item to the end
+    numsCleanSortableItems = []
+    strsCleanSortableItems = []
+    if len(cleanSortableItems) > 0:
+        # We want to have numbers first, then strings
+        for item in cleanSortableItems:
+            if isinstance(item[1], (int, float)):
+                numsCleanSortableItems.append(item)
+            else:
+                strsCleanSortableItems.append(item)
     
+    # We sort numbers first, then strings then append unsortable items
+    numsCleanSortableItems.sort(key=sort_key, reverse=not ascending)
+    strsCleanSortableItems.sort(key=sort_key, reverse=not ascending)
+    
+    # Sort the items
+    cleanSortableItems = numsCleanSortableItems + strsCleanSortableItems
+
     if len(cleanSortableItems) < 2:
-        RichPrintError("Not enough sortable items to sort")
+        RichPrintError("Not enough sortable items to sort (found less than 2 after cleaning)")
         return
-    RichPrintSuccessMinor(f"Found {len(sortableItems)} sortable items and {len(unsortableItems)} unsortable items")
+    RichPrintSuccessMinor(f"Found {len(cleanSortableItems)} sortable items and {len(unsortableItems)} unsortable items")
     # Re-add the unsortable items to the end of the list
     for item in unsortableItems:
         cleanSortableItems.append(item)
@@ -3262,7 +3310,7 @@ class Window_Stash_Reviews(WindowBase):
                                         if usingAutocalculatedValue:
                                             exp += f"\n\nAutocalculated as letter grade: {displayValue}"
 
-                                dp.Text(default_value=displayValue)    
+                                dp.Text(default_value=displayValue, label=displayValue)
                             elif cat.categoryType == "bool":
                                 if displayValue == "True" or displayValue == True:
                                     displayValue = True
@@ -3612,6 +3660,7 @@ class Window_Stash(WindowBase):
                 # Add the categories
                 for i, cat in enumerate(TeaCategories):
                     dp.TableColumn(label=cat.name, no_resize=False, no_clip=True, user_data=f"{i+1}")
+                    print(f"Added column for category {cat.name}, index {i+1}")
                 dp.TableColumn(label="Reviews", no_resize=False, no_clip=True, width=300, no_hide=True)
                 dp.TableColumn(label="Actions", no_resize=False, no_clip=True, width=50, no_hide=True)
 
@@ -3768,7 +3817,7 @@ class Window_Stash(WindowBase):
                                             displayValue = getGradeLetterFuzzy(float(displayValue))
                                         if usingAutocalculatedValue:
                                             exp += f"\n\nAutocalculated as letter grade: {displayValue}"
-                                dp.Text(default_value=displayValue)
+                                dp.Text(default_value=displayValue, label=displayValue)
                                 if usingAutocalculatedValue:
                                     # Give tooltip for autocalculated value
                                     with dp.Tooltip(dpg.last_item()):
