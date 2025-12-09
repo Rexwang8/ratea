@@ -104,7 +104,7 @@ CONSTANT_DELAY_MULTIPLIER = 120 # +1frame per X items for the table
 backupThread = False
 backupStopEvent = threading.Event()
 # Global variables
-
+#endregion
 
 #region Helpers
 
@@ -751,7 +751,7 @@ def renumberTeasAndReviews(save=True):
         saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
         RichPrintSuccess("Saved renumbered teas and reviews to file.")
 
-# Grade letter functions
+#region Grade letter functions
 
 def getGradeList():
     return ["S+ (5.0)", "S (4.5)", "S- (4.25)", "A+ (4.0)", "A (3.5)", "A- (3.25)", "B+ (3.0)", "B (2.5)", "B- (2.25)", "C+ (2.0)", "C (1.5)", "C- (1.25)", "D+ (1.0)", "D (0.5)", "D- (0.25)", "F (0)"]
@@ -836,6 +836,38 @@ def getGradeDropdownValueByFloat(value):
             return grade
     RichPrintError(f"Value {value} not found in grading options")
     return None
+
+def injectGradeMeaningIntoText(gradeLetter):
+    # Inject the meaning of the grade into the text
+    # Replaces <meaning> with an explanation of the grade
+    gradeMeanings = {
+        "S+": "S (+) outstanding or exceptional. good value. -> must sample. strongly consider dedicated order, rebuy.",
+        "S":  "S (X) outstanding or exceptional. ok value. -> must sample. strongly consider dedicated order, rebuy.",
+        "S-": "S (-) outstanding or exceptional. poor value. -> must sample. consider dedicated order, rebuy.",
+        
+        "A+": "A (+) notably good. good value. -> should sample. strongly consider dedicated order, rebuy.",
+        "A":  "A (X) notably good. ok value. -> should sample. consider dedicated order, rebuy.",
+        "A-": "A (-) notably good. poor value. -> should sample, avoid dedicated order, consider rebuy.",
+        
+        "B+": "B (+) above average. good value. -> consider sample, rebuy.",
+        "B":  "B (X) above average. ok value. -> consider sample, rebuy only if sales.",
+        "B-": "B (-) above average. poor value. -> consider sample, avoid rebuy.",
+        
+        "C+": "C (+) drinkable, unremarkable. good value. -> wouldn't rebuy.",
+        "C":  "C (X) drinkable, unremarkable. ok value. -> wouldn't rebuy.",
+        "C-": "C (-) drinkable, unremarkable. poor value. -> avoid.",
+        
+        "D+": "D (+) bad. good value. -> avoid.",
+        "D":  "D (X) bad. ok value. -> avoid.",
+        "D-": "D (-) bad. poor value. -> avoid.",
+        
+        "F":  "Dumped"
+    }
+    text = gradeMeanings.get(gradeLetter.split(" ")[0], "No meaning found for this grade.")
+    return text
+
+#endregion
+
 
 
 # Visualization stuff. 
@@ -1001,6 +1033,7 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
     # Load as Pillow image
     chart_img = Image.open(buf)
     return chart_img
+
 
 
 # TODO: Fuzzy tea name matching under same vendor and type (ie sample vs cake or year differences)
@@ -1175,7 +1208,6 @@ def _table_sort_callback(sender, sortSpec):
     # Remove N/A from the list
     if len(sortableItems) > 1:
         for i, item in enumerate(sortableItems):
-            print(f"Processing item {i}: {item}")
             if item[1] == "N/A" or item[1] == "" or item[1] == "None":
                 unsortableItems.append(item)
             elif item[1] is None:
@@ -1195,7 +1227,6 @@ def _table_sort_callback(sender, sortSpec):
                     # Try to convert and parse as grade letter
                     try:
                         gradeValue = getGradeValue(item[1], silent=True)
-                        print(f"Converted grade {item[1]} to value {gradeValue} for sorting")
                         if gradeValue is not None:
                             cleanSortableItems.append((item[0], gradeValue))
                         else:
@@ -1645,7 +1676,7 @@ class ReviewCategory:
             letter_grade = getGradeLetterFuzzy(numerical_value)
             # Will return either None, just the Letter if exact match, or Letter (value) if fuzzy match, we want it to always be letter (value/5)
             if letter_grade:
-                return f"{letter_grade.split(' (')[0]} ({numerical_value:.{correct_cat.rounding}f}/5)"
+                return f"{letter_grade.split(' (')[0]} ({numerical_value:.{correct_cat.rounding}f}/5) | {injectGradeMeaningIntoText(letter_grade)}"
             else:
                 return f"{numerical_value:.{correct_cat.rounding}f}"
             
@@ -1959,7 +1990,6 @@ class ReviewCategory:
             if key in ["Name", "dateAdded"]:  # Filter out redundant or internal fields
                 continue
             # If word "note" in key, lookup and use category description
-            #if "note" in key.lower():
             
             formatted_value = self.format_attribute(key, value)
             for cat in TeaReviewCategories:
