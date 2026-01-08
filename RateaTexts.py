@@ -277,6 +277,10 @@ Settings are available in the "Settings" window. You can change the app settings
 
 ListTextUserGuide["changelog"] = Text(
 '''---Changelog---
+Feat(0.25.0): Add 2 graphs to review img
+Feat(0.24.0): add meaning key to reviews
+Feat(0.23.0): Fixed table sorting. Added a table and plot to stats
+Feat(0.22.0): Fix counting bug, add one stats tab
 Feat(0.21.0): Expanded review exports to include some more stats.
 Feat(0.20.0): Added button to generate exportable reviews and text format reviews.
 Feat(0.19.0): Added changelog to aboutme

@@ -37,7 +37,6 @@ TODO: Button to re-order reviews and teas based on current view
 TODO: save table sort state
 TODO: Sold: Support adjustment
 TODO: Optional refresh on add tea/ review
-TODO: Section off autocalculate functions, account for remaining=0 or naegative values
 TODO: review window
 TODO: move delete category to popup or add confirmation
 TODO: Customization: Add color themes
@@ -50,7 +49,6 @@ TODO: Optional non-refreshing table updates, limit number of items on first load
 TODO: Windows list to manage open windows
 TODO: Reset to default buttons
 TODO: 1-5 as stars for rating system
-TODO: Visualization: Single-tea reports
 TODO: Documentation: Write in blog window
 TODO: Documentation: Add Image Support to blog window.
 TODO: Visualizeation: Pie chart for consumption of amount and types of tea, split over all, over years
@@ -106,7 +104,7 @@ backupStopEvent = threading.Event()
 # Global variables
 #endregion
 
-#region Helpers
+#region Helpers1
 
 richPrintConsole = RichConsole()
 terminalConsoleLogs = []
@@ -425,6 +423,11 @@ def printCategories():
     for i, cat in enumerate(TeaReviewCategories):
         RichPrintInfo(f"Category {i}: {cat.name} ({cat.categoryType}) ({cat.categoryRole})")
     RichPrintSeparator()
+
+#endregion
+
+
+#region Helpers2
 
 # Iterates through list of categories and returns first category id that matches the role
 def getCategoryIDByrole(role):
@@ -751,6 +754,10 @@ def renumberTeasAndReviews(save=True):
         saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
         RichPrintSuccess("Saved renumbered teas and reviews to file.")
 
+#endregion
+
+
+
 #region Grade letter functions
 
 def getGradeList():
@@ -870,7 +877,7 @@ def injectGradeMeaningIntoText(gradeLetter):
 
 
 
-# Visualization stuff. 
+#region Visualization stuff. 
 # 1. Given a type of tea, return a list of average ratings for all reviews of that type of tea in list form
 # 2. Given a vendor of tea, return a list of average ratings for all reviews of that vendor in list form
 # 3. Given a year of tea, return a list of average ratings for all reviews of that year in list form
@@ -933,8 +940,89 @@ def getAverageRatingRange(teaType=None, vendor=None, year=None, overlap_threshol
         # Round y to 2 decimal places
         y = round(y, 2)
         points.append((x, y, size))
-
     return points
+
+# Given a type of tea, return a list of average prices for all teas of that type in list form
+# Apply bubble thresholding similar to above function
+def getAveragePriceOfTeasOfType(teaType=None, overlap_threshold=0.02):
+    if teaType is None:
+        RichPrintError("teaType must be provided")
+        return None
+    prices = getAveragePriceRange(teaType)
+    RichPrintInfo(f"Found {len(prices)} prices for tea type '{teaType}'")
+    prices = sorted(prices)
+    if not prices:
+        RichPrintError("No prices found")
+        return None
+    
+    threshold = overlap_threshold * (max(prices) - min(prices) if max(prices) != min(prices) else 1e-6)
+    clusters = []
+    current_cluster = [prices[0]]
+
+    # Group nearby points
+    for p in prices[1:]:
+        if abs(p - current_cluster[-1]) <= threshold:
+            current_cluster.append(p)
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [p]
+    clusters.append(current_cluster)
+
+    # Now convert clusters into (x, y, size) points
+    points = []
+    for cluster in clusters:
+        x = np.mean(cluster)  # average price in cluster
+        # y should be static as the plot is very flat
+        y = 1
+        size = len(cluster)
+        # Round y to 2 decimal places
+        y = round(y, 2)
+        points.append((x, y, size))
+    return points, len(prices)
+
+# Given a type of tea, and a price, calculate the percentile of that price among all teas of that type
+# (excluding teas with price <= 0.01)
+def getPercentileofPricing(teaType=None, price=None):
+    if teaType is None or price is None:
+        RichPrintError("teaType and price must be provided")
+        return None
+    
+    prices = getAveragePriceRange(teaType)
+    # Exclude prices <= 0.01
+    prices = [p for p in prices if p > 0.01]
+    if not prices:
+        RichPrintError("No valid prices found")
+        return None
+    prices = sorted(prices)
+    # Calculate the percentile
+    numBelow = sum(1 for p in prices if p < price)
+    percentile = (numBelow / len(prices)) * 100
+    return percentile
+
+def getPercentileOfRatingGivenType(teaType=None, rating=None):
+    if teaType is None or rating is None:
+        RichPrintError("teaType and rating must be provided")
+        return None
+    ratings = getAverageRatingsByTeaType(teaType)
+    if not ratings:
+        RichPrintError("No ratings found")
+        return None
+    ratings = sorted(ratings)
+    numBelow = sum(1 for r in ratings if r < rating)
+    percentile = (numBelow / len(ratings)) * 100
+    return percentile
+
+def getAveragePriceRange(teaType=None):
+    # If none are provided, it is considered "All"
+    prices = []
+    for tea in TeaStash:
+        teaTypeLower = teaType.lower().strip() if teaType is not None else None
+        searchedType = tea.attributes.get('Type', '').lower().strip() if teaType is not None else None
+        if teaType is None or (searchedType in teaTypeLower) or (searchedType == teaTypeLower):
+            if tea.calculated.get("costPerGram") is not None and tea.calculated.get("costPerGram") > 0.01:
+                prices.append(tea.calculated.get("costPerGram"))
+    return prices
+
 def getAverageRatingsAll():
     ratings = []
     for tea in TeaStash:
@@ -970,8 +1058,7 @@ def getAverageRatingsByYear(year):
                     ratings.append(review.attributes.get("Final Score"))
     return ratings
 
-def make_rating_bubble_image(points, width=300, height=125, highlight=None, name="", grade_labels=True):
-
+def make_rating_bubble_image(points, width=300, height=125, highlight=None, name="", grade_labels=True, labelPrefix="", labelSuffix=""):
     # Create figure
     fig, ax = plt.subplots(figsize=(width/100, height/100), dpi=100)
     x, y, size = zip(*points)
@@ -1011,6 +1098,17 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
         # Set tick positions and labels
         ax.set_xticks(list(labels.keys()))
         ax.set_xticklabels(list(labels.values()))
+        ax.tick_params(axis='x', which='major', labelsize=11)
+    else:
+        # Determine numeric labels based on min and max x
+        min_x = min(x)
+        max_x = max(x)
+        step = (max_x - min_x) / 5
+        numeric_labels = [round(min_x + i * step, 1) for i in range(6)]
+        labels = {val: f"{labelPrefix}{val}{labelSuffix}" for val in numeric_labels}
+        ax.set_xticklabels([labels[val] for val in numeric_labels])
+        ax.set_xticks(numeric_labels)
+        ax.tick_params(axis='x', which='major', labelsize=11)
 
     ax.scatter(x, y, s=bubble_sizes, alpha=0.6, edgecolors='black', linewidths=0.5)
     if highlight is not None:
@@ -1019,7 +1117,10 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
     ax.set_ylabel("")  # y is just jitter
     ax.set_title(name if name else "Rating Distribution")
     ax.set_ylim(min(y) - 0.1, max(y) + 0.1)
-    ax.set_xlim(-0.5, 5.5)
+    if grade_labels == True:
+        ax.set_xlim(-0.5, 5.5)
+    else:
+        ax.set_xlim(-0.1, max(x) * 1.1)
     ax.get_yaxis().set_visible(False)
     ax.grid(alpha=0.2)
 
@@ -1034,7 +1135,73 @@ def make_rating_bubble_image(points, width=300, height=125, highlight=None, name
     chart_img = Image.open(buf)
     return chart_img
 
+# We calculate the percentiles for price and rating and return a combined visualization
+# that shows both price and rating percentiles in an intuitive way
+# We also show the difference between the two (cheap tea should be good value, expensive tea should be high quality)
+# We visualize this with a dumbell scatter plot
+def make_price_rating_value_image(price_per_gram, rating, price_percentile, rating_percentile, name="", width=320, height=130):
+    difference = rating_percentile - price_percentile
 
+    # Convert pixel size to inches for matplotlib
+    dpi = 100
+    fig_w = width / dpi
+    fig_h = height / dpi
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+
+    # Dumbbell plot
+    ax.plot(
+        [price_percentile, rating_percentile],
+        [0, 0],
+        linewidth=2
+    )
+    ax.scatter(price_percentile, 0, s=50, zorder=3, label="Price", color="red")
+    ax.scatter(rating_percentile, 0, s=50, zorder=3, label="Rating", color="green")
+
+    # Annotations
+    price_percentile = round(price_percentile, 2)
+    rating_percentile = round(rating_percentile, 2)
+    ax.text(price_percentile, 0.14, f"{price_percentile:.0f}%", ha="left", fontsize=11)
+    ax.text(rating_percentile, 0.14, f"{rating_percentile:.0f}%", ha="right", fontsize=11)
+
+    ax.text(
+        (price_percentile + rating_percentile) / 2,
+        -0.28,
+        f"Δ {difference:+.0f}%",
+        ha="center",
+        fontsize=11,
+    )
+
+    # Title and subtitle
+    price_per_gram = round(price_per_gram, 2)
+    title = f"${price_per_gram:.2f}/g ({price_percentile:.0f}%) • Rating {rating:.1f} ({rating_percentile:.0f}%)"
+
+    ax.set_title(title, fontsize=12, pad=4)
+
+    # Styling
+    ax.set_xlim(0, 100)
+    ax.set_ylim(-0.5, 0.5)
+    ax.set_yticks([])
+    #ax.set_xlabel("Percentile", fontsize=11)
+    ax.tick_params(axis="x", labelsize=11)
+
+    for spine in ["top", "right", "left"]:
+        ax.spines[spine].set_visible(False)
+
+    plt.tight_layout()
+
+    # Save to image buffer
+    buf = BytesIO()
+    plt.savefig(buf, format="png", transparent=True)
+    plt.close(fig)
+    buf.seek(0)
+
+    return Image.open(buf)
+
+#endregion
+
+
+#region Helpers3
 
 # TODO: Fuzzy tea name matching under same vendor and type (ie sample vs cake or year differences)
 def fuzzy_tea_name_matching(tea, strict_vendor=True, strict_type=True, strict_year=False):
@@ -1659,6 +1826,10 @@ class ReviewCategory:
             except ValueError:
                 RichPrintWarning(f"Value {value} for key {key} is not a valid float for Cost per Gram.")
                 return str(value)
+
+            # Free sample casting
+            if value == 0 or value <= 0.01:
+                return "Free Sample"
             return f"${value:.2f}/g"
 
         # Handle datetime formatting
@@ -1950,7 +2121,7 @@ class ReviewCategory:
         thisTeaAverageRating = teaLevelAttributes["Average Rating"] if isinstance(teaLevelAttributes["Average Rating"], (int, float)) else review.attributes.get("Final Score", None)
         typeDatapts = getAverageRatingRange(teaType=teaParent.attributes.get("Type", None))
         vendorDatapts = getAverageRatingRange(vendor=teaParent.attributes.get("Vendor", None))
-        allDatrapts = getAverageRatingRange()
+        allDatapts = getAverageRatingRange()
         sumTypeData = 0
         totalTypeData = 0
         sumvendorData = 0
@@ -1963,12 +2134,19 @@ class ReviewCategory:
         for pt in vendorDatapts:
             sumvendorData += pt[0] * pt[2]
             totalvendorData += pt[2]
-        for pt in allDatrapts:
+        for pt in allDatapts:
             sumAllData += pt[0] * pt[2]
             totalAllData += pt[2]
         typeAvrg = sumTypeData / totalTypeData if totalTypeData > 0 else 0
         vendorAvrg = sumvendorData / totalvendorData if totalvendorData > 0 else 0
-        allAvrg = sumAllData / totalAllData if totalAllData > 0 else 0
+        priceDataPts, lenPriceData = getAveragePriceOfTeasOfType(teaType=teaParent.attributes.get("Type", None))
+        thisTeaPricePerGram = teaParent.calculated.get("costPerGram")
+
+        # Calc percentiles
+        pricePercentile = getPercentileofPricing(teaParent.attributes.get("Type", None), thisTeaPricePerGram) if thisTeaPricePerGram is not None else None
+        ratingPercentile = getPercentileOfRatingGivenType(teaParent.attributes.get("Type", None), thisTeaAverageRating) if thisTeaAverageRating is not None else None
+
+        print(f"Type average rating: {typeAvrg}, Vendor average rating: {vendorAvrg}, Price percentile: {pricePercentile}, Rating percentile: {ratingPercentile}")
 
 
         # --- Text & HTML Review Generation ---
@@ -2079,13 +2257,18 @@ class ReviewCategory:
 
                     # Calculate height for the wrapped value
                     wrapped_lines = textwrap.wrap(str(value), width=80)
-                    value_height = len(wrapped_lines) * (key_height + line_spacing + 4)
+                    value_height = len(wrapped_lines) * (key_height + line_spacing + 7)
 
                     current_y += value_height + line_spacing
 
+            # Add space for cross-review summary if applicable
+            if hasTeaLevelAttributes and not overrideDoNotgenerateTeaLevelAttributes:
+                current_y += line_spacing * 2 # space for seperator line
+                current_y += 50  # Arbitrary space for cross-review summary
+
             # Add space for graphs if applicable
             if not overrideDoNotDrawGraphs_relativeBubbles:
-                current_y += 125  # Arbitrary space for graphs
+                current_y += 225  # Arbitrary space for graphs
                 current_y += line_spacing * 2 # space for seperator line
 
             image_height = current_y + padding
@@ -2166,9 +2349,9 @@ class ReviewCategory:
                 # add a line separator
                 draw.line((padding, current_y, image_width - padding, current_y), fill=(200, 200, 200), width=2)
                 current_y += line_spacing * 2
-                chart_img_all = make_rating_bubble_image(allDatrapts, highlight=thisTeaAverageRating, name="All" +f" (t={totalAllData})")
-                chart_img_type = make_rating_bubble_image(typeDatapts, highlight=thisTeaAverageRating, name="Type: " + teaParent.attributes.get("Type", "Unknown") +f" (t={totalTypeData})")
-                chart_img_vendor = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (t={totalvendorData})")
+                chart_img_all = make_rating_bubble_image(allDatapts, highlight=thisTeaAverageRating, name="All" +f" (n={totalAllData})", grade_labels=True)
+                chart_img_type = make_rating_bubble_image(typeDatapts, highlight=thisTeaAverageRating, name="Type: " + teaParent.attributes.get("Type", "Unknown") +f" (n={totalTypeData})")
+                chart_img_vendor = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (n={totalvendorData})")
                 chart_title = "Relative Rating Comparison"
                 draw.text((padding, current_y), chart_title, fill=(0, 0, 0), font=body_font)
                 current_y += body_font.getbbox(chart_title)[3] - body_font.getbbox(chart_title)[1] + line_spacing
@@ -2178,6 +2361,23 @@ class ReviewCategory:
                     img.paste(chart_img_type, (padding + (chart_img_all.width if chart_img_all is not None else 0) + 20, current_y))
                 if chart_img_vendor is not None:
                     img.paste(chart_img_vendor, (padding + (chart_img_all.width if chart_img_all is not None else 0) + (chart_img_type.width if chart_img_type is not None else 0) + 40, current_y))
+            
+
+                # Second row of graphs can go here, placeholders, use previously defined functions
+                current_y += max(chart_img_all.height if chart_img_all is not None else 0, chart_img_type.height if chart_img_type is not None else 0, chart_img_vendor.height if chart_img_vendor is not None else 0) + 10
+                chart_img_ppg = make_rating_bubble_image(priceDataPts, highlight=thisTeaPricePerGram, name="$/g of Type: " + teaParent.attributes.get("Type", "Unknown") +f" (n={lenPriceData})", grade_labels=False, labelPrefix="$")
+                chart_img_value = make_price_rating_value_image(thisTeaPricePerGram, thisTeaAverageRating, pricePercentile, ratingPercentile)
+                #chart_img_vendor2 = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (t={totalvendorData})")
+                #chart_title2 = "Relative Rating Comparison 2"
+                #draw.text((padding, current_y), chart_title2, fill=(0, 0, 0), font=body_font)
+                #current_y += body_font.getbbox(chart_title2)[3] - body_font.getbbox(chart_title2)[1] + line_spacing
+                if chart_img_ppg is not None:
+                    img.paste(chart_img_ppg, (padding, current_y))
+                if chart_img_value is not None:
+                    img.paste(chart_img_value, (padding + (chart_img_ppg.width if chart_img_ppg is not None else 0) + 20, current_y))
+                #if chart_img_vendor2 is not None:
+                #    img.paste(chart_img_vendor2, (padding + (chart_img_ppg.width if chart_img_ppg is not None else 0) + (chart_img_value.width if chart_img_value is not None else 0) + 40, current_y))
+
             current_y += max(chart_img_type.height, chart_img_vendor.height) + 20
             # --- Save Image ---
 
@@ -3690,7 +3890,6 @@ class Window_Stash(WindowBase):
                 # Add the categories
                 for i, cat in enumerate(TeaCategories):
                     dp.TableColumn(label=cat.name, no_resize=False, no_clip=True, user_data=f"{i+1}")
-                    print(f"Added column for category {cat.name}, index {i+1}")
                 dp.TableColumn(label="Reviews", no_resize=False, no_clip=True, width=300, no_hide=True)
                 dp.TableColumn(label="Actions", no_resize=False, no_clip=True, width=50, no_hide=True)
 
@@ -8433,7 +8632,7 @@ def main():
         "TEA_REVIEWS_PATH": f"ratea-data/tea_reviews.yml",
         "BACKUP_PATH": f"ratea-data/backup",
         "PERSISTANT_WINDOWS_PATH": f"ratea-data/persistant_windows.yml",
-        "APP_VERSION": "0.21.0", # Updates to most recently loaded
+        "APP_VERSION": "0.25.0", # Updates to most recently loaded
         "AUTO_SAVE": True,
         "AUTO_SAVE_INTERVAL": 15, # Minutes
         "AUTO_SAVE_PATH": f"ratea-data/auto_backup",
