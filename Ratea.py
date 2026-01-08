@@ -6,6 +6,7 @@ import random
 from statistics import stdev
 import time
 import uuid
+import PIL
 import dearpypixl as dp
 import dearpygui.dearpygui as dpg
 import dearpygui.demo as demo
@@ -794,7 +795,7 @@ def getGradeLetter(value):
     RichPrintError(f"Value {value} not found in grading options")
     return None
 
-def getGradeLetterFuzzy(value):
+def getGradeLetterFuzzy(value, onlyLetter=False):
     # Gets letter based on fuzzy range in the format
     # Letter (actual value)
     # Letters start at defined range and end right above the next range
@@ -814,7 +815,10 @@ def getGradeLetterFuzzy(value):
         gradeLettersOnly = grade.split(" (")[0]  # Get the letter part of the grade
         # If exact match, return grade
         if getGradeValue(grade) == value:
-            return grade
+            if onlyLetter:
+                return f"{gradeLettersOnly}"
+            else:
+                return f"{gradeLettersOnly} ({value})"
         
         upperBound = getGradeValue(grade)
         lowerBound = upperBound - 0.5  # Assuming each grade has a range of 0.25
@@ -826,14 +830,63 @@ def getGradeLetterFuzzy(value):
             lowerBound = 0
             upperBound = 0.25
 
-        if lowerBound < value <= upperBound:
-            # If value is in range, return grade
-            return f"{gradeLettersOnly} ({value})"  # Return grade with value in format "Grade (value)"
+        if onlyLetter:
+            if lowerBound < value <= upperBound:
+                # If value is in range, return grade
+                return f"{gradeLettersOnly}"
+        else:
+            if lowerBound < value <= upperBound:
+                # If value is in range, return grade
+                return f"{gradeLettersOnly} ({value})"
 
-                
     # If no grade found, return None
     RichPrintError(f"Value {value} not found in grading options")
     return None
+
+def resolveLetterGradeToImageGradeIncludingMinusSigns(thisTeaAverageRating):
+    # Resolve letter grade to image grade including minus signs
+    
+    # First get the base letter grade
+    baseGrade = getGradeLetterFuzzy(thisTeaAverageRating, onlyLetter=True)
+    if baseGrade is None:
+        return None
+    hasMinus = False
+    # Check if the value is in the minus range
+    if "-" in baseGrade:
+        hasMinus = True
+        baseGrade = baseGrade.replace("-", "")
+
+    # First construct the image grade
+    asset_path = f"./assets/images/ui_letter_{baseGrade}.png"
+    print(f"Base asset path: {asset_path}")
+    final_image = None
+    try:
+        chart_img = Image.open(asset_path)
+        # Normalize orientation (important!)
+        chart_img = PIL.ImageOps.exif_transpose(chart_img)
+        # Composite over white if transparent
+        if chart_img.mode in ("RGBA", "LA") or (chart_img.mode == "P" and "transparency" in chart_img.info):
+            chart_img = PIL.Image.alpha_composite(
+                PIL.Image.new("RGBA", chart_img.size, (255, 255, 255, 255)),
+                chart_img.convert("RGBA")
+            ).convert("RGB")
+        chart_image_test = chart_img.resize((128, 128), Image.LANCZOS)
+
+        # Add the minus sign if needed
+        if hasMinus:
+            # for now, construct the minus as a red line at the right spot
+            draw = ImageDraw.Draw(chart_image_test)
+            line_y = 16  # Y position for the minus sign
+            line_start_x = 72  # Start X position
+            line_end_x = 120    # End X position
+            line_thickness = 14  # Thickness of the minus sign
+            draw.line((line_start_x, line_y, line_end_x, line_y), fill="red", width=line_thickness)
+        final_image = chart_image_test
+        return final_image
+    except Exception as e:
+        RichPrintError(f"Error loading test image: {e}")
+    return None
+
 
 def getGradeDropdownValueByFloat(value):
     # Get the dropdown value for a float value
@@ -1058,7 +1111,7 @@ def getAverageRatingsByYear(year):
                     ratings.append(review.attributes.get("Final Score"))
     return ratings
 
-def make_rating_bubble_image(points, width=300, height=125, highlight=None, name="", grade_labels=True, labelPrefix="", labelSuffix=""):
+def make_rating_bubble_image(points, width=320, height=125, highlight=None, name="", grade_labels=True, labelPrefix="", labelSuffix=""):
     # Create figure
     fig, ax = plt.subplots(figsize=(width/100, height/100), dpi=100)
     x, y, size = zip(*points)
@@ -2119,9 +2172,9 @@ class ReviewCategory:
 
         # Graph data getting
         thisTeaAverageRating = teaLevelAttributes["Average Rating"] if isinstance(teaLevelAttributes["Average Rating"], (int, float)) else review.attributes.get("Final Score", None)
-        typeDatapts = getAverageRatingRange(teaType=teaParent.attributes.get("Type", None))
-        vendorDatapts = getAverageRatingRange(vendor=teaParent.attributes.get("Vendor", None))
-        allDatapts = getAverageRatingRange()
+        typeDatapts = getAverageRatingRange(teaType=teaParent.attributes.get("Type", None), overlap_threshold=0.04)
+        vendorDatapts = getAverageRatingRange(vendor=teaParent.attributes.get("Vendor", None), overlap_threshold=0.04)
+        allDatapts = getAverageRatingRange(overlap_threshold=0.04)
         sumTypeData = 0
         totalTypeData = 0
         sumvendorData = 0
@@ -2271,7 +2324,7 @@ class ReviewCategory:
                 current_y += 225  # Arbitrary space for graphs
                 current_y += line_spacing * 2 # space for seperator line
 
-            image_height = current_y + padding
+            image_height = current_y + padding + 200
 
             # --- Create and Draw Image ---
             img = Image.new('RGB', (image_width, image_height), color=(240, 240, 240))
@@ -2367,6 +2420,10 @@ class ReviewCategory:
                 current_y += max(chart_img_all.height if chart_img_all is not None else 0, chart_img_type.height if chart_img_type is not None else 0, chart_img_vendor.height if chart_img_vendor is not None else 0) + 10
                 chart_img_ppg = make_rating_bubble_image(priceDataPts, highlight=thisTeaPricePerGram, name="$/g of Type: " + teaParent.attributes.get("Type", "Unknown") +f" (n={lenPriceData})", grade_labels=False, labelPrefix="$")
                 chart_img_value = make_price_rating_value_image(thisTeaPricePerGram, thisTeaAverageRating, pricePercentile, ratingPercentile)
+                # TESTING, paste an image representing the letter grade including minus signs
+                # Disabled for now
+                #chart_image_test = resolveLetterGradeToImageGradeIncludingMinusSigns(thisTeaAverageRating)
+
                 #chart_img_vendor2 = make_rating_bubble_image(vendorDatapts, highlight=thisTeaAverageRating, name="Vendor: " + teaParent.attributes.get("Vendor", "Unknown") +f" (t={totalvendorData})")
                 #chart_title2 = "Relative Rating Comparison 2"
                 #draw.text((padding, current_y), chart_title2, fill=(0, 0, 0), font=body_font)
@@ -2375,13 +2432,20 @@ class ReviewCategory:
                     img.paste(chart_img_ppg, (padding, current_y))
                 if chart_img_value is not None:
                     img.paste(chart_img_value, (padding + (chart_img_ppg.width if chart_img_ppg is not None else 0) + 20, current_y))
+                #if chart_image_test is not None:
+                #    img.paste(chart_image_test, (padding + (chart_img_ppg.width if chart_img_ppg is not None else 0) + (chart_img_value.width if chart_img_value is not None else 0) + 80, current_y+10))
                 #if chart_img_vendor2 is not None:
                 #    img.paste(chart_img_vendor2, (padding + (chart_img_ppg.width if chart_img_ppg is not None else 0) + (chart_img_value.width if chart_img_value is not None else 0) + 40, current_y))
 
             current_y += max(chart_img_type.height, chart_img_vendor.height) + 20
+
+            # Trim the bottom of the image of excess space
+            img = img.crop((0, 0, image_width, current_y + padding))
+
+
+
+
             # --- Save Image ---
-
-
             # Save image to unique path with timestamp, review, parent id, parent name abridged, using underscores
             image_path = f"review_{review.id}_{review.parentID}_{sessionNum}_{teaParent.name[:20].replace(' ', '_')}_{int(dt.datetime.now().timestamp())}.png"
             # | is invalid character for file names, remove it
@@ -2391,7 +2455,7 @@ class ReviewCategory:
         else:
             image_path = None
 
-        return text_review, html_review, image_path
+        return text_review, html_review, image_path, current_y
 
 #endregion
 
@@ -3689,7 +3753,7 @@ class Window_Stash_Reviews(WindowBase):
             RichPrintError("No review provided for export.")
             return
         # Generate the export text
-        textReview, htmlReview, imagePath = TeaReviewCategories[0].generate_review_outputs(review)
+        textReview, htmlReview, imagePath, imageSize = TeaReviewCategories[0].generate_review_outputs(review)
         # Copy the text review to clipboard
         try:
             pyperclip.copy(textReview)
@@ -3710,7 +3774,7 @@ class Window_Stash_Reviews(WindowBase):
                 dp.Text(f"Image Path (screenshot of review): {imagePath}")
                 # Add image to registry
                 addImageToRegistryFromFile(imagePath, f"{imagePath[:-4]}")
-                dp.Image(f"{imagePath[:-4]}", width=600 * settings["UI_SCALE"], height=450 * settings["UI_SCALE"])
+                dp.Image(f"{imagePath[:-4]}", width=600 * settings["UI_SCALE"], height=imageSize * (600 * settings["UI_SCALE"] / imageSize))
             else:
                 dp.Text("No image generated.")
             dp.Separator()
