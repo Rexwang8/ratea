@@ -3056,7 +3056,7 @@ class Window_Stash_Reviews(WindowBase):
     refreshIcon = None
     searchFilterAttrCached = "Name"
 
-    
+
     def ShowAddReview(self, sender, app_data, user_data):
         # Call Edit review with Add
         tea = user_data[0]
@@ -5471,6 +5471,7 @@ def populateStatsCache():
     cache["startDay"] = statsgetStartDayTimestamp()
     totalDays = dt.datetime.now(tz=dt.timezone.utc).timestamp() - cache["startDay"]
     cache["totalDays"] = totalDays / (24 * 60 * 60)  # Convert to days
+    monthsSinceStart = cache["totalDays"] / 30.44  # Average days per month
 
     # Num teas by type
     cache["numTeasByType"] = dict()
@@ -5503,6 +5504,7 @@ def populateStatsCache():
     listTopTenTeasSoldByValue = []
     dictTeaVolByType = {}
     ctrTotalTeasSold= 0
+    dictRatingsByVendor = {} # Ratings by vendor
     # Samples are defined as under or including 30g of total amount original.
     ctrTotalSamples = 0
     ctrSumTotalSampleAmount = 0
@@ -5512,6 +5514,12 @@ def populateStatsCache():
     # Bulk is defined as over 150g of total amount original.
     ctrTotalBulk = 0
     ctrSumTotalBulkAmount = 0
+
+    # Histogram 1 data, tea consumed by month (dates not handled well, use months from start day to now)
+    cache["histogram1Data"] = {
+        "month": {},
+        "year": {}
+    }
 
     # Set to 1990-01-01 00:00:00 UTC as the default for latest purchase
     ctrLatestPurchase = dt.datetime(1990, 1, 1, 0, 0, 0, tzinfo=dt.timezone.utc).timestamp()
@@ -5633,6 +5641,27 @@ def populateStatsCache():
 
 
         ctrTotalConsumedByReviews += ctrTeaDrankReviews
+
+        # Histogram 1 data (tea consumed by month or year)
+        # Get the number of months since start day for the tea's reviews
+        for review in tea.reviews:
+            reviewDateunix = review.attributes.get("date", None)
+            if reviewDateunix is not None:
+                reviewDate = TimeStampToDateDict(reviewDateunix)
+                reviewYear = f"{(reviewDate['year'] + 1900)}" # Offset year to start from 1900 for easier histogramming
+                reviewMonth = f"{reviewDate['month']}-{reviewYear}"
+                
+                reviewAmount = review.attributes.get("Amount", 0)
+                # Add to histogram data the amount consumed in this review
+                if reviewMonth not in cache["histogram1Data"]["month"]:
+                    cache["histogram1Data"]["month"][reviewMonth] = 0
+                if reviewYear not in cache["histogram1Data"]["year"]:
+                    cache["histogram1Data"]["year"][reviewYear] = 0
+
+                cache["histogram1Data"]["month"][reviewMonth] += reviewAmount
+                cache["histogram1Data"]["year"][reviewYear] += reviewAmount
+
+
         # Calculate remaining
         ctrTeaRemaining = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Standard", 0) - tea.adjustments.get("Gift", 0) - tea.adjustments.get("Sale", 0)
 
@@ -5691,6 +5720,17 @@ def populateStatsCache():
             
         # Autocalc explanation for cost per gram
         costPerGramExplanation = f"${tea.attributes['Cost']:.2f} Cost\n/ {tea.attributes['Amount']:.2f} Amount\n= ${autocalcCostPerGram:.2f} Price per gram"
+        
+        # Ratings by vendor
+        if "Final Score" in allTypesCategoryRoleReviewsValid and "Vendor" in tea.attributes:
+            if autocalcAveragedScore >= 0:
+                vendor = tea.attributes["Vendor"]
+                if vendor not in dictRatingsByVendor:
+                    dictRatingsByVendor[vendor] = list()
+                dictRatingsByVendor[vendor].append(autocalcAveragedScore)
+            else:
+                dictRatingsByVendor[vendor].append(-1)
+
         # Add to tea.cache
         tea.calculated["remaining"] = ctrTeaRemaining
         tea.calculated["remainingExplanation"] = remainingExplanation
@@ -5787,6 +5827,23 @@ def populateStatsCache():
         cache["totalReturnedBySales"] = 0
         cache["averageReturnedBySales"] = 0
 
+    if len(dictRatingsByVendor) > 0:
+        cache["ratingsByVendor"] = {}
+        for vendor in dictRatingsByVendor:
+            # -1s indicate untried tea, count them seperately so we have a total teas drank for the vendor
+            # we want a number of reviews (count), a number of teas and number of untried teas
+            numTeas = sum(1 for score in dictRatingsByVendor[vendor] if score != -1)
+            numUntried = dictRatingsByVendor[vendor].count(-1)
+            sumRatings = sum(score for score in dictRatingsByVendor[vendor] if score != -1)
+            lenRatingsTried = len(dictRatingsByVendor[vendor]) - numUntried
+            cache["ratingsByVendor"][vendor] = {
+                "average": sumRatings / lenRatingsTried if lenRatingsTried > 0 else 0,
+                "count": len(dictRatingsByVendor[vendor]),
+                "numTeas": numTeas,
+                "numUntried": numUntried
+            }
+    else:
+        cache["ratingsByVendor"] = {}
     # Top ten teas sold by value
     listTopTenTeasSoldByValue.sort(key=lambda x: x[1], reverse=True)
     cache["topTenTeasSoldByValue"] = listTopTenTeasSoldByValue[:10]  # Limit to top 10
@@ -5850,7 +5907,7 @@ def populateStatsCache():
     cache["scoreByType"] = dictCtrScoresByType
 
     # Average purchase per month
-    monthsSinceStart = cache["totalDays"] / 30.44  # Average days per month
+    
     if monthsSinceStart > 0:
         cache["averagePurchasePerMonth"] = cache["totalCost"] / monthsSinceStart
     else:
@@ -6373,7 +6430,74 @@ class Window_Stats(WindowBase):
             else:
                 dp.Text("Required Category role 'Amount' for Tea is not enabled.")
             dp.Separator()
-            
+
+        # Consumed amounts, in histogram form
+        with dp.CollapsingHeader(label="Consumed Amounts Histogram", default_open=False):
+            if "Amount" in AllTypesCategoryRoleValid:
+                dp.Text("Consumed Amounts Histogram")
+                # Create histogram data
+                histogramData = self.cache["histogram1Data"]
+                histByMonth = histogramData["month"]
+                histByYear = histogramData["year"]
+                sorted_keys = sorted(histByMonth.keys(), 
+                         key=lambda x: (int(x.split('-')[1]), int(x.split('-')[0])))
+                
+                sorted_keys_year = sorted(histByYear.keys())
+
+                plot_x = []
+                plot_y = []
+                tick_labels = []
+
+                step = 3 if len(sorted_keys) > 9 else 1
+
+                for i, key in enumerate(sorted_keys):
+                    plot_x.append(i) # Use index for the X coordinate
+                    plot_y.append(histByMonth[key])
+                    # Only add the text label if it's the Nth item
+                    if i % step == 0:
+                        tick_labels.append((key, i))
+                    else:
+                        tick_labels.append(("", i)) # Keep the tick mark, but no text
+
+                with dpg.collapsing_header(label="By Month", default_open=True):
+                    with dpg.plot(label="Consumed Amounts by Month", height=300, width=-1):
+                        # Create X Axis
+                        xaxis = dpg.add_plot_axis(dpg.mvXAxis, label="Month")
+                        # Apply the labels to the ticks
+                        dpg.set_axis_ticks(xaxis, tuple(tick_labels))
+
+                        # Create Y Axis
+                        yaxis = dpg.add_plot_axis(dpg.mvYAxis, label="Consumed Amount (g)")
+
+                        # Use Bar Series instead of Histogram Series for pre-aggregated data
+                        dpg.add_bar_series(plot_x, plot_y, label="Monthly Consumption", parent=yaxis)
+
+                        # Optional: Fit data to view
+                        dpg.fit_axis_data(xaxis)
+                        dpg.fit_axis_data(yaxis)
+
+                plot_x_year = []
+                plot_y_year = []
+                tick_labels_year = []
+                for i, key in enumerate(sorted_keys_year):
+                    plot_x_year.append(i) # Use index for the X coordinate
+                    plot_y_year.append(histByYear[key])
+                    tick_labels_year.append((key, i)) # Add all year labels
+
+                with dp.CollapsingHeader(label="By Year", default_open=True):
+                    with dp.Plot(label="Consumed Amounts by Year", height=300 * settings["UI_SCALE"], width=-1):
+                        xaxis = dpg.add_plot_axis(dpg.mvXAxis, label="Year")
+                        yaxis = dpg.add_plot_axis(dpg.mvYAxis, label="Consumed Amount (g)")
+                        dpg.set_axis_ticks(xaxis, tuple(tick_labels_year))
+                        dpg.add_bar_series(plot_x_year, plot_y_year, label="Yearly Consumption", parent=yaxis)
+                        dpg.fit_axis_data(xaxis)
+                        dpg.fit_axis_data(yaxis)
+                dp.Separator()
+            else:
+                dp.Text("No data available for histogram.")
+
+                dp.Separator()
+            dp.Separator()
 
 
     # Steeps and water consumption stats
@@ -6504,6 +6628,16 @@ class Window_Stats(WindowBase):
                 dp.Text(f"Bags (31g to 199g): {bagSumTxt}")
                 dp.Text(f"Bulks (200g and above): {bulkSumTxt}")
                 dp.Separator()
+
+        with dp.CollapsingHeader(label="Ratings Distribution", default_open=False):
+            with dp.CollapsingHeader(label="By Vendor", default_open=False, indent=20 * settings["UI_SCALE"]):
+                ratingsByVendor = self.cache["ratingsByVendor"]
+                if ratingsByVendor:
+                    for vendor, data in ratingsByVendor.items():
+                        average_letter = getGradeLetterFuzzy(data['average'], onlyLetter=True)
+                        dp.Text(f"{vendor}: {data['average']:.2f} {average_letter} ({data['count']} reviewed teas, {data['numTeas']} teas, {data['numUntried']} untried)")
+                else:
+                    dp.Text("No ratings found.")
 
     def windowDefintion(self, window):
         self.win = window
