@@ -2,6 +2,7 @@ import csv
 import datetime as dt
 from io import BytesIO
 import json
+import math
 import random
 from statistics import stdev
 import time
@@ -1219,7 +1220,7 @@ def make_price_rating_value_image(price_per_gram, rating, price_percentile, rati
 
     ax.text(
         (price_percentile + rating_percentile) / 2,
-        -0.28,
+        -0.3, # y offset
         f"Δ {difference:+.0f}%",
         ha="center",
         fontsize=11,
@@ -1239,6 +1240,133 @@ def make_price_rating_value_image(price_per_gram, rating, price_percentile, rati
     ax.tick_params(axis="x", labelsize=11)
 
     for spine in ["top", "right", "left"]:
+        ax.spines[spine].set_visible(False)
+
+    plt.tight_layout()
+
+    # Save to image buffer
+    buf = BytesIO()
+    plt.savefig(buf, format="png", transparent=True)
+    plt.close(fig)
+    buf.seek(0)
+
+    return Image.open(buf)
+
+
+
+def make_tea_consumption_progress_image(
+    not_consumed_reasons,     # dict[str, float]  e.g. {"Sale": 12.5, "Gifted": 0}
+    reviews_done,             # int
+    total_consumed,           # float (grams)
+    total_purchased,          # float (grams)
+    last_consumed, # float (grams)
+    name="",
+    width=320,
+    height=130
+):
+    # Safety
+    total_purchased = max(total_purchased, 1e-6)
+
+    # Normalize values
+    consumed_pct_previous = (total_consumed - last_consumed) / total_purchased * 100
+    consumed_pct_this = (last_consumed) / total_purchased * 100
+    consumed_pct = total_consumed / total_purchased * 100
+
+    reason_items = [
+        (k, v) for k, v in not_consumed_reasons.items() if v > 0
+    ]
+
+    # Color palette (extendable)
+    reason_colors = [
+        "#f4a261", "#e76f51", "#2a9d8f", "#e9c46a", "#8ab17d"
+    ]
+
+    # Figure setup
+    dpi = 100
+    fig_w = width / dpi
+    fig_h = height / dpi
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), dpi=dpi)
+
+    # --- Build stacked bar ---
+    left = 0.0
+
+    # Not-consumed reasons
+    for (reason, amount), color in zip(reason_items, reason_colors):
+        pct = amount / total_purchased * 100
+        ax.barh(
+            y=0,
+            width=pct,
+            left=left,
+            height=0.35,
+            color=color,
+            label=reason
+        )
+        left += pct
+
+    # Consumed portion
+    ax.barh(
+        y=0,
+        width=consumed_pct_previous,
+        left=left,
+        height=0.35,
+        color="#347636",
+        label="Consumed"
+    )
+    
+    left += consumed_pct_previous
+
+    ax.barh(
+        y=0,
+        width=consumed_pct_this,
+        left=left,
+        height=0.35,
+        color="#4CAF50",
+        label="Consumed2"
+    )
+
+    left += consumed_pct_this
+
+    
+
+    # --- Labels ---
+    ax.text(
+        7.5,
+        0.35,
+        f"{total_consumed:.1f}g/{total_purchased:.1f}g",
+        ha="left",
+        va="bottom",
+        fontsize=11
+    )
+
+    ax.text(
+        100,
+        0.35,
+        f"{reviews_done} reviews",
+        ha="right",
+        va="bottom",
+        fontsize=11
+    )
+
+    averageConsumedPerReview = total_consumed / reviews_done if reviews_done > 0 else 0
+    estimatedReviewsLeft = (total_purchased - total_consumed) / averageConsumedPerReview if averageConsumedPerReview > 0 else 0
+    # ceil to nearest int
+    estimatedReviewsLeft = math.ceil(estimatedReviewsLeft)
+
+    # Title
+    title = f"{consumed_pct:.0f}% finished (est. {estimatedReviewsLeft} reviews left)" if estimatedReviewsLeft > 0 else f"{consumed_pct:.0f}% finished (all done!)"
+    ax.set_title(title, fontsize=12, pad=4)
+
+    # Styling
+    ax.set_xlim(0, 100)
+    ax.set_ylim(-0.7, 0.8)
+    ax.set_yticks([])
+
+    ax.set_xticks([0, 25, 50, 75, 100])
+    ax.set_xticklabels(["0%", "25%", "50%", "75%", "100%"])
+    ax.tick_params(axis="x", labelsize=10, length=4)
+
+    for spine in ["top", "right"]:
         ax.spines[spine].set_visible(False)
 
     plt.tight_layout()
@@ -1853,7 +1981,7 @@ class ReviewCategory:
         self.isRequiredForTea = isRequiredForTea
         self.isRequiredForAll = isRequiredForAll
 
-    def format_attribute(self, key, value):
+    def format_attribute(self, key, value, no_inject_grade_meaning=False):
         """Formats a review attribute based on its category metadata."""
         correctTeaReviewCat = TeaReviewCategories # This should be a list of ReviewCategory objects
         correct_cat = None
@@ -1900,7 +2028,10 @@ class ReviewCategory:
             letter_grade = getGradeLetterFuzzy(numerical_value)
             # Will return either None, just the Letter if exact match, or Letter (value) if fuzzy match, we want it to always be letter (value/5)
             if letter_grade:
-                return f"{letter_grade.split(' (')[0]} ({numerical_value:.{correct_cat.rounding}f}/5) | {injectGradeMeaningIntoText(letter_grade)}"
+                if no_inject_grade_meaning:
+                    return f"{letter_grade.split(' (')[0]} ({numerical_value:.{correct_cat.rounding}f}/5)"
+                else:
+                    return f"{letter_grade.split(' (')[0]} ({numerical_value:.{correct_cat.rounding}f}/5) | {injectGradeMeaningIntoText(letter_grade)}"
             else:
                 return f"{numerical_value:.{correct_cat.rounding}f}"
             
@@ -2090,17 +2221,18 @@ class ReviewCategory:
 
 
         # Formatted tea level attributes
-        # Grade/rating should be formatted
-        
-
+        # Grade/rating should be 
+        # We do not inject grade meaning into these summaries to keep them concise
+        # additionally, averaging A+ and B+ gives A- which does not communicate value (A rating but poor value)
+        # so we exclude it entirely.
         if isinstance(teaLevelAttributes.get("Average Score", None), (int, float)):
-            formattedTeaLevelAttributes["Average Score"] = self.format_attribute("Score", teaLevelAttributes["Average Score"])
+            formattedTeaLevelAttributes["Average Score"] = self.format_attribute("Score", teaLevelAttributes["Average Score"], no_inject_grade_meaning=True)
         if isinstance(teaLevelAttributes.get("Average Rating", None), (int, float)):
-            formattedTeaLevelAttributes["Average Rating"] = f"{self.format_attribute("Final Score", teaLevelAttributes["Average Rating"])} (Std Dev: {teaLevelAttributes.get('Rating Std Dev', 'N/A')})"
+            formattedTeaLevelAttributes["Average Rating"] = f"{self.format_attribute("Final Score", teaLevelAttributes["Average Rating"], no_inject_grade_meaning=True)} (Std Dev: {teaLevelAttributes.get('Rating Std Dev', 'N/A')})"
 
         # if average rating is n/a, set to current rating
         if teaLevelAttributes.get("Average Rating", "N/A") == "N/A" and review.attributes.get("Final Score", None) is not None:
-            formatted_value = self.format_attribute("Final Score", review.attributes["Final Score"])
+            formatted_value = self.format_attribute("Final Score", review.attributes["Final Score"], no_inject_grade_meaning=True)
             formattedTeaLevelAttributes["Average Rating"] = f"{formatted_value} (only one review)"
 
         # First , last, average review time before should  be combined into 1 line
@@ -2121,15 +2253,15 @@ class ReviewCategory:
                 reviewDateString += "."
             formattedTeaLevelAttributes["Review Dates"] = reviewDateString
         # Amount drank and number of reviews, should include both total and avrg
-        reviewAmtString = ""
-        if teaLevelAttributes.get("Total Amount Drank", "N/A") != "N/A":
-            if reviewAmtString != "":
-                reviewAmtString += " "
-            reviewAmtString += f"Total amount drank: {teaLevelAttributes['Total Amount Drank']}g over {numReviewsIncludingThisOne} review(s)."
-        else:
-            reviewAmtString += "N/A"
-        
-        formattedTeaLevelAttributes["Amount Drank"] = reviewAmtString
+        #reviewAmtString = ""
+        #if teaLevelAttributes.get("Total Amount Drank", "N/A") != "N/A":
+        #    if reviewAmtString != "":
+        #        reviewAmtString += " "
+        #    reviewAmtString += f"Total amount drank: {teaLevelAttributes['Total Amount Drank']}g over {numReviewsIncludingThisOne} review(s)."
+        #else:
+        #    reviewAmtString += "N/A"
+        #
+        #formattedTeaLevelAttributes["Amount Drank"] = reviewAmtString
 
 
 
@@ -2147,6 +2279,7 @@ class ReviewCategory:
             teaLevelAttributes["First Reviewed"] = teaLevelAttributes["Last Reviewed"]
 
         # combine amount and cost per gram into one line if both exist
+        amount = 0
         if "Amount" in dict(reviewAttributes) and "Cost per Gram" in dict(reviewAttributes):
             amount = dict(reviewAttributes)["Amount"]
             costPerGram = dict(reviewAttributes)["Cost per Gram"]
@@ -2198,9 +2331,18 @@ class ReviewCategory:
         # Calc percentiles
         pricePercentile = getPercentileofPricing(teaParent.attributes.get("Type", None), thisTeaPricePerGram) if thisTeaPricePerGram is not None else None
         ratingPercentile = getPercentileOfRatingGivenType(teaParent.attributes.get("Type", None), thisTeaAverageRating) if thisTeaAverageRating is not None else None
-
         print(f"Type average rating: {typeAvrg}, Vendor average rating: {vendorAvrg}, Price percentile: {pricePercentile}, Rating percentile: {ratingPercentile}")
 
+        # Calc progress to finishing the tea (amount consumed over number of reviews and total final weight)
+        print(f"Calculating progress to finishing tea {teaParent.name}")
+        totalVolumePurchased = teaParent.attributes.get("Amount", None)
+        remaining = totalVolumePurchased - float(teaLevelAttributes['Total Amount Drank'])
+        otherAdjustments = 0
+        for adjName, adjValue in teaParent.adjustments.items():
+            otherAdjustments += adjValue
+
+        print(teaParent.adjustments, otherAdjustments)
+        print(f"{teaLevelAttributes['Total Amount Drank']}g over {numReviewsIncludingThisOne} out of {totalVolumePurchased}g purchased. remaining: {remaining}")
 
         # --- Text & HTML Review Generation ---
         doIncludeTeaYear = teaYear != "" and teaYear is not None
@@ -2420,6 +2562,8 @@ class ReviewCategory:
                 current_y += max(chart_img_all.height if chart_img_all is not None else 0, chart_img_type.height if chart_img_type is not None else 0, chart_img_vendor.height if chart_img_vendor is not None else 0) + 10
                 chart_img_ppg = make_rating_bubble_image(priceDataPts, highlight=thisTeaPricePerGram, name="$/g of Type: " + teaParent.attributes.get("Type", "Unknown") +f" (n={lenPriceData})", grade_labels=False, labelPrefix="$")
                 chart_img_value = make_price_rating_value_image(thisTeaPricePerGram, thisTeaAverageRating, pricePercentile, ratingPercentile)
+                chart_img_progress = make_tea_consumption_progress_image(teaParent.adjustments, numReviewsIncludingThisOne, float(teaLevelAttributes['Total Amount Drank']), totalVolumePurchased, amount)
+
                 # TESTING, paste an image representing the letter grade including minus signs
                 # Disabled for now
                 #chart_image_test = resolveLetterGradeToImageGradeIncludingMinusSigns(thisTeaAverageRating)
@@ -2432,6 +2576,8 @@ class ReviewCategory:
                     img.paste(chart_img_ppg, (padding, current_y))
                 if chart_img_value is not None:
                     img.paste(chart_img_value, (padding + (chart_img_ppg.width if chart_img_ppg is not None else 0) + 20, current_y))
+                if chart_img_progress is not None:
+                    img.paste(chart_img_progress, (padding + (chart_img_ppg.width if chart_img_ppg is not None else 0) + (chart_img_value.width if chart_img_value is not None else 0) + 40, current_y))
                 #if chart_image_test is not None:
                 #    img.paste(chart_image_test, (padding + (chart_img_ppg.width if chart_img_ppg is not None else 0) + (chart_img_value.width if chart_img_value is not None else 0) + 80, current_y+10))
                 #if chart_img_vendor2 is not None:
@@ -2908,6 +3054,9 @@ class Window_Stash_Reviews(WindowBase):
     reviewsWindow = None
     editReviewsWindow = None
     refreshIcon = None
+    searchFilterAttrCached = "Name"
+
+    
     def ShowAddReview(self, sender, app_data, user_data):
         # Call Edit review with Add
         tea = user_data[0]
@@ -3489,7 +3638,7 @@ class Window_Stash_Reviews(WindowBase):
                 for cat in TeaReviewCategories:
                     if cat.categoryRole not in filterOptions:
                         filterOptions.append(cat.categoryRole)
-                filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value="Name", user_data=(None), callback=self._UpdateTableRowFilterKeys)
+                filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value=self.searchFilterAttrCached, user_data=(None), callback=self._UpdateTableRowFilterKeys)
                 # Tooltip
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
@@ -3656,6 +3805,9 @@ class Window_Stash_Reviews(WindowBase):
         # Update the filter keys for the table rows
         rowList = user_data
         catAttr = app_data  # The category attribute to filter by
+        # save the selected attribute for next time
+        self.searchFilterAttrCached = catAttr
+
         for row in rowList:
             # Get the tea object from the row
             review = row[0]
@@ -3795,6 +3947,9 @@ class Window_Stash(WindowBase):
     refreshIcon = None
     hideInvalid = False
     hideFinished = False
+    hideUnreviewed = False
+    hideReviewed = False
+    searchFilterAttrCached = "Name"
 
     def onDelete(self):
         # Close all popups
@@ -3845,6 +4000,28 @@ class Window_Stash(WindowBase):
             RichPrintSuccessMinor("Hiding finished teas.")
         else:
             RichPrintSuccessMinor("Showing all teas, including finished ones.")
+
+        # Refresh the table to apply the filter
+        self.softRefresh()
+
+    def hideUnreviewedFlag(self, sender, app_data, user_data):
+        # Flag to hide unreviewed teas
+        self.hideUnreviewed = app_data
+        if self.hideUnreviewed:
+            RichPrintSuccessMinor("Hiding unreviewed teas.")
+        else:
+            RichPrintSuccessMinor("Showing all teas, including unreviewed ones.")
+
+        # Refresh the table to apply the filter
+        self.softRefresh()
+
+    def hideReviewedFlag(self, sender, app_data, user_data):
+        # Flag to hide reviewed teas
+        self.hideReviewed = app_data
+        if self.hideReviewed:
+            RichPrintSuccessMinor("Hiding reviewed teas.")
+        else:
+            RichPrintSuccessMinor("Showing all teas, including reviewed ones.")
 
         # Refresh the table to apply the filter
         self.softRefresh()
@@ -3901,18 +4078,23 @@ class Window_Stash(WindowBase):
             dp.InputText(label="Filter Name (inc, -exc)", user_data=_filter_table_id, callback=lambda s, a, u: dpg.set_value(u, dpg.get_value(s)), width=w)
             dpg.bind_item_font(dpg.last_item(), getFontName(2))
             with dp.CollapsingHeader(label="Advanced filtering/sorting", default_open=False, border=True):
-                # Add a filter input text
-                
                 # Add a sort combo box
                 filterOptions = ["Name"]
                 for cat in TeaCategories:
                     if cat.categoryRole not in filterOptions:
                         filterOptions.append(cat.categoryRole)
-                filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value="Name", user_data=(None), callback=self._UpdateTableRowFilterKeys)
+                filterAdvDropdown = dpg.add_combo(items=filterOptions, label="Filter By", default_value=self.searchFilterAttrCached, user_data=(None), callback=self._UpdateTableRowFilterKeys)
 
                 # Add two checkboxes for hide invalid, and hide finished
-                dp.Checkbox(label="Hide Invalid", default_value=self.hideInvalid, user_data=(None), callback=self.hideInvalidFlag)
-                dp.Checkbox(label="Hide Finished", default_value=self.hideFinished, user_data=(None), callback=self.hideFinishedFlag)
+                with dp.Group(horizontal=True):
+                    dp.Checkbox(label="Hide Invalid", default_value=self.hideInvalid, user_data=(None), callback=self.hideInvalidFlag)
+                    dp.Checkbox(label="Hide Finished", default_value=self.hideFinished, user_data=(None), callback=self.hideFinishedFlag)
+
+                # Add two checkboxes to hide teas with no reviews, and teas with reviews (technically not mutually exclusive)
+                with dp.Group(horizontal=True):
+                    dp.Checkbox(label="Hide Teas with No Reviews", default_value=self.hideUnreviewed, user_data=(None), callback=self.hideUnreviewedFlag)
+                    dp.Checkbox(label="Hide Teas with Reviews", default_value=self.hideReviewed, user_data=(None), callback=self.hideReviewedFlag)
+
                 # Tooltip
                 dp.Button(label="?")
                 with dpg.tooltip(dpg.last_item()):
@@ -3962,8 +4144,18 @@ class Window_Stash(WindowBase):
                 AbridgedTeaStash = list()
                 remainingCategory = None
 
-                if self.hideInvalid or self.hideFinished:
-                    RichPrintInfo("Filtering teas based on hideInvalid and hideFinished flags.")
+                flags = {
+                    "hideInvalid": self.hideInvalid,
+                    "hideFinished": self.hideFinished,
+                    "hideUnreviewed": self.hideUnreviewed,
+                    "hideReviewed": self.hideReviewed
+                }
+
+                anyFlagsSet = any(flags.values())
+
+
+                if anyFlagsSet:
+                    RichPrintInfo("Filtering teas based on flags:")
                     for cat in TeaCategories:
                         if cat.categoryRole == "Remaining":
                             remainingCategory = cat
@@ -3991,11 +4183,24 @@ class Window_Stash(WindowBase):
                                 RichPrintInfo(f"Tea {tea.name} is finished, skipping.")
                                 continue
 
+                        # If hideUnreviewed is set, filter out teas with no reviews
+                        if self.hideUnreviewed:
+                            if len(tea.reviews) == 0:
+                                RichPrintInfo(f"Tea {tea.name} has no reviews, skipping.")
+                                continue
+
+                        # If hideReviewed is set, filter out teas with reviews
+                        if self.hideReviewed:
+                            if len(tea.reviews) > 0:
+                                RichPrintInfo(f"Tea {tea.name} has reviews, skipping.")
+                                continue
+
                         # If the tea passes the filters, add it to the abridged stash
                         AbridgedTeaStash.append(tea)
 
                     # If no teas are left after filtering, show a message
                     if len(AbridgedTeaStash) == 0:
+                        RichPrintError("No teas found after filtering. Please adjust your filters.")
                         dp.Text("No teas found after filtering. Please adjust your filters.")
                         return
 
@@ -4168,6 +4373,8 @@ class Window_Stash(WindowBase):
         # Update the filter keys for the table rows
         rowList = user_data
         catAttr = app_data  # The category attribute to filter by
+        # save the selected attribute for next time
+        self.searchFilterAttrCached = catAttr
         for row in rowList:
             # Get the tea object from the row
             tea = row[0]
