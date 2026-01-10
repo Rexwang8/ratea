@@ -1276,6 +1276,15 @@ def make_tea_consumption_progress_image(
         (k, v) for k, v in not_consumed_reasons.items() if v > 0
     ]
 
+    total_consumed_reasons = sum(v for k, v in reason_items)
+    total_remaining = total_purchased - total_consumed - total_consumed_reasons
+    if total_remaining < 0:
+        total_remaining = 0
+
+    total_remaining_pct = total_remaining / total_purchased * 100
+    total_remaining = total_purchased - total_consumed - total_consumed_reasons
+    total_remaining = max(total_remaining, 0)
+
     # Color palette (extendable)
     reason_colors = [
         "#f4a261", "#e76f51", "#2a9d8f", "#e9c46a", "#8ab17d"
@@ -1333,7 +1342,7 @@ def make_tea_consumption_progress_image(
     ax.text(
         7.5,
         0.35,
-        f"{total_consumed:.1f}g/{total_purchased:.1f}g",
+        f"{total_remaining:.1f}g/{total_purchased:.1f}g",
         ha="left",
         va="bottom",
         fontsize=11
@@ -1349,12 +1358,13 @@ def make_tea_consumption_progress_image(
     )
 
     averageConsumedPerReview = total_consumed / reviews_done if reviews_done > 0 else 0
-    estimatedReviewsLeft = (total_purchased - total_consumed) / averageConsumedPerReview if averageConsumedPerReview > 0 else 0
+    
+    estimatedReviewsLeft = total_remaining / averageConsumedPerReview if averageConsumedPerReview > 0 else 0
     # ceil to nearest int
     estimatedReviewsLeft = math.ceil(estimatedReviewsLeft)
 
     # Title
-    title = f"{consumed_pct:.0f}% finished (est. {estimatedReviewsLeft} reviews left)" if estimatedReviewsLeft > 0 else f"{consumed_pct:.0f}% finished (all done!)"
+    title = f"{total_remaining_pct:.0f}% remaining (est. {estimatedReviewsLeft} reviews left)" if estimatedReviewsLeft > 0 else f"All finished!"
     ax.set_title(title, fontsize=12, pad=4)
 
     # Styling
@@ -5473,6 +5483,12 @@ def populateStatsCache():
     cache["totalDays"] = totalDays / (24 * 60 * 60)  # Convert to days
     monthsSinceStart = cache["totalDays"] / 30.44  # Average days per month
 
+    cache_allTypesOfTea = set()
+    for tea in TeaStash:
+        if "Type" in tea.attributes:
+            cache_allTypesOfTea.add(tea.attributes["Type"])
+    cache["allTypesOfTea"] = list(cache_allTypesOfTea)
+
     # Num teas by type
     cache["numTeasByType"] = dict()
     for tea in TeaStash:
@@ -5529,17 +5545,25 @@ def populateStatsCache():
             remainingCategory = cat
             break
     cache["remainingCategory"] = remainingCategory
-    
+
+    # Info for percentiles
+    cache_dictPriceByType = {}
+    cache_dictRatingByType = {}
+
+    for teaType in cache["allTypesOfTea"]:
+        cache_dictPriceByType[teaType] = []
+        cache_dictRatingByType[teaType] = []
+
     for tea in TeaStash:
         ctrTeaRemaining = 0
         ctrTeaDrankReviews = 0
         ctrTeaTotalAdjustments = 0
         ctrTeaGiftAdjustments = 0
         ctrTeaStandardAdjustments = 0
-        ctrTeaFinishedAmt = 0
-        autocalcTotalScore = 0
-        autocalcAveragedScore = 0
-        autocalcCostPerGram = 0
+        cache_ctrTeaFinishedAmt = 0
+        cache_calcTotalScore = 0
+        cache_calcAverageScore = 0
+        cache_calcAverageCost = 0
         teaType = None
         if "Type" in AllTypesCategoryRoleValid:
             teaType = tea.attributes["Type"]
@@ -5550,7 +5574,12 @@ def populateStatsCache():
 
         if "Cost" in AllTypesCategoryRoleValid and "Amount" in AllTypesCategoryRoleValid:
             if "Cost" in tea.attributes and "Amount" in tea.attributes:
-                autocalcCostPerGram = tea.attributes["Cost"] / tea.attributes["Amount"]
+                cache_calcAverageCost = tea.attributes["Cost"] / tea.attributes["Amount"]
+                # Append to price per gram list split by type
+                if teaType is not None:
+                    cache_dictPriceByType[teaType].append(cache_calcAverageCost)
+
+
         if "Amount" in AllTypesCategoryRoleValid:
             if "Amount" in tea.attributes:
                 ctrTotalVolume += tea.attributes["Amount"]
@@ -5597,8 +5626,8 @@ def populateStatsCache():
                 ctrTeaTotalAdjustments += ctrTeaSaleAdjustments
                 # Given cost and amount of sale, calculate total returned
                 if "Cost" in tea.attributes and "Amount" in tea.attributes:
-                    ctrTotalReturnedBySales += autocalcCostPerGram * ctrTeaSaleAdjustments
-                    listTopTenTeasSoldByValue.append((tea, ctrTeaSaleAdjustments, autocalcCostPerGram))
+                    ctrTotalReturnedBySales += cache_calcAverageCost * ctrTeaSaleAdjustments
+                    listTopTenTeasSoldByValue.append((tea, ctrTeaSaleAdjustments, cache_calcAverageCost))
 
         # Teas tried
         if len(tea.reviews) > 0 or tea.finished or ctrTeaStandardAdjustments > 0:
@@ -5621,7 +5650,7 @@ def populateStatsCache():
             # Total up score raw value
             if "Final Score" in allTypesCategoryRoleReviewsValid and "Total Score" in AllTypesCategoryRoleValid:
                 ctrTotalScored += review.attributes["Final Score"]
-                autocalcTotalScore += review.attributes["Final Score"]
+                cache_calcTotalScore += review.attributes["Final Score"]
                 if "Type" in allTypesCategoryRoleReviewsValid:
                     if review.attributes["Type"] not in dictCtrScoresByType:
                         dictCtrScoresByType[review.attributes["Type"]] = 0
@@ -5672,7 +5701,7 @@ def populateStatsCache():
             tea.finished = True
         if tea.finished:
             ctrTotalConsumedByFinishedTeas += ctrTeaRemaining
-            ctrTeaFinishedAmt = ctrTeaRemaining
+            cache_ctrTeaFinishedAmt = ctrTeaRemaining
             ctrTeaRemaining = 0
             ctrRemainingExcludingStandard = tea.attributes["Amount"] - ctrTeaDrankReviews - tea.adjustments.get("Gift", 0) - tea.adjustments.get("Sale", 0)
 
@@ -5689,7 +5718,7 @@ def populateStatsCache():
 
         # Derive explanation for remaining
         remainingExplanation = ""
-        stdPlusFinished = tea.adjustments.get("Standard", 0) + ctrTeaFinishedAmt
+        stdPlusFinished = tea.adjustments.get("Standard", 0) + cache_ctrTeaFinishedAmt
         explanation = f"{tea.attributes['Amount']:.2f}g Purchased\n- {ctrTeaDrankReviews:.2f}g Sum of all review Amounts\n- {stdPlusFinished:.2f}g Standard Adjustments (inc Finished)\n- {ctrTeaGiftAdjustments:.2f}g Gift Adjustments\n- {ctrTeaSaleAdjustments:.2f}g Sale Adjustments\n= {ctrTeaRemaining:.2f}g Remaining"
         if ctrTeaRemaining < 0:
             remainingExplanation = explanation + " (Overdrawn)"
@@ -5699,14 +5728,14 @@ def populateStatsCache():
             remainingExplanation = explanation + " (Not Finished)"
 
         # Calc average score
-        if autocalcTotalScore > 0:
-            autocalcAveragedScore = autocalcTotalScore / len(tea.reviews)
+        if cache_calcTotalScore > 0:
+            cache_calcAverageScore = cache_calcTotalScore / len(tea.reviews)
 
-        totalScoreExplanation = f"{autocalcTotalScore:.2f} Total Score\n/ {len(tea.reviews)} Number of reviews\n= {autocalcAveragedScore:.2f} Average Score"
+        totalScoreExplanation = f"{cache_calcTotalScore:.2f} Total Score\n/ {len(tea.reviews)} Number of reviews\n= {cache_calcAverageScore:.2f} Average Score"
 
-        # if no reviews, set autocalcAveragedScore to -1
+        # if no reviews, set cache_calcAverageScore to -1
         if len(tea.reviews) == 0:
-            autocalcAveragedScore = -1
+            cache_calcAverageScore = -1
             totalScoreExplanation = "No reviews, no score"
 
         # Finished teas
@@ -5719,26 +5748,122 @@ def populateStatsCache():
                     dictCtrTeasFinished[tea.attributes["Type"]] += 1
             
         # Autocalc explanation for cost per gram
-        costPerGramExplanation = f"${tea.attributes['Cost']:.2f} Cost\n/ {tea.attributes['Amount']:.2f} Amount\n= ${autocalcCostPerGram:.2f} Price per gram"
+        costPerGramExplanation = f"${tea.attributes['Cost']:.2f} Cost\n/ {tea.attributes['Amount']:.2f} Amount\n= ${cache_calcAverageCost:.2f} Price per gram"
         
         # Ratings by vendor
         if "Final Score" in allTypesCategoryRoleReviewsValid and "Vendor" in tea.attributes:
-            if autocalcAveragedScore >= 0:
+            if cache_calcAverageScore >= 0:
                 vendor = tea.attributes["Vendor"]
                 if vendor not in dictRatingsByVendor:
                     dictRatingsByVendor[vendor] = list()
-                dictRatingsByVendor[vendor].append(autocalcAveragedScore)
+                dictRatingsByVendor[vendor].append(cache_calcAverageScore)
+                if tea.attributes["Type"] is not None:
+                    cache_dictRatingByType[tea.attributes["Type"]].append(cache_calcAverageScore)
             else:
                 dictRatingsByVendor[vendor].append(-1)
+                if tea.attributes["Type"] is not None:
+                    cache_dictRatingByType[tea.attributes["Type"]].append(-1)
+
+       
+
+
 
         # Add to tea.cache
         tea.calculated["remaining"] = ctrTeaRemaining
         tea.calculated["remainingExplanation"] = remainingExplanation
-        tea.calculated["averageScore"] = autocalcAveragedScore
+        tea.calculated["averageScore"] = cache_calcAverageScore
         tea.calculated["totalScoreExplanation"] = totalScoreExplanation
         tea.calculated["costPerGramExplanation"] = costPerGramExplanation
-        tea.calculated["costPerGram"] = autocalcCostPerGram
+        tea.calculated["costPerGram"] = cache_calcAverageCost
 
+
+     # Price and rating percentiles
+    # We want to calculate them all in one go to avoid multiple loops
+    # Price is gotten from cost per gram of all teas gt 0.01
+    # Rating is gotten from cache_calcAverageScore of all teas gt -1
+    # Filter and sort the lists first
+    cache_listPriceByTypeFiltered = {}
+    for teaType in cache_dictPriceByType:
+        cache_listPriceByTypeFiltered[teaType] = [
+            x for x in cache_dictPriceByType[teaType] if x > 0.01
+        ]
+        cache_listPriceByTypeFiltered[teaType] = sorted(cache_listPriceByTypeFiltered[teaType])
+    cache_listRatingByTypeFiltered = {}
+    for teaType in cache_dictRatingByType:
+        cache_listRatingByTypeFiltered[teaType] = [
+            x for x in cache_dictRatingByType[teaType] if x > -1
+        ]
+        cache_listRatingByTypeFiltered[teaType] = sorted(cache_listRatingByTypeFiltered[teaType])
+
+    cache_listPricePercentiles = [] # tuple of (id, tea name, price percentile)
+    cache_listRatingPercentiles = [] # tuple of (id, tea name, rating percentile)
+    cache_listallPercentiles = [] # tuple of (id, tea name, price, rating, value percentiles)
+    for tea in TeaStash:
+        teaType = None
+        if "Type" in tea.attributes:
+            teaType = tea.attributes["Type"]
+        # Price percentiles
+        if teaType is not None and teaType in cache_listPriceByTypeFiltered:
+            priceList = cache_listPriceByTypeFiltered[teaType]
+            priceList = sorted(priceList)
+            numBelow = sum(1 for price in priceList if price < tea.calculated["costPerGram"])
+            if len(priceList) > 0:
+                pricePercentile = numBelow / len(priceList)
+                tea.calculated["pricePercentile"] = pricePercentile
+            else:
+                tea.calculated["pricePercentile"] = 0
+
+        # Rating percentiles
+        if teaType is not None and teaType in cache_listRatingByTypeFiltered:
+            ratingList = cache_listRatingByTypeFiltered[teaType]
+            ratingList = sorted(ratingList)
+            numBelow = sum(1 for rating in ratingList if rating < tea.calculated["averageScore"])
+            if len(ratingList) > 0:
+                ratingPercentile = numBelow / len(ratingList)
+                tea.calculated["ratingPercentile"] = ratingPercentile
+            else:
+                tea.calculated["ratingPercentile"] = 0
+
+        # Value is taken by subtracting price percentile from rating percentile
+        if "pricePercentile" in tea.calculated and "ratingPercentile" in tea.calculated:
+            tea.calculated["valuePercentile"] = tea.calculated["ratingPercentile"] - tea.calculated["pricePercentile"]
+        else:
+            tea.calculated["valuePercentile"] = 0
+
+        cache_listallPercentiles.append((
+            tea.id,
+            tea.name,
+            tea.calculated.get("pricePercentile", 0),
+            tea.calculated.get("ratingPercentile", 0),
+            tea.calculated.get("valuePercentile", 0)
+        ))
+
+        cache_listPricePercentiles.append((
+            tea.id,
+            tea.name,
+            tea.calculated.get("pricePercentile", 0)
+        ))
+        cache_listRatingPercentiles.append((
+            tea.id,
+            tea.name,
+            tea.calculated.get("ratingPercentile", 0)
+        ))
+
+    cache["pricePercentiles"] = cache_listPricePercentiles
+    cache["ratingPercentiles"] = cache_listRatingPercentiles
+    cache["allPercentiles"] = cache_listallPercentiles
+
+    # filter first
+    filtered_percentiles = []
+    for tea in cache["allPercentiles"]:
+        if tea[2] > 0 and tea[3] > 0:
+            filtered_percentiles.append(tea)
+    filtered_percentiles = sorted(filtered_percentiles, key=lambda x: x[4], reverse=True)
+    ##for tea in filtered_percentiles:
+    ##    print(f"Tea {tea[1]}: price percentile = {tea[2]:.4f}, rating percentile = {tea[3]:.4f}, value percentile = {tea[4]:.4f}")
+    ##
+    
+    # Average volume
     if cache["numTeas"] > 0:
         cache["averageVolume"] = ctrTotalVolume / cache["numTeas"]
     else:
@@ -5844,6 +5969,7 @@ def populateStatsCache():
             }
     else:
         cache["ratingsByVendor"] = {}
+
     # Top ten teas sold by value
     listTopTenTeasSoldByValue.sort(key=lambda x: x[1], reverse=True)
     cache["topTenTeasSoldByValue"] = listTopTenTeasSoldByValue[:10]  # Limit to top 10
@@ -5903,11 +6029,9 @@ def populateStatsCache():
 
     # Total and average score by type
     cache["totalScore"] = ctrTotalScored
-    cache["averageScore"] = ctrTotalScored / len(tea.reviews) if len(tea.reviews) > 0 else 0
     cache["scoreByType"] = dictCtrScoresByType
 
     # Average purchase per month
-    
     if monthsSinceStart > 0:
         cache["averagePurchasePerMonth"] = cache["totalCost"] / monthsSinceStart
     else:
