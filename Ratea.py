@@ -25,7 +25,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageTk
 from thefuzz import fuzz
 import matplotlib
 matplotlib.use('agg')
-
+import copy
 
 # From local files
 import RateaTexts
@@ -5021,13 +5021,104 @@ class Window_Stash(WindowBase):
 
             # Add a separator
             dp.Separator()
-            dp.Text(f"TODO: Move to end, Move to Top, Move down 1, Move up 1")
-            dp.Text(f"Migrate reviews to new tea index, TODO: Implement moving reviews in stash)")
-            dp.Text(f"TODO: Merge teas of two indexes into one, combining reviews as well, delete the other tea")
+            dp.Text("Combine Two Teas Together (This tea is the parent.\nMerges reviews, cost, adjustment, amounts, and deletes the other tea)\nWARNING: Irreversible! Save First!")
+            dpg.bind_item_font(dpg.last_item(), getFontName(2, bold=True))
+            combineTeasInput = dp.InputInt(label="Combine With Tea Index", default_value=0, min_value=0, max_value=len(TeaStash)-1, width=200 * settings["UI_SCALE"])
+            dp.Button(label="Combine Teas", callback=self.combineTwoTeasTogetherWrapper, user_data=(teaCurrent, combineTeasInput))
+
             dpg.bind_item_font(dpg.last_item(), getFontName(1, bold=False))
 
             # Add a button to cancel the adjustment
             dp.Button(label="Cancel", callback=self.deleteAdjustmentsWindow)
+
+    def combineTwoTeasTogetherWrapper(self, sender, app_data, user_data):
+        # Wrapper function to combine two teas together
+        tea1 = user_data[0]
+        tea2Index = user_data[1].get_value()
+        tea1Index = tea1.id
+        if tea1Index == tea2Index:
+            RichPrintError("Error: Cannot combine the same tea index.")
+            return
+        self.combineTwoTeasTogether(tea1Index, tea2Index)
+        # Refresh the window
+        self.deleteAdjustmentsWindow()
+        self.softRefresh()
+
+    def combineTwoTeasTogether(self, tea1Index, tea2Index):
+        # Combine two teas together, merging reviews, cost, adjustment, amounts, and deleting the other tea
+        global TeaStash
+        tea1 = None
+        tea2 = None
+
+        
+
+        for tea in TeaStash:
+            if tea.id == tea1Index:
+                tea1 = tea
+            if tea.id == tea2Index:
+                tea2 = tea
+
+        if tea1 is None or tea2 is None:
+            RichPrintError("Error: One of the teas to combine was not found.")
+
+        tea1Name = tea1.name
+        tea2Name = tea2.name
+
+        print(f"Combining Tea {tea1Index} ({tea1Name}) and Tea {tea2Index} ({tea2Name})")
+
+        # copy the tea1 object
+        combinedTea = copy.deepcopy(tea1)
+
+        # add amount and cost from attributes if they exist
+        amount1 = tea1.attributes.get("Amount", 0.0)
+        amount2 = tea2.attributes.get("Amount", 0.0)
+        cost1 = tea1.attributes.get("Cost", 0.0)
+        cost2 = tea2.attributes.get("Cost", 0.0)
+        combinedTea.attributes["Amount"] = amount1 + amount2
+        combinedTea.attributes["Cost"] = cost1 + cost2
+
+        # Combine notes, by stacking them with a \n and a "--- From Tea X ---\n" header
+        notes1 = tea1.attributes.get("Notes (Long)", "")
+        notes2 = tea2.attributes.get("Notes (Long)", "")
+        combinedNotes = notes1 + f"\n--- From Tea {tea2.id} {tea2.name} {tea2.attributes.get('Amount', '')}g ${tea2.attributes.get('Cost', '')}\n" + notes2
+        combinedTea.attributes["Notes (Long)"] = combinedNotes
+
+        # Combine adjustments
+        adjustment1 = tea1.adjustments if tea1.adjustments is not None else {}
+        adjustment2 = tea2.adjustments if tea2.adjustments is not None else {}
+        combinedAdjustment = adjustment1.copy()
+        for key, value in adjustment2.items():
+            combinedAdjustment[key] = combinedAdjustment.get(key, 0.0) + value
+        combinedTea.adjustments = combinedAdjustment
+
+        # Add reviews from tea2 to combinedTea
+        combinedTea.reviews.extend(tea2.reviews)
+
+        # Update tea1 in stash with combinedTea
+        for i, tea in enumerate(TeaStash):
+            if tea.id == tea1Index:
+                TeaStash[i] = combinedTea
+                break
+
+
+        
+
+        # Remove tea2 from stash
+        TeaStash.remove(tea2)
+
+        # Trigger renumber of all teas and reviews after combining
+        renumberTeasAndReviews()
+
+        
+
+        # Save the tea stash to file
+        saveTeasData(TeaStash, settings["TEA_REVIEWS_PATH"])
+
+        RichPrintSuccess(f"Combined Tea {tea1Index} and Tea {tea2Index} into Tea {tea1Index}. Deleted Tea {tea2Index} from stash.")
+
+
+       #print(f"Combined Tea: {combinedTea.name}, Reviews: {len(combinedTea.reviews)}, Cost: {combinedTea.cost}, Adjustment: {combinedTea.adjustment}, Amount: {combinedTea.amount}")
+
 
     def moveTeaIndexToEnd(self, sender, app_data, user_data):
         # Wrapper around moveTeaIndex to move the tea to the end of the stash
@@ -8338,7 +8429,6 @@ def loadTeasReviews(path):
             tea.adjustments = teaData["adjustments"]
         if "finished" in teaData:
             tea.finished = teaData["finished"]
-        
         for reviewData in teaData["reviews"]:
             idx2 = j
             if "_reviewindex" in reviewData:
