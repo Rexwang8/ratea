@@ -1,0 +1,386 @@
+import os
+import yaml
+import pandas as pd
+from config import Config
+from models.tea import Tea
+from services.logger import Logger
+from models.stash import TeaStash
+from services.stats_service import StatsService
+
+
+class DataManager:
+    def __init__(self):
+        self.teas = []
+        self.stash: TeaStash = TeaStash()
+        self.df = pd.DataFrame() # Initialize empty DataFrame
+        self.filtered_df = pd.DataFrame() # What the UI sees
+        self.reviews_df = pd.DataFrame() # Reviews DataFrame
+        self.filtered_reviews_df = pd.DataFrame() # Filtered Reviews DataFrame
+        self._water_stats_cache = None
+        self._type_vendor_stats_cache = None
+        self._type_vendor_stats_cache_summary = None
+        self.data_save_path = f"{Config.DATA_DIR}/data_saved.yaml" # Default save path for YAML data
+        self.dropdownTeaTypes = set()  # To be populated based on stash data
+        self.dropdownTeaVendors = set()  # To be populated based on stash data
+
+        self.filter_flags = {
+            "hide_finished": False,
+            "hide_unreviewed": False,
+            "hide_reviewed": False,
+            "hide_finished_reviews": False,
+        }
+
+    def set_filter_flag(self, key, value):
+        Logger.info(f"Filter flag changed: {key} set to {value}")
+        self.filter_flags[key] = value
+        print(f"Updated filter flags: {self.filter_flags}")
+        #self.apply_filters()
+
+    def delete_tea_by_id(self, tea_id):
+        """Deletes a tea from the stash by its UUID."""
+        tea_to_delete = next((tea for tea in self.teas if tea.id == tea_id), None)
+        if tea_to_delete:
+            self.stash.remove_tea(tea_to_delete, dry=False)  # Remove tea from stash and save immediately
+            self.refresh_all(save_after_refresh=True)  # Refresh data and save after deletion
+            Logger.info(f"Deleted tea with ID: {tea_id}")
+        else:
+            Logger.warning(f"Tea with ID {tea_id} not found for deletion.")
+
+    def delete_review_by_id(self, review_id):
+        """Deletes a review from the stash by its UUID."""
+        tea, review_to_delete = self.stash.get_review_by_id(review_id)
+        if review_to_delete and tea:
+            #tea.reviews.remove(review_to_delete)
+            self.refresh_all(save_after_refresh=True)  # Refresh data and save after deletion
+            Logger.info(f"Deleted review with ID: {review_id} from tea: {tea.name}")
+        else:
+            Logger.warning(f"Review with ID {review_id} not found for deletion.")
+
+    def operation_reorder_teas_by_purchase_date(self, newest_first=True):
+        """Reorders the teas in the stash by their purchase date."""
+        self.stash.operation_reorder_teas_by_purchase_date(newest_first=newest_first)
+        self.refresh_all(save_after_refresh=True)  # Refresh data and save after reordering
+
+        
+
+    def refresh_dropdown_data(self):
+        """Refreshes any dropdown options based on current stash data."""
+        self.dropdownTeaTypes = self.stash.get_most_common_tea_types(top_n=30)
+        self.dropdownTeaVendors = self.stash.get_most_common_tea_vendors(top_n=30)
+
+        Logger.info(f"Dropdown tea types refreshed: {len(self.dropdownTeaTypes)} types available.")
+        if len(self.dropdownTeaTypes) > 5:
+            Logger.info(f"Top tea types: {[t[0] for t in self.dropdownTeaTypes[:5]]}...")
+        Logger.info(f"Dropdown tea vendors refreshed: {len(self.dropdownTeaVendors)} vendors available.")
+        if len(self.dropdownTeaVendors) > 5:
+            Logger.info(f"Top tea vendors: {[v[0] for v in self.dropdownTeaVendors[:5]]}...")
+
+    def refresh_stats(self):
+        """Manually trigger a recalculation only when needed."""
+        self._water_stats_cache = StatsService.get_water_stats(self.teas)
+        self._type_vendor_stats_cache, self._type_vendor_stats_cache_summary = StatsService.get_df_summary_by_type_vendor(self.teas)
+        Logger.info("Refreshed statistics caches.")
+
+    def refresh_stash_dfs(self, refresh_teas=True, refresh_reviews=True):
+        """Manually trigger a refresh of the stash DataFrames."""
+        if refresh_teas:
+            self.df = self._build_stash_dataframe()
+        if refresh_reviews:
+            self.reviews_df = self._build_stash_reviews_dataframe()
+        # Reset filtered views to match the new data
+        self.filtered_df = self.df.copy()
+        self.filtered_reviews_df = self.reviews_df.copy()
+        Logger.info("Refreshed stash DataFrames.")
+
+    def refresh_all(self, save_after_refresh=False):
+        """Convenience method to refresh both stats and stash DataFrames."""
+        
+        self.refresh_stats()
+        self.refresh_stash_dfs()
+        self.refresh_dropdown_data()
+        if save_after_refresh:
+            self.export_to_yaml()  # Save the current state to YAML after refreshing
+        Logger.info("Refreshed all data and statistics.")
+
+    def load_from_yaml(self, filepath):
+        with open(filepath, 'r') as f:
+            raw_data = yaml.safe_load(f)
+            # Your YAML is a list of teas at the top level
+            self.teas = [Tea.from_dict_or_yaml(item) for item in raw_data]
+        self.stash = TeaStash(self.teas)
+        Logger.info(f"Loaded {len(self.teas)} teas from {filepath}")
+
+    # Stash df is a simplified view for UI display
+    def get_stash_dataframe(self):
+        Logger.info("Building stash dataframe...")
+        if self.df.empty:
+            Logger.info("Creating new stash dataframe...")
+            self.df = self._build_stash_dataframe()
+            Logger.info("Stash dataframe created with length: " + str(len(self.df)))
+        return self.df
+    
+    def get_stash_reviews_dataframe(self):
+        Logger.info("Building stash reviews dataframe...")
+        if self.reviews_df.empty:
+            Logger.info("Creating new stash reviews dataframe...")
+            self.reviews_df = self._build_stash_reviews_dataframe()
+            Logger.info("Stash reviews dataframe created with length: " + str(len(self.reviews_df)))
+        return self.reviews_df
+
+    def _build_stash_dataframe(self):
+        data = []
+        i = 0
+        for tea in self.stash.returnTeas():
+            # Filter flags
+            if self.filter_flags["hide_finished"] and tea.finished:
+                continue
+            if self.filter_flags["hide_unreviewed"] and len(tea.reviews) == 0:
+                continue
+            if self.filter_flags["hide_reviewed"] and len(tea.reviews) > 0:
+                continue
+            purchase_amt = tea.quantity
+            remaining_amt = tea.remaining
+
+            data.append({
+                "UUID": tea.id,
+                "Name": tea.name,
+                "Year": tea.year,
+                "Vendor": tea.vendor,
+                "Type": tea.tea_type,
+                "Amount": f"{remaining_amt:.1f}g / {purchase_amt:.1f}g",
+                "Catalog Price (USD)": f"${tea.catalogPrice:.2f}",
+                "Remaining Value (USD)": f"${remaining_amt * (tea.catalogPrice / tea.quantity):.2f}" if tea.quantity > 0 else "$0.00",
+                "Actual Cost (USD)": f"${tea.cost:.2f}",
+                "Catalog $/g": round(tea.catalogPrice / tea.quantity, 2) if tea.quantity > 0 else 0,
+                "Date Purchased": tea.purchaseDate if isinstance(tea.purchaseDate, str) else tea.purchaseDate.strftime("%Y-%m-%d"),
+                "Avg Rating": tea.average_rating,
+                "Purchase Note": tea.purchaseNote,
+                "Last Drank": tea.last_drank,
+                "Reviews": len(tea.reviews),
+                "Adjustments (g)": tea.sum_adjustments_grams,
+            })
+            i += 1
+        if not data or i == 0:
+            Logger.warning("No teas to display after applying filters. Returning empty dataframe.")
+            return pd.DataFrame(columns=self.df.columns)
+
+        df = pd.DataFrame(data)
+        df.insert(1, "IDX", range(len(df)))
+        # Add stats columns
+        if not df.empty:
+            df['PCT Score'] = df['Avg Rating'].rank(pct=True).mul(100).round(1).fillna(0)
+            df['PCT Cost'] = df['Catalog $/g'].rank(pct=True).mul(100).round(1).fillna(0)
+        # $/g to string
+        df['Catalog $/g'] = df['Catalog $/g'].apply(lambda x: f"${x:.2f}")
+        return df
+
+    def filter_data(self, query: str = None, query_type: str = "Name"):
+        """Filters the dataframe based on a string query."""
+        Logger.info(f"Filtering data with query: '{query}' on type: '{query_type}'")
+        if not query:
+            self.filtered_df = self.df.copy()
+        else:
+            # Searches across Name, Vendor, and Type columns (case-insensitive)
+            mask = (
+                self.df[query_type].str.contains(query, case=False, na=False)
+            )
+            self.filtered_df = self.df[mask].copy()
+
+    def filter_reviews_data(self, query: str = None, query_type: str = "Tea Name"):
+        """Filters the reviews dataframe based on a string query."""
+        Logger.info(f"Filtering reviews data with query: '{query}' on type: '{query_type}'")
+        if not query:
+            self.filtered_reviews_df = self.reviews_df.copy()
+        else:
+            # Searches across specified column (case-insensitive)
+            mask = (
+                self.reviews_df[query_type].astype(str).str.contains(query, case=False, na=False)
+            )
+            self.filtered_reviews_df = self.reviews_df[mask].copy()
+
+    def sort_data(self, column_name, ascending):
+        """Sorts the currently filtered view with data cleaning."""
+        if self.filtered_df.empty:
+            return
+
+        def clean_key(col_series):
+            """Cleans the column data for sorting."""
+            if column_name == "Amount":
+            # 1. Split by '/' and take the first part
+            # 2. Remove 'g' and any whitespace
+            # 3. Convert to numeric for proper math sorting
+                return pd.to_numeric(
+                    col_series.str.split('/').str[0].str.replace('g', '', case=False).str.strip(),
+                    errors='coerce'
+                )
+            
+            # 1. Convert to string and lowercase
+            s_clean = col_series.astype(str).str.lower()
+            # 2. Remove non-alphanumeric characters (equivalent to your regex)
+            s_clean = s_clean.str.replace(r'[^a-z0-9.]', '', regex=True)
+            # 3. Strip specific characters ($ prefix or g suffix)
+            s_clean = s_clean.str.strip().str.replace('$', '', regex=False).str.replace('g', '', regex=False)
+            try:
+                # 4. Try converting to numeric where possible
+                # errors='coerce' turns non-numeric into NaN, keeping the sort logical
+                numeric_series = pd.to_numeric(s_clean, errors='raise')
+                # If the whole column is effectively numeric, return the numeric version
+                # Otherwise, return the cleaned strings
+                if numeric_series.notna().any():
+                    return numeric_series
+            except Exception as e:
+                return s_clean  # If conversion fails, return the cleaned string series for sorting
+            return s_clean
+
+        # Perform the sort
+        self.filtered_df.sort_values(
+            by=column_name,
+            ascending=ascending,
+            inplace=True,
+            key=clean_key
+        )
+
+    def zero_negative_amounts(self):
+        """Sets any negative amounts in the stash to zero."""
+        for tea in self.stash.returnTeas():
+            if tea.quantity < 0:
+                Logger.info(f"Zeroing negative quantity for tea: {tea.name} (was {tea.quantity}g)")
+                tea.quantity = 0
+            if tea.remaining < 0:
+                Logger.info(f"Zeroing negative remaining amount for tea: {tea.name} (was {tea.remaining}g)")
+                tea.remaining = 0
+        self.refresh_all(save_after_refresh=True)
+
+    def zero_negative_costs(self):
+        """Sets any negative costs in the stash to zero."""
+        for tea in self.stash.returnTeas():
+            if tea.cost < 0:
+                Logger.info(f"Zeroing negative cost for tea: {tea.name} (was ${tea.cost:.2f})")
+                tea.cost = 0
+        self.refresh_all(save_after_refresh=True)
+
+    def round_amounts_and_costs(self):
+        """Rounds all amounts and costs to 2 decimal places."""
+        for tea in self.stash.returnTeas():
+            if tea.quantity is not None:
+                rounded_quantity = round(tea.quantity, 2)
+                if rounded_quantity != tea.quantity:
+                    Logger.info(f"Rounding quantity for tea: {tea.name} from {tea.quantity}g to {rounded_quantity}g")
+                    tea.quantity = rounded_quantity
+            if tea.cost is not None:
+                rounded_cost = round(tea.cost, 2)
+                if rounded_cost != tea.cost:
+                    Logger.info(f"Rounding cost for tea: {tea.name} from ${tea.cost:.2f} to ${rounded_cost:.2f}")
+                    tea.cost = rounded_cost
+            if tea.catalogPrice is not None:
+                rounded_catalog_price = round(tea.catalogPrice, 2)
+                if rounded_catalog_price != tea.catalogPrice:
+                    Logger.info(f"Rounding catalog price for tea: {tea.name} from ${tea.catalogPrice:.2f} to ${rounded_catalog_price:.2f}")
+                    tea.catalogPrice = rounded_catalog_price
+        self.refresh_all(save_after_refresh=True)
+
+    def sort_reviews_data(self, column_name, ascending):
+        """Sorts the reviews dataframe."""
+        if self.filtered_reviews_df is None or self.filtered_reviews_df.empty:
+            return
+        
+        def clean_key(col_series):
+            """Cleans the column data for sorting."""
+            s_clean = col_series.astype(str).str.lower()
+            s_clean = s_clean.str.replace(r'[^a-z0-9.]', '', regex=True)
+            s_clean = s_clean.str.strip().str.replace('$', '', regex=False).str.replace('g', '', regex=False)
+            numeric_series = pd.to_numeric(s_clean, errors='coerce')
+            if numeric_series.notna().any():
+                return numeric_series
+            return s_clean
+        
+        # Perform the sort
+        self.filtered_reviews_df.sort_values(
+            by=column_name,
+            ascending=ascending,
+            inplace=True,
+            key=clean_key
+        )
+
+
+
+    def _build_stash_reviews_dataframe(self):
+        data = []
+        flat_reviews = self.stash.returnFlatReviews()
+        Logger.info(f"Building reviews dataframe from {len(flat_reviews)} total reviews...")
+        i = 0
+        for tea, review in flat_reviews:
+            if self.filter_flags["hide_finished_reviews"] and tea.remaining <= 0:
+                continue
+
+            data.append({
+                "IDX": i,
+                "Date": review.date,
+                "Tea Name": tea.name,
+                "Tea Year": tea.year,
+                "Tea Vendor": tea.vendor,
+                "Tea Type": tea.tea_type,
+                "Avg Rating": review.rating,
+                "Notes": review.notes,
+                "Amount Drunk": review.amount_drunk,
+                "Vessel Size": review.vesselSize,
+                "Method": review.method,
+                "Steeps": review.steeps,
+                "Session Number": review.session_num,
+                "Tea UUID": tea.id,
+                "Review UUID": review.id,
+            })
+            i += 1
+
+        return pd.DataFrame(data)
+
+    def export_to_yaml(self, filepath=None):
+        """Exports the current teas to a YAML file."""
+        if filepath is None:
+            filepath = self.data_save_path
+        with open(filepath, 'w') as f:
+            data_to_save = [tea.to_dict() for tea in self.teas]
+            yaml.safe_dump(data_to_save, f, sort_keys=False)
+        Logger.info(f"Exported {len(self.teas)} teas to {filepath}")
+
+    def export_to_csv(self, filepath=None):
+        """Exports the current teas to a CSV file."""
+        if filepath is None:
+            filepath = self.data_save_path.replace('.yaml', '.csv')
+        df = self.stash.get_as_dataframe(includeCalculatedFields=False)
+        df.to_csv(filepath, index=False)
+        Logger.info(f"Exported stash dataframe to {filepath}")
+
+    @property
+    def water_stats(self):
+        if self._water_stats_cache is None:
+            self.refresh_stats()
+        return self._water_stats_cache
+
+    def sort_summary_data(self, ui_column_name, ascending):
+        mapping = {
+            "Dimension": "Dimension",
+            "Label": "Label",
+            "Total Grams": "Quantity",
+            "Review Count": "ReviewCount",
+            "Total Teas": "TotalTeas",
+            "Average Rating": "AverageRating"
+        }
+        col = mapping.get(ui_column_name)
+        if col:
+            self._type_vendor_stats_cache.sort_values(by=col, ascending=ascending, inplace=True)
+
+
+
+# Ensure folders exist
+# /data
+# /backup
+# /src
+
+def ensure_folders_exist():
+    """Ensures that the necessary folders exist."""
+    os.makedirs(Config.DATA_DIR, exist_ok=True)
+    os.makedirs(f"{Config.DATA_DIR}/tmp", exist_ok=True)  # Subfolder for temporary files
+    os.makedirs(Config.BACKUP_DIR, exist_ok=True)
+    os.makedirs(Config.SRC_DIR, exist_ok=True)
+    os.makedirs(Config.FONTS_DIR, exist_ok=True)

@@ -1,0 +1,757 @@
+# src/ui/app.py
+import os
+import dearpygui.dearpygui as dpg
+from config import Config
+from models.stash import TeaStash
+from models.tea import Tea
+from models.review import Review
+from services.data_manager import DataManager, ensure_folders_exist
+import datetime as dt
+from services.text_helper import wrap_text_no_break_words
+from ui.fonts import FontManager
+from services.logger import Logger
+import dearpypixl as dp
+from services.stats_service import ReportService, StatsService
+from services.score_converter import ScoreConverter
+from ui.modals.tea_add_edit_modal import show_tea_modal
+from ui.modals.tea_review_modal import show_tea_review_modal
+from ui.modals.tea_view_modal import show_tea_view_modal
+import dearpygui.demo as demo
+
+class TeaApp:
+    selectable_tags = []
+    selected_tea_id = None
+    selected_tea_idx = None
+
+    selectable_tags_reviews = []
+    selected_review_id = None
+    selected_review_idx = None
+
+
+    tableParent = None
+    reviewTableParent = None
+    search_column = "Name"
+    search_column_reviews = "Tea Name"
+    selected_text_display = None
+    selected_text_display_reviews = None
+    current_query = ""
+    current_query_reviews = ""
+    hide_finished = False
+    hide_unreviewed = False
+    hide_reviewed = False
+    hide_finished_reviews = False
+
+    def __init__(self):
+        self.primary_window_tag = "Primary Window"
+        self.is_running = False
+
+        # Double check that necessary folders exist
+        ensure_folders_exist()
+
+        self.data_manager = DataManager()
+        self.data_manager.load_from_yaml(f"{Config.DATA_DIR}/data_saved.yaml")  # Load initial data
+
+        dataSavePath = f"{Config.DATA_DIR}/data_saved.yaml"
+        self.data_manager.export_to_yaml(dataSavePath)
+
+        self.fonts = FontManager()
+
+        self.data_manager.refresh_all()
+
+    def _setup_fonts(self):
+        """Private method to load fonts."""
+        self.fonts.bindLoadFonts()
+        dpg.set_global_font_scale(2)
+
+    def setup_dpg(self):
+        """Initialize the DPG context and viewport."""
+        dpg.create_context()
+        
+        # Load fonts, themes, or layouts here
+        self._setup_fonts()
+        self._setup_theme()
+
+        # Create the Viewport (The OS Window)
+        dpg.create_viewport(
+            title=Config.APP_NAME, 
+            width=Config.DEFAULT_WIDTH, 
+            height=Config.DEFAULT_HEIGHT
+        )
+        dpg.setup_dearpygui()
+
+        # Set the icon (Optional)
+        # dpg.set_viewport_small_icon("assets/icon.ico")
+
+    def _setup_theme(self):
+        """Global theme settings."""
+        pass
+
+    def _on_row_selected(self, sender, app_data, user_data):
+        """Called when a user clicks any row."""
+
+        # 1. Manually deselect all other selectables (Radio-button behavior)
+        self.selectable_tags = [tag for tag in self.selectable_tags if dpg.does_item_exist(tag)]
+        for tag in self.selectable_tags:
+            if tag != sender:
+                dpg.set_value(tag, False)
+            else:
+                dpg.set_value(tag, True) # Ensure the clicked one stays on
+
+        # If the same row is clicked again, deselect it
+        if self.selected_tea_id == user_data:
+            dpg.set_value(sender, False)
+            self.selected_tea_id = None
+            self.selected_tea_idx = None
+            dpg.set_value(self.selected_text_display, "No tea selected")
+            Logger.info("UI: Active Tea selection cleared")
+            return
+
+        # 2. Update the App state
+        self.selected_tea_id = user_data
+        df = self.data_manager.df
+        tea_row = df[df["UUID"] == self.selected_tea_id]
+        self.selected_tea_idx = tea_row.iloc[0]["IDX"] if not tea_row.empty else None
+
+        # 3. Update any UI elements that depend on the selection
+        display_text = "No tea selected"
+        if self.selected_tea_idx is not None:
+            # Find the tea name from the DataFrame
+            if not tea_row.empty:
+                tea_name = tea_row.iloc[0]["Name"]
+                display_text = f"Selected Tea: {tea_name} (IDX: {self.selected_tea_idx} UUID: {self.selected_tea_id})"
+            else:
+                display_text = f"Selected Tea ID: {self.selected_tea_idx}"
+
+        dpg.set_value(self.selected_text_display, display_text)
+
+        Logger.info(f"UI: Active Tea selection set to {user_data}")
+
+    def _on_row_selected_reviews(self, sender, app_data, user_data):
+        """Called when a user clicks any row."""
+
+        # 1. Manually deselect all other selectables (Radio-button behavior)
+        self.selectable_tags_reviews = [tag for tag in self.selectable_tags_reviews if dpg.does_item_exist(tag)]
+        for tag in self.selectable_tags_reviews:
+            if tag != sender:
+                dpg.set_value(tag, False)
+            else:
+                dpg.set_value(tag, True) # Ensure the clicked one stays on
+
+        # If the same row is clicked again, deselect it
+        if self.selected_review_id == user_data:
+            dpg.set_value(sender, False)
+            self.selected_review_id = None
+            self.selected_review_idx = None
+            dpg.set_value(self.selected_text_display_reviews, "No review selected")
+            Logger.info("UI: Active Review selection cleared")
+            return
+
+        # 2. Update the App state
+        self.selected_review_id = user_data
+        #tea, review = self.data_manager.stash.get_review_by_id(self.selected_review_id)
+        df_reviews = self.data_manager.get_stash_reviews_dataframe()
+        review_row = df_reviews[df_reviews["Review UUID"] == user_data]
+        self.selected_review_idx = review_row.iloc[0]["IDX"] if not review_row.empty else None
+
+        # 3. Update any UI elements that depend on the selection
+        display_text = "No review selected"
+        if self.selected_review_idx is not None:
+            # Find the review text from the DataFrame
+            if not review_row.empty:
+                tea_name = review_row.iloc[0]["Tea Name"]
+                tea_year = review_row.iloc[0]["Tea Year"]
+                session_num = review_row.iloc[0]["Session Number"]
+                display_text = f"Selected Review: {tea_name} (Year: {tea_year}, Session: {session_num}, IDX: {self.selected_review_idx} UUID: {self.selected_review_id})"
+            else:
+                display_text = f"Selected Review UUID: {self.selected_review_idx} (Match not found!)"
+        dpg.set_value(self.selected_text_display_reviews, display_text)
+
+        Logger.info(f"UI: Active Review selection set to {user_data}")
+
+    def _on_edit_click_reviews(self, sender, app_data, user_data):
+        tea, review = self.data_manager.stash.get_review_by_id(self.selected_review_id)
+        """Called when the 'Edit' button is pressed."""
+        if self.selected_review_idx is None:
+            Logger.warning("No review selected! Click a row in the table first.")
+            return
+
+        Logger.info(f"Opening editor for review: {self.selected_review_idx}")
+        # Here you would call your modal window function:
+        # Show the review modal
+        show_tea_review_modal(tea, review, self.data_manager, self.fonts)
+
+    def _on_edit_click_tea(self):
+        """Called when the 'Edit' button is pressed."""
+        if self.selected_tea_idx is None:
+            Logger.warning("No tea selected! Click a row in the table first.")
+            return
+        
+        Logger.info(f"Opening editor for tea: {self.selected_tea_idx}")
+        thisTea = self.data_manager.stash.get_tea_by_id(self.selected_tea_id)
+        show_tea_modal(thisTea, self.data_manager, self.fonts)
+
+    def _on_add_click_tea(self):
+        """Called when the 'Add Tea' button is pressed."""
+        Logger.info("Opening Add Tea modal")
+        # Here you would call your modal window function:
+        # We want to get the last entry for tea in order to pre-populate the add form with the last used values (except name)
+        last_tea = self.data_manager.stash.get_last_tea_entry()
+        show_tea_modal(None, self.data_manager, self.fonts, pre_populate=last_tea)
+
+    def _on_save_click(self):
+        """Called when the 'Save' menu item is clicked."""
+        save_path = f"{Config.DATA_DIR}/data_saved.yaml"
+        self.data_manager.export_to_yaml(save_path)
+        Logger.info(f"Data saved to {save_path}")
+
+    def _on_save_backup_click(self):
+        """Called when the 'Save Backup' menu item is clicked."""
+        timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_folder_path = f"{Config.BACKUP_DIR}/data_backups_{timestamp}"
+        os.makedirs(backup_folder_path, exist_ok=True)
+
+        # Tea backup
+        backup_path = f"{backup_folder_path}/data_backup_{timestamp}.yaml"
+        self.data_manager.export_to_yaml(backup_path)
+        Logger.info(f"Data backup saved to {backup_path}")
+
+    
+        
+
+
+    
+
+    def _refresh_data(self):
+        """Public method to refresh data and re-render tables."""
+        Logger.info("Refreshing data and re-rendering tables...")
+        self.data_manager.refresh_all()
+        self.data_manager.filter_data()
+        self.data_manager.filter_reviews_data()
+        self.render_table_rows(parent=self.tableParent)
+        self.render_reviews_table_rows(parent=self.reviewTableParent)
+        self._on_search_change(None, None)
+        self._on_search_change_reviews()
+
+    def render_table_rows(self, parent=None):
+        """Renders the table rows based on the current DataFrame."""
+        # 1. Clear existing rows (we target the children of the table)
+        # slot 1 in a table contains the rows
+        if parent is None:
+            parent = self.tableParent
+        for child in dpg.get_item_children(parent, slot=1):
+            dpg.delete_item(child)
+
+        Logger.info(f"Rendering table rows for main table...")
+
+        # 2. Get the current DataFrame from manager
+        
+        df_to_show = self.data_manager.filtered_df
+        Logger.info(f"DataFrame retrieved: {df_to_show.shape[0]} rows")
+
+        # 3. Build the rows
+        for i in range(len(df_to_show)):
+            row_data = df_to_show.iloc[i]
+            row_id = row_data.get("UUID", i)
+            with dpg.table_row(parent=parent):
+                for j,col in enumerate(df_to_show.columns):
+                    # 0th column is uuid, skip displaying it
+                    if col == "UUID":
+                        continue
+
+                    # Access cell value from DataFrame
+                    # In your App UI loop
+                    val = row_data[col]
+                    color = None
+                    if col == "Amount":
+                        # Amount f"{remaining_amt:.1f}g / {purchase_amt:.1f}g",
+                        # greater than 70% green, not out, light blue, out, light yellow
+                        remaining_amt, purchase_amt = map(float, val.replace("g","").split("/"))
+                        perc = remaining_amt / purchase_amt if purchase_amt > 0 else 0
+
+                        if perc > 0.6:
+                            color = Config.Colors.CELL_DARK_GREEN
+                        elif perc > 0:
+                            color = Config.Colors.CELL_LIGHT_BLUE
+                        elif perc == 0:
+                            color = Config.Colors.CELL_LIGHT_YELLOW
+                            
+
+                    val = row_data[col]
+                    display_text = str(format_cell(val, col))
+
+                    sel_height = 25 * Config.UI_SCALE
+                    if j == 1:
+                        # The first column is the "anchor" for selection
+                        tag = dpg.add_selectable(
+                            label=display_text + "\n",  # Add newline to give some padding
+                            span_columns=True, 
+                            user_data=row_id, 
+                            callback=self._on_row_selected,
+                            height=sel_height
+                        )
+                        self.selectable_tags.append(tag)
+                    else:
+                        # Regular text for subsequent columns
+                        dpg.add_text(display_text)
+                        # If we have notes, we want to be able to hover to see them
+                        if "Note" in col and isinstance(val, str) and val.strip():
+                            dpg.add_tooltip(dpg.last_item())
+                            val, _ = wrap_text_no_break_words(val, width=160)
+                            dpg.add_text(val, parent=dpg.last_item())
+                    
+                        if color is not None:
+                            dpg.highlight_table_cell(parent, color=color, row=i, column=j-1)
+
+    
+    def render_reviews_table_rows(self, parent=None):
+        """Renders the reviews table rows based on the current DataFrame."""
+        # 1. Clear existing rows (we target the children of the table)
+        # slot 1 in a table contains the rows
+        if parent is None:
+            parent = self.reviewTableParent
+        for child in dpg.get_item_children(parent, slot=1):
+            dpg.delete_item(child)
+
+        Logger.info(f"Rendering table rows for reviews table...")
+
+        # 2. Get the current DataFrame from manager
+        
+        df_to_show = self.data_manager.filtered_reviews_df
+        Logger.info(f"DataFrame retrieved: {df_to_show.shape[0]} rows")
+
+        # 3. Build the rows
+        for i in range(len(df_to_show)):
+            row_data = df_to_show.iloc[i]
+            row_id = row_data.get("Review UUID", i)
+            with dpg.table_row(parent=parent):
+                for j,col in enumerate(df_to_show.columns):
+                    # 0th 1th column is uuid, skip displaying it
+                    if col == "Review UUID":
+                        continue
+
+                    # Access cell value from DataFrame
+                    # In your App UI loop
+                    val = row_data[col]
+                    display_text = str(format_cell(val, col))
+                    sel_height = 25 * Config.UI_SCALE
+                    if j == 0:
+                        # The first column is the "anchor" for selection
+                        tag = dpg.add_selectable(
+                            label=display_text + "\n",  # Add newline to give some padding
+                            span_columns=True, 
+                            user_data=row_id, 
+                            callback=self._on_row_selected_reviews,
+                            height=sel_height
+                        )
+                        self.selectable_tags_reviews.append(tag)
+                    else:
+                        # Regular text for subsequent columns
+                        dpg.add_text(display_text)
+                        # If we have notes, we want to be able to hover to see them
+                        if "Note" in col and isinstance(val, str) and val.strip():
+                            dpg.add_tooltip(dpg.last_item())
+                            val, _ = wrap_text_no_break_words(val, width=160)
+                            dpg.add_text(val, parent=dpg.last_item())
+    
+    # placeholder deletes
+    def _on_delete_click(self, sender, app_data, user_data):
+        """Called when the 'Delete' button is pressed."""
+        if user_data == "tea":
+            if self.selected_tea_idx is None:
+                Logger.warning("No tea selected! Click a row in the table first.")
+                return
+
+            Logger.info(f"Deleting tea: {self.selected_tea_idx} (UUID: {self.selected_tea_id})")
+            self.data_manager.delete_tea_by_id(self.selected_tea_id)
+            # Then refresh the table
+            self.render_table_rows()
+        elif user_data == "review":
+            if self.selected_review_idx is None:
+                Logger.warning("No review selected! Click a row in the table first.")
+                return
+
+            Logger.info(f"Deleting review: {self.selected_review_idx} (UUID: {self.selected_review_id})")
+            self.data_manager.delete_review_by_id(self.selected_review_id)
+            # Then refresh the table
+            self.render_reviews_table_rows()
+
+
+    def _review_selected_tea(self, sender, app_data, user_data):
+        """Opens the review modal for the selected tea."""
+        if self.selected_tea_idx is None:
+            Logger.warning("No tea selected to review!")
+            return
+        # Match uuid to tea
+        uuid = self.selected_tea_id
+        tea = self.data_manager.stash.get_tea_by_uuid(uuid)
+        Logger.info(f"Reviewing tea: {self.selected_tea_idx} - {tea.name if tea else 'Unknown Tea'}")
+
+        # Create a modal window to show tea review details
+        if tea is None:
+            Logger.error("Selected tea not found in stash!")
+            return
+
+        # Show the review modal
+        show_tea_review_modal(tea, None, self.data_manager, self.fonts)
+
+    def _view_selected_tea(self, sender, app_data, user_data):
+        """View details of the selected tea."""
+        if self.selected_tea_idx is None:
+            Logger.warning("No tea selected to view!")
+            return
+        # Match uuid to tea
+        uuid = self.selected_tea_id
+        tea = self.data_manager.stash.get_tea_by_uuid(uuid)
+        Logger.info(f"Viewing tea: {self.selected_tea_idx} - {tea.name if tea else 'Unknown Tea'}")
+
+        # Create a modal window to show tea details
+        if tea is None:
+            Logger.error("Selected tea not found in stash!")
+            return
+        
+        show_tea_view_modal(tea, self.fonts, self.data_manager)
+
+    def _on_clear_selection(self):
+        """Clears the current selection."""
+        if self.selected_tea_id is not None:
+            # Deselect the currently selected row
+            for tag in self.selectable_tags:
+                if dpg.does_item_exist(tag):
+                    dpg.set_value(tag, False)
+
+        self.selected_tea_id = None
+        self.selected_tea_idx = None
+        dpg.set_value(self.selected_text_display, "No tea selected")
+        Logger.info("UI: Active Tea selection cleared")
+
+    def _on_clear_selection_reviews(self):
+        """Clears the current review selection."""
+        if self.selected_review_id is not None:
+            # Deselect the currently selected row
+            for tag in self.selectable_tags_reviews:
+                if dpg.does_item_exist(tag):
+                    dpg.set_value(tag, False)
+
+        self.selected_review_id = None
+        self.selected_review_idx = None
+        dpg.set_value(self.selected_text_display_reviews, "No review selected")
+        Logger.info("UI: Active Review selection cleared")
+
+    def _on_hide_finished_change(self, sender, app_data):
+        self.hide_finished = app_data
+        self.data_manager.set_filter_flag("hide_finished", self.hide_finished)
+        self._refresh_data()
+    
+    def _on_hide_unreviewed_change(self, sender, app_data):
+        self.hide_unreviewed = app_data
+        self.data_manager.set_filter_flag("hide_unreviewed", self.hide_unreviewed)
+        self._refresh_data()
+
+    def _on_hide_reviewed_change(self, sender, app_data):
+        self.hide_reviewed = app_data
+        self.data_manager.set_filter_flag("hide_reviewed", self.hide_reviewed)
+        self._refresh_data()
+
+    def _on_hide_finished_reviews_change(self, sender, app_data):
+        self.hide_finished_reviews = app_data
+        self.data_manager.set_filter_flag("hide_finished_reviews", self.hide_finished_reviews)
+        self._refresh_data()
+
+
+    def _on_search_change(self, sender=None, filter_string=None):
+        """Triggered every time the user types in the search bar."""
+        # 1. Update the filtered subset in the manager
+        if filter_string is None:
+            filter_string = self.current_query  # Use existing query if not provided (e.g., when changing filter column)
+        self.current_query = filter_string
+        self.data_manager.filter_data(filter_string, self.search_column)
+
+        # 2. Refresh the UI
+        self.render_table_rows()
+
+    def _on_search_change_reviews(self, sender=None, filter_string=None):
+        """Triggered every time the user types in the reviews search bar."""
+        # 1. Update the filtered subset in the manager
+        if filter_string is None:
+            filter_string = self.current_query_reviews  # Use existing query if not provided (e.g., when changing filter column)
+        self.current_query_reviews = filter_string
+        self.data_manager.filter_reviews_data(filter_string, self.search_column_reviews)
+
+        # 2. Refresh the UI
+        self.render_reviews_table_rows()
+
+    def _on_sort_click(self, sender, sort_spec):
+        if not sort_spec: return
+
+        column_id, direction = sort_spec[0]
+        column_name = dpg.get_item_label(column_id)
+
+        # Sort the already filtered data
+        self.data_manager.sort_data(column_name, direction < 0)
+
+        # Refresh the UI
+        self.render_table_rows()
+
+    def _on_sort_click_reviews(self, sender, sort_spec):
+        if not sort_spec: return
+
+        column_id, direction = sort_spec[0]
+        column_name = dpg.get_item_label(column_id)
+
+        # Sort the already filtered data
+        self.data_manager.sort_reviews_data(column_name, direction < 0)
+
+        # Refresh the UI
+        self.render_reviews_table_rows()
+
+
+    def _on_filter_col_change(self, sender, app_data):
+        """Triggered when the Radio Button selection changes."""
+        # app_data is the string label of the selected radio button (e.g., "Vendor")
+        self.search_column = app_data
+        # Re-apply the filter with the same text but the new column target
+        self._on_search_change(None, self.current_query)
+
+    def _on_filter_col_change_reviews(self, sender, app_data):
+        """Triggered when the Radio Button selection changes."""
+        # app_data is the string label of the selected radio button (e.g., "Vendor")
+        self.search_column_reviews = app_data
+        # Re-apply the filter with the same text but the new column target
+        self._on_search_change_reviews(None, self.current_query_reviews)
+
+    
+
+    def _copy_selected_tea_uuid(self, sender, app_data, user_data):
+        """Copy the selected tea's UUID to clipboard."""
+        if self.selected_tea_id is None:
+            Logger.warning("No tea selected to copy UUID!")
+            return
+        
+        dpg.set_clipboard_text(self.selected_tea_id)
+        Logger.info(f"Copied UUID to clipboard: {self.selected_tea_id}")
+
+    def _generate_chart_for_selected_review(self, sender, app_data, user_data):
+        # Main body of function is in ReportService
+        
+        # Get uuid of tea and of review
+        if self.selected_review_id is None:
+            Logger.warning("No review selected to generate chart!")
+            return
+        report = ReportService.generate_review_report(self.data_manager, self.selected_review_id)
+
+    def _generate_tierlist_for_selected_vendor(self, sender, app_data, user_data):
+        # Main body of function is in ReportService
+        
+        # Get vendor name from selected tea
+        if self.selected_tea_id is None:
+            Logger.warning("No tea selected to generate tierlist!")
+            return
+        
+        tea = self.data_manager.stash.get_tea_by_uuid(self.selected_tea_id)
+        if tea is None:
+            Logger.error("Selected tea not found in stash for tierlist generation!")
+            return
+        
+        vendor_name = tea.vendor
+        report = ReportService.generate_tierlist_for_vendor(self.data_manager, vendor_name)
+
+    def build_ui(self):
+        """Constructs the actual widgets."""
+        df = self.data_manager.get_stash_dataframe()  # Example of getting data for UI display
+        df_reviews = self.data_manager.get_stash_reviews_dataframe()
+        with dpg.window(tag=self.primary_window_tag) as main_window:
+            
+            # 1. The Menu Bar
+            with dpg.menu_bar():
+                with dpg.menu(label="File"):
+                    dpg.add_menu_item(label="Save", callback=self._on_save_click)
+                    dpg.add_menu_item(label="Save Backup", callback=self._on_save_backup_click)
+                    dpg.add_menu_item(label="Exit", callback=dpg.destroy_context)
+                
+                with dpg.menu(label="View"):
+                    dpg.add_menu_item(label="Tea Stash")
+                    dpg.add_menu_item(label="Reviews")
+                    dp.Button(label="Demo", callback=demo.show_demo)
+                with dpg.menu(label="Reports"):
+                    dpg.add_menu_item(label="Generate Sel. Tea Vendor Tierlist", callback=self._generate_tierlist_for_selected_vendor)
+                    dpg.add_menu_item(label="Generate Sel. Review Chart", callback=self._generate_chart_for_selected_review)
+
+            # 2. The Main Content Area (Tabs are great for this app)
+            with dpg.tab_bar(tag="main_tab_bar"):
+                with dpg.tab(label="My Stash"):
+                    dpg.add_text("Tea Stash Viewer")
+
+                    # Foldable section for filter flags
+                    with dpg.collapsing_header(label="Actions", default_open=False):
+                        # Actions that perform an operation across the entire stash.
+                        # Zero negative tea amounts and cost
+                        dpg.add_button(label="Zero Negative Amounts", callback=self.data_manager.zero_negative_amounts)
+                        dpg.add_button(label="Zero Negative Costs", callback=self.data_manager.zero_negative_costs)
+                        
+                        # Round to nearest 2 decimal places for amounts and costs
+                        dpg.add_button(label="Round Amounts/Costs", callback=self.data_manager.round_amounts_and_costs)
+
+                    with dpg.collapsing_header(label="Filters", default_open=True):
+                        dpg.add_checkbox(label="Hide finished teas", callback=self._on_hide_finished_change)
+                        dpg.add_checkbox(label="Hide Unreviewed teas", callback=self._on_hide_unreviewed_change)
+                        dpg.add_checkbox(label="Hide Reviewed teas", callback=self._on_hide_reviewed_change)
+
+                    with dpg.collapsing_header(label="Sort Options", default_open=False):
+                        dpg.add_radio_button(items=["Name", "Vendor", "Type", "Amount", "Avg Score", "Reviews", "Cost"], label="Sort by:", horizontal=True, callback=self._on_filter_col_change)
+                        dpg.add_checkbox(label="Descending Order")
+
+                    # Search bar
+                    dpg.add_input_text(
+                        label="Search Stash", 
+                        callback=self._on_search_change,
+                        hint="Type name",
+                        width=350 * Config.UI_SCALE,
+                        height=50 * Config.UI_SCALE
+                    )
+                        
+                    
+
+                    # Stash operations (edit)
+                    with dpg.group(horizontal=True):
+                        dpg.add_button(label="Add Tea", callback=self._on_add_click_tea)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Edit Selected", callback=self._on_edit_click_tea)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="tea")
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Clear Selection", callback=self._on_clear_selection)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="View Selected", callback=self._view_selected_tea)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Copy UUID", callback=self._copy_selected_tea_uuid)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Review Selected", callback=self._review_selected_tea)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Refresh Data", callback=self._refresh_data)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+
+
+                    # Selected ID and name display
+                    self.selected_text_display = dp.Text("No tea selected")
+                    dpg.bind_item_font(self.selected_text_display, self.fonts.getFontName(size=2, bold=True))
+
+
+                    # Create Table
+                    _filter_table_id = dpg.generate_uuid()
+                    with dpg.child_window(width=-1, height=-1):
+                        teaTable = dp.Table(header_row=True, resizable=True, policy=dpg.mvTable_SizingFixedFit,
+                                       row_background=True, borders_innerV=True, borders_outerV=True, 
+                                       borders_innerH=True, borders_outerH=True, sortable=True, delay_search=True, callback=self._on_sort_click, tag=_filter_table_id)
+                        self.tableParent = teaTable
+
+                        with teaTable:
+                            # Create Headers based on DataFrame columns
+                            for col in df.columns:
+                                # pass uuid column
+                                if col == "UUID":
+                                    continue
+                                dpg.add_table_column(label=col)
+
+
+
+                            # Fill Rows
+                            self.data_manager.filter_data()
+                            self.selectable_tags.clear() # Reset list before rebuilding table
+                            self.render_table_rows(parent=teaTable)
+
+                with dpg.tab(label="Reviews"):
+                    dpg.add_text("Review list goes here")
+
+                    # Foldable section for filter flags
+                    with dpg.collapsing_header(label="Filters", default_open=False):
+                        dpg.add_checkbox(label="Hide finished teas", callback=self._on_hide_finished_reviews_change)
+
+                    with dpg.collapsing_header(label="Sort Options", default_open=False):
+                        dpg.add_radio_button(items=["Tea Name", "Tea Vendor", "Tea Type", "Avg Rating", "Date", "Tea UUID"], label="Sort by:", horizontal=True, callback=self._on_filter_col_change_reviews)
+                        dpg.add_checkbox(label="Descending Order")
+
+                    # Search bar
+                    dpg.add_input_text(
+                        label="Search Stash", 
+                        callback=self._on_search_change_reviews,
+                        hint="Type name",
+                        width=300,
+                    )
+
+                    # Stash operations (edit)
+                    with dpg.group(horizontal=True):
+                        dpg.add_button(label="Edit Selected", callback=self._on_edit_click_reviews)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="review")
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Clear Selection", callback=self._on_clear_selection_reviews)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="View Selected", callback=self._view_selected_tea)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Chart Selected", callback=self._generate_chart_for_selected_review)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Refresh Data", callback=self._refresh_data)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+
+                    # Selected ID and name display
+                    self.selected_text_display_reviews = dp.Text("No review selected")
+                    dpg.bind_item_font(self.selected_text_display_reviews, self.fonts.getFontName(size=2, bold=True))
+
+                    # Create Table
+                    _filter_table_id_reviews = dpg.generate_uuid()
+                    with dpg.child_window(width=-1, height=-1):
+                        teaReviewsTable = dp.Table(header_row=True, resizable=True, policy=dpg.mvTable_SizingFixedFit,
+                                       row_background=True, borders_innerV=True, borders_outerV=True, 
+                                       borders_innerH=True, borders_outerH=True, sortable=True, delay_search=True, callback=self._on_sort_click_reviews, tag=_filter_table_id_reviews)
+                        self.reviewTableParent = teaReviewsTable
+
+                        with teaReviewsTable:
+                            # Create Headers based on DataFrame columns
+                            for col in df_reviews.columns:
+                                # pass uuid column
+                                if col == "Tea UUID":
+                                    dpg.add_table_column(label=col, width=100 * Config.UI_SCALE)
+                                elif col == "Review UUID":
+                                    continue
+                                else:
+                                    dpg.add_table_column(label=col)
+
+                            # Fill Rows
+                            self.data_manager.filter_reviews_data()
+                            self.selectable_tags.clear() # Reset list before rebuilding table
+                            self.render_reviews_table_rows(parent=teaReviewsTable)
+
+                with dpg.tab(label="Dashboard"):
+                    from ui.dashboard_tab import draw_dashboard_tab
+                    draw_dashboard_tab(self.data_manager)
+
+                with dpg.tab(label="Analytics"):
+                    from ui.analytics_tab import draw_analytics_tab, draw_water_analytics
+                    draw_analytics_tab(self.data_manager)
+
+        dpg.set_primary_window(self.primary_window_tag, True)
+
+    def run(self):
+        """Start the render loop."""
+        self.setup_dpg()
+        self.build_ui()
+        
+        dpg.show_viewport()
+        dpg.start_dearpygui()
+        dpg.destroy_context()
+
+
+def format_cell(value, col=None):
+    """Format the cell value for display."""
+    if isinstance(value, dt.datetime):
+        return value.strftime("%Y-%m-%d")  # Just the date
+    
+    if col == "Avg Rating":
+        return f"{value} ({ScoreConverter.score_to_letter(value)})"
+    
+    max_len = 35
+
+    # if it is a string, wrap it if it is longer than 40 chars
+    if isinstance(value, str) and len(value) > max_len:
+        return value[:max_len-3] + "..."
+    return str(value)
