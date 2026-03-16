@@ -299,8 +299,12 @@ class TeaApp:
                             val, _ = wrap_text_no_break_words(val, width=160)
                             dpg.add_text(val, parent=dpg.last_item())
                     
-                        if color is not None:
+                        if color is not None and j > 1:
                             dpg.highlight_table_cell(parent, color=color, row=i, column=j-1)
+                        elif color is not None and j == 1:
+                            # If it's the first column, we want to highlight the entire row
+                            print(f"Highlighting row {i} with color {color} because of amount percentage")
+                            dpg.highlight_table_row(parent, color=color, row=i)
 
     
     def render_reviews_table_rows(self, parent=None):

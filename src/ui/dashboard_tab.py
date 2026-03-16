@@ -202,11 +202,18 @@ class Dashboard_Stash_TypeVendor:
     def _render_stats_text(self):
         """Renders the summary text area."""
         sum_stats = self.data_manager._type_vendor_stats_cache_summary
-        dpg.add_text(f"Total Grams: {sum_stats['total_grams']}")
-        dpg.add_text(f"Total Reviews: {sum_stats['total_reviews']}")
-        dpg.add_text(f"Top Vendor: {sum_stats['top_vendor']} ({sum_stats['top_vendor_amt']}g)")
-        dpg.add_text(f"Top Type: {sum_stats['top_type']} ({sum_stats['top_type_amt']}g)")
-        dpg.add_text(f"Total Teas: {sum_stats['num_teas']}")
+        total_grams = sum_stats.get("total_grams", 0)
+        total_reviews = sum_stats.get("total_reviews", 0)
+        top_vendor = sum_stats.get("top_vendor", "N/A")
+        top_vendor_amt = sum_stats.get("top_vendor_amt", 0)
+        top_type = sum_stats.get("top_type", "N/A")
+        top_type_amt = sum_stats.get("top_type_amt", 0)
+        num_teas = sum_stats.get("num_teas", 0)
+        dpg.add_text(f"Total Grams: {total_grams}")
+        dpg.add_text(f"Total Reviews: {total_reviews}")
+        dpg.add_text(f"Top Vendor: {top_vendor} ({top_vendor_amt}g)")
+        dpg.add_text(f"Top Type: {top_type} ({top_type_amt}g)")
+        dpg.add_text(f"Total Teas: {num_teas}")
         # ... add remaining stats here
 
     def _render_table_rows(self):

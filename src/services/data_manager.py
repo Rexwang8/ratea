@@ -30,6 +30,17 @@ class DataManager:
             "hide_finished_reviews": False,
         }
 
+        self.check_yaml_file_exists()
+
+    def check_yaml_file_exists(self):
+        """Checks if the YAML file exists, and creates it if it doesn't."""
+        if not os.path.exists(self.data_save_path):
+            Logger.warning(f"YAML file not found at {self.data_save_path}. Creating a new one.")
+            with open(self.data_save_path, 'w') as f:
+                yaml.safe_dump([], f)  # Start with an empty list of teas
+        else:
+            Logger.info(f"YAML file found at {self.data_save_path}.")
+
     def set_filter_flag(self, key, value):
         Logger.info(f"Filter flag changed: {key} set to {value}")
         self.filter_flags[key] = value

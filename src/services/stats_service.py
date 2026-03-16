@@ -59,7 +59,7 @@ class StatsService:
             if tea.average_rating > 0 and tea.catalog_price_per_gram is not None:
                 all_ratings.append((tea.average_rating, tea.catalog_price_per_gram))
         if not all_ratings:
-            return [], [], [], []
+            return [], [], []
 
         df = pd.DataFrame(all_ratings, columns=["AvgRating", "PricePerGram"])
         
@@ -77,7 +77,7 @@ class StatsService:
             if tea.average_rating > 0 and tea.catalog_price_per_gram is not None:
                 all_ratings.append((tea.average_rating, tea.catalog_price_per_gram))
         if not all_ratings:
-            return [], [], [], []
+            return [], [], []
 
         df = pd.DataFrame(all_ratings, columns=["AvgRating", "PricePerGram"])
         df["PricePercentile"] = df["PricePerGram"].rank(pct=True) * 100
@@ -118,6 +118,10 @@ class StatsService:
                     "Date": rev.date,
                     "WaterAmount": rev.steep_count * rev.vesselSize,
                 })
+
+        if not per_tea_data:
+            return 0, pd.DataFrame(), pd.DataFrame()
+        
         df = pd.DataFrame(per_tea_data).sort_values(by="TotalWater", ascending=False)
         df_review = pd.DataFrame(per_review_data)
         return overall_total, df, df_review
@@ -139,6 +143,8 @@ class StatsService:
                 "TotalTeas": 1,
                 "TotalTeasReviewed": 1 if len(t.reviews) > 0 else 0
             })
+        if not raw_data:
+            return pd.DataFrame(), {}
         df = pd.DataFrame(raw_data)
         df["AverageRating"] = df["AverageRating"].replace(0, np.nan)
 
@@ -197,6 +203,8 @@ class StatsService:
     # Input the above function and get back data for a bar chart of total grams by type/vendor (argument)
     def get_bar_chart_grams_data(teas, dimension_shown="Type"):
         df, stats = StatsService.get_df_summary_by_type_vendor(teas)
+        if df.empty:
+            return [], [], [], []
         plot_df = df[df["Dimension"] == dimension_shown]
         # Sort by quantity so the chart looks professional
         plot_df = plot_df.sort_values("Quantity", ascending=False)
@@ -230,6 +238,8 @@ class StatsService:
                 "PricePerGram": t.catalog_price_per_gram,
                 "Cost": t.cost
             })
+        if not data:
+            return pd.DataFrame(), {}
 
         df = pd.DataFrame(data).dropna(subset=["AvgRating"])
 
@@ -286,6 +296,8 @@ class StatsService:
                     "Amount": adj.amount,
                     "Spend": adj.cost if hasattr(adj, 'cost') else 0
                 })
+        if not data:
+            return pd.DataFrame(), {}
     
         df = pd.DataFrame(data)
         df["Date"] = pd.to_datetime(df["Date"])
@@ -316,6 +328,8 @@ class StatsService:
                     "WaterUsed": r.water_used_ml,
                     "Method": r.method
                 })
+        if not review_logs:
+            return pd.DataFrame(), {}
 
         df = pd.DataFrame(review_logs)
         df["Date"] = pd.to_datetime(df["Date"])
@@ -347,6 +361,8 @@ class StatsService:
                 "AvgRating": t.average_rating,
                 "PricePerGram": t.catalog_price_per_gram,
             })
+        if not data:
+            return [], {}, None
         df = pd.DataFrame(data).dropna(subset=["AvgRating", "PricePerGram"])
 
         # Calculate Percentiles stash-wide
