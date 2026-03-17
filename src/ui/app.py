@@ -198,6 +198,17 @@ class TeaApp:
         last_tea = self.data_manager.stash.get_last_tea_entry()
         show_tea_modal(None, self.data_manager, self.fonts, pre_populate=last_tea)
 
+    def _on_duplicate_add_click_tea(self):
+        """Called when the 'Duplicate Add Tea' button is pressed."""
+        Logger.info("Opening Duplicate Add Tea modal")
+        # We want to get the currently selected tea and pre-populate the add form with its values (except name)
+        if self.selected_tea_idx is None:
+            Logger.warning("No tea selected! Click a row in the table first.")
+            return
+        
+        current_tea = self.data_manager.stash.get_tea_by_id(self.selected_tea_id)
+        show_tea_modal(None, self.data_manager, self.fonts, pre_populate=current_tea)
+
     def _on_save_click(self):
         """Called when the 'Save' menu item is clicked."""
         save_path = f"{Config.DATA_DIR}/data_saved.yaml"
@@ -302,8 +313,7 @@ class TeaApp:
                         if color is not None and j > 1:
                             dpg.highlight_table_cell(parent, color=color, row=i, column=j-1)
                         elif color is not None and j == 1:
-                            # If it's the first column, we want to highlight the entire row
-                            print(f"Highlighting row {i} with color {color} because of amount percentage")
+                            # seems to error if we try to highlight the first column cell, so if it's the first column, we want to highlight the entire row instead
                             dpg.highlight_table_row(parent, color=color, row=i)
 
     
@@ -619,11 +629,13 @@ class TeaApp:
                     with dpg.group(horizontal=True):
                         dpg.add_button(label="Add Tea", callback=self._on_add_click_tea)
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.add_button(label="Duplicate Add Selected", callback=self._on_duplicate_add_click_tea)
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
                         dpg.add_button(label="Edit Selected", callback=self._on_edit_click_tea)
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
                         dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="tea")
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
-                        dpg.add_button(label="Clear Selection", callback=self._on_clear_selection)
+                        dpg.add_button(label="Clear Selected", callback=self._on_clear_selection)
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
                         dpg.add_button(label="View Selected", callback=self._view_selected_tea)
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
@@ -688,7 +700,7 @@ class TeaApp:
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
                         dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="review")
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
-                        dpg.add_button(label="Clear Selection", callback=self._on_clear_selection_reviews)
+                        dpg.add_button(label="Clear Selected", callback=self._on_clear_selection_reviews)
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
                         dpg.add_button(label="View Selected", callback=self._view_selected_tea)
                         dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))

@@ -56,8 +56,8 @@ class TeaStash:
         return last_review_tea, last_review
     
     def returnTeas(self):
-        # get teas and sort by purchase date, oldest first
-        self.teas.sort(key=lambda t: t.purchaseDate or pd.Timestamp.min, reverse=False)
+        # get teas and sort by purchase date, oldest first, then by vendor, then by name
+        self.teas.sort(key=lambda t: (t.purchaseDate or pd.Timestamp.min, t.vendor.lower(), t.name.lower()), reverse=False)
         return self.teas
 
     def returnFlatReviews(self):
