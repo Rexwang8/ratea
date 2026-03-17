@@ -49,12 +49,21 @@ class Modal:
             dpg.add_text(f"Total Adjustments (g): {self.tea.sum_adjustments_grams:.1f}g")
             dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
             for adj in self.tea.adjustments:
-                dpg.add_text(f" - {adj.adjustment_type}: {adj.amount:.1f}g, Cost: ${adj.cost:.2f}")
+                dpg.add_text(f"{adj.adjustment_type}: {adj.amount:.1f}g, Cost: ${adj.cost:.2f}")
+                dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
 
             # Change adjustments. Nest in a collapse header, allow editing with its own confirm button that updates the tea and refreshes the modal.
             with dpg.collapsing_header(label="Adjustments", default_open=True):
                 types_of_adjustments = Config.TYPES_OF_ADJUSTMENTS_TO_TEA
                 data_adjustments = {}
+                # Mark remaining as Standard deduction or gift deduction buttons
+                dpg.add_text(f"Remaining Amount (g): {self.tea.remaining:.2f}g")
+                dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
+                with dpg.group(horizontal=True):
+                    dpg.add_button(label="Mark remaining as Standard", callback=self.mark_all_as_adjustment, user_data="Standard Deduction", width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
+                    dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
+                    dpg.add_button(label="Mark remaining as Gift", callback=self.mark_all_as_adjustment, user_data="Gift Deduction", width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
+                    dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
                 for adj in types_of_adjustments:
                     # tuples of (adjustment_type, amount, cost) in tea.adjustments
                     amt_adj = 0.0
@@ -63,7 +72,8 @@ class Modal:
                         if a.adjustment_type == adj:
                             amt_adj = a.amount
                             cost_adj = a.cost
-                    dpg.add_text(f" - {adj}: {amt_adj:.1f}g, Cost: ${cost_adj:.2f}")
+                    dpg.add_text(f"{adj}: {amt_adj:.1f}g, Cost: ${cost_adj:.2f}")
+                    dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
                     data_adjustments[adj] = dp.InputFloat(label=f"{adj} Adjustment (g)", default_value=amt_adj, width=200 * Config.UI_SCALE, format="%.2f", height=40 * Config.UI_SCALE)
                     data_adjustments[f"{adj}_cost"] = dp.InputFloat(label=f"{adj} Adjustment Cost (USD)", default_value=cost_adj, width=200 * Config.UI_SCALE, format="%.2f", height=40 * Config.UI_SCALE)
 
@@ -106,10 +116,33 @@ class Modal:
             self.win.delete()
             self.win = None
 
+    def mark_all_as_adjustment(self, sender, app_data, user_data):
+        # Wrap around update_adjustments and set remaining amount as the amount for the given adjustment type, and cost as 0
+        remaining_amount = self.tea.remaining
+        new_user_data = dict()
+        if user_data == "Standard Deduction":
+            new_user_data["Standard"] = remaining_amount
+            new_user_data["Standard_cost"] = 0.0
+        elif user_data == "Gift Deduction":
+            new_user_data["Gift"] = remaining_amount
+            new_user_data["Gift_cost"] = 0.0
+        else:
+            Logger.error(f"Unknown adjustment type: {user_data}")
+            return
+        self.update_adjustments(None, None, new_user_data)
+
     def update_adjustments(self, sender, app_data, user_data):
+        # If user_data is not none, we check if they are integers first, if not, we try to get the values from the data_adjustments inputs. This allows us to use the same function for both the "Mark remaining as adjustment" buttons and the "Update Adjustments" button.
         for adj in Config.TYPES_OF_ADJUSTMENTS_TO_TEA:
-            amount = user_data[adj].get_value()
-            cost = user_data[f"{adj}_cost"].get_value()
+            amount = 0
+            cost = 0
+            if user_data and adj in user_data and f"{adj}_cost" in user_data:
+                if isinstance(user_data[adj], (int, float)) and isinstance(user_data[f"{adj}_cost"], (int, float)):
+                    amount = user_data[adj]
+                    cost = user_data[f"{adj}_cost"]
+                else:
+                    amount = user_data[adj].get_value()
+                    cost = user_data[f"{adj}_cost"].get_value()
             Logger.info(f"Adjustment '{adj}': amount={amount}, cost={cost}")
             # Check if adjustment already exists for this tea
             existing_adj = next((a for a in self.tea.adjustments if a.adjustment_type == adj), None)
