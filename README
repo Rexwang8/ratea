@@ -4,7 +4,20 @@ Different from mk1
 
 Attempts to track tea purchases and reviews. Can be used to generate charts.
 
-Run by running 
+
+## Installation
+
+Install the required dependencies using:
+
+```bash
+pip install -r requirements.txt
+```
+
+
+
+## Run
+
+Run with:
 
 ```
 
@@ -12,6 +25,7 @@ cd ratea
 python src/main.py
 
 ```
+*not `python ratea/src/main.py` for now, will fix later
 
 Let me know if you can't start the application or if something displays really weirdly.
 
