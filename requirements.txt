@@ -1,0 +1,9 @@
+dearpygui==2.0.0
+dearpypixl==1.2.13
+matplotlib==3.10.8
+numpy==2.4.3
+pandas==3.0.1
+Pillow==12.1.1
+PyYAML==6.0.2
+PyYAML==6.0.3
+rich==14.3.3
