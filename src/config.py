@@ -17,11 +17,11 @@ class Config:
     # --- UI Settings ---
     THEME = "Dark"  # Options: Dark
     LANGUAGE = "en"  # Default language
-    UI_SCALE = 2.0  # UI scaling factor
+    UI_SCALE = 1.0  # UI scaling factor
     
     # Display Defaults
-    DEFAULT_WIDTH = 1800 * 2
-    DEFAULT_HEIGHT = 1000 * 2
+    DEFAULT_WIDTH = 1800
+    DEFAULT_HEIGHT = 1000
 
     # --- Colors (RGBA) ---
     # Using a nested class or dict for grouping makes it readable

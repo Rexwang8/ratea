@@ -4,7 +4,23 @@ Different from mk1
 
 Attempts to track tea purchases and reviews. Can be used to generate charts.
 
-Run by running "main.py" with no arguments.
+Run by running 
+
+```
+
+cd ratea
+python src/main.py
+
+```
+
+Let me know if you can't start the application or if something displays really weirdly.
+
+Only tested on windows 10.
+
+Configs in `./ratea/src/config.py` 
+
+Set UI_SCALE to 2 for 4k monitor, to 1 or 1.5 for normal monitors.
+
 
 
 Hobby project started late 2025
