@@ -3,20 +3,20 @@
   vendor: New Vendor
   tea_type: New Tea Type
   cost: 5.0
-  catalogPrice: 5.0
+  catalog_price: 5.0
   quantity: 10.0
   adjustments: []
-  purchaseDate: '2026-03-16'
+  purchase_date: '2026-03-16'
   year: 2026
-  purchaseNote: No specified notes.
+  purchase_note: No specified notes.
   reviews:
   - id: 25d427b9-8108-4d76-a732-bb2c06845f84
-    tea_id: ffa329b8-8b00-43fb-94a3-78d96472c0e9
+    tea_id: 4654e14f-3c48-4420-9568-52e03c9ac5fb
     rating: 2.25
     date: '2026-03-16'
     amount_drunk: 6.0
-    vesselSize: 150.0
+    vessel_size: 150.0
     method: Gongfu
     steeps: 6
-    isFreeSample: false
+    is_free_sample: false
     notes: test

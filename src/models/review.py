@@ -32,24 +32,26 @@ class Review:
             # Handle YAML parsing if needed
             return cls.from_yaml(data)
         
+    
+        
     @classmethod
     def from_yaml(cls, data: dict):
         """Initialize from a YAML dictionary."""
         # You would implement your YAML parsing logic here
         id = str(uuid.uuid4())
-        datetime_str = data.get("date", "")
+        datetime_str = _get_value_with_flexible_key(data, ["date", "dateAdded"], "")
         review_dt = parse_flexible_date(datetime_str)
         instance = cls(
-            id=data.get("id", id),
-            tea_id=data.get("tea_id", ""),
-            rating=data.get("rating", 0.0),
-            notes=data.get("notes", ""),
+            id=_get_value_with_flexible_key(data, ["id", "ID"], id),
+            tea_id=_get_value_with_flexible_key(data, ["tea_id", "teaID"], ""),
+            rating=_get_value_with_flexible_key(data, ["rating"], 0.0),
+            notes=_get_value_with_flexible_key(data, ["notes"], ""),
             date=review_dt,
-            amount_drunk=data.get("amount_drunk", 0.0),
-            vesselSize=data.get("vesselSize", 0.0),
-            method=data.get("method", "gongfu"),
-            isFreeSample=data.get("isFreeSample", False),
-            steeps=data.get("steeps", 0)
+            amount_drunk=_get_value_with_flexible_key(data, ["amount_drunk", "amountDrunk"], 0.0),
+            vesselSize=_get_value_with_flexible_key(data, ["vesselSize", "vessel_size"], 0.0),
+            method=_get_value_with_flexible_key(data, ["method"], "gongfu"),
+            isFreeSample=_get_value_with_flexible_key(data, ["isFreeSample", "is_free_sample"], False),
+            steeps=_get_value_with_flexible_key(data, ["steeps"], 0)
         )
         return instance
 
@@ -65,6 +67,8 @@ class Review:
       hongs handily, so giving it an A.\n\nA+", "Notes (short)": "None Needed", "Steeps":
       6, "Vessel size": 120, "date": 1767852000.0, "dateAdded": 1768002865.80064}'
     '''
+
+    # This is a handler for a legacy format. so we must use this exact format.
     @classmethod
     def from_dict(cls, data: dict):
         """Initialize from a dictionary (like from JSON/YAML)"""
@@ -95,10 +99,10 @@ class Review:
             "rating": self.rating,
             "date": self.date if isinstance(self.date, str) else self.date.strftime("%Y-%m-%d"),
             "amount_drunk": self.amount_drunk,
-            "vesselSize": self.vesselSize,
+            "vessel_size": self.vesselSize,
             "method": self.method,
             "steeps": self.steep_count,
-            "isFreeSample": self.isFreeSample,
+            "is_free_sample": self.isFreeSample,
             
             "notes": self.notes,
         }
@@ -121,3 +125,10 @@ class Review:
     
     def __str__(self):
         return f"Review for {self.tea_id} (date: {self.date}): {self.amount_drunk}g {self.rating_letter} - {self.notes[:30]}..."
+    
+def _get_value_with_flexible_key(data: dict, possible_keys: list, default=None):
+        """Helper to get a value from a dict using a list of possible keys."""
+        for key in possible_keys:
+            if key in data:
+                return data[key]
+        return default

@@ -65,26 +65,29 @@ class Tea:
             )
             adjustments.append(adj)
 
-        purchase_dt = data.get("purchaseDate", None)
+        purchase_dt = _get_value_with_flexible_key(data, ["purchaseDate", "purchase_date", "date"], None)
         if isinstance(purchase_dt, str):
             purchase_dt = parse_flexible_date(purchase_dt)
 
         instance = cls(
-            name=data.get("name", ""),
-            vendor=data.get("vendor", ""),
-            tea_type=data.get("tea_type", ""),
-            cost=data.get("cost", 0.0),
-            catalogPrice=data.get("catalogPrice", 0.0),
-            quantity=data.get("quantity", 0.0),
+            name=_get_value_with_flexible_key(data, ["name", "Name"], ""),
+            vendor=_get_value_with_flexible_key(data, ["vendor", "Vendor"], ""),
+            tea_type=_get_value_with_flexible_key(data, ["tea_type", "Type"], ""),
+            cost=_get_value_with_flexible_key(data, ["cost", "Cost"], 0.0),
+            catalogPrice=_get_value_with_flexible_key(data, ["catalogPrice", "catalog_price"], 0.0),
+            quantity=_get_value_with_flexible_key(data, ["quantity", "Quantity"], 0.0),
             purchaseDate=purchase_dt,
-            year=data.get("year", 0),
-            purchaseNote=data.get("purchaseNote", ""),
+            year=_get_value_with_flexible_key(data, ["year", "Year"], 0),
+            purchaseNote=_get_value_with_flexible_key(data, ["purchaseNote", "Purchase Note", "Notes (Long)", "purchase_note"], ""),
             reviews=reviews,
             adjustments=adjustments,
             id=id if "id" not in data else data["id"]
         )
         return instance
 
+    # Legacy handler for older dict format with "attributes" and "reviews" keys,
+    #  where attributes is a dict of the tea's main properties, and reviews is a list of review dicts. 
+    # Adjustments can be either a dict of type->amount or a list of adjustment dicts.
     @classmethod
     def from_dict(cls, data: dict):
         """Initialize from a dictionary (like from JSON/YAML)"""
@@ -256,11 +259,18 @@ class Tea:
             "vendor": self.vendor,
             "tea_type": self.tea_type,
             "cost": self.cost,
-            "catalogPrice": self.catalogPrice,
+            "catalog_price": self.catalogPrice,
             "quantity": self.quantity,
             "adjustments": [adjustment.to_dict() for adjustment in self.adjustments],
-            "purchaseDate": self.purchaseDate if isinstance(self.purchaseDate, str) else self.purchaseDate.strftime("%Y-%m-%d"),
+            "purchase_date": self.purchaseDate if isinstance(self.purchaseDate, str) else self.purchaseDate.strftime("%Y-%m-%d"),
             "year": self.year,
-            "purchaseNote": self.purchaseNote,
+            "purchase_note": self.purchaseNote,
             "reviews": [review.to_dict() for review in self.reviews],
         }
+    
+def _get_value_with_flexible_key(data: dict, possible_keys: list, default=None):
+        """Helper to get a value from a dict using a list of possible keys."""
+        for key in possible_keys:
+            if key in data:
+                return data[key]
+        return default
