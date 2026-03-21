@@ -1,5 +1,7 @@
 ## Ratea MK2
 
+Note: Please use the [develop](https://github.com/Rexwang8/ratea/tree/develop) branch if you want the latest, potentially broken features. Please use [main](https://github.com/Rexwang8/ratea/tree/main) branch otherwise.
+
 Different from mk1
 
 Attempts to track tea purchases and reviews. Can be used to generate charts.
