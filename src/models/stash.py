@@ -45,6 +45,14 @@ class TeaStash:
             return None
         return self.teas[-1]
     
+    def get_start_date(self):
+        earliest_date = None
+        for tea in self.teas:
+            if tea.purchaseDate:
+                if earliest_date is None or tea.purchaseDate < earliest_date:
+                    earliest_date = tea.purchaseDate
+        return earliest_date
+    
     def get_last_review_entry(self):
         last_review = None
         last_review_tea = None

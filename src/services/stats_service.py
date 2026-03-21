@@ -1,5 +1,6 @@
 import math
 from matplotlib import pyplot as plt
+from matplotlib.ticker import FuncFormatter
 import numpy as np
 import pandas as pd
 import dearpygui.dearpygui as dpg
@@ -11,6 +12,7 @@ from services.score_converter import ScoreConverter
 from services.text_helper import wrap_text_no_break_words
 import os as os
 from services.logger import Logger
+import matplotlib.patheffects as pe
 
 class StatsService:
     @staticmethod
@@ -1246,19 +1248,236 @@ class ReportService:
         img.save(save_path)
 
     @staticmethod
-    def experimental_generate_report_image_placeholder():
-        """Placeholder for future report image generation."""
-        Logger.info("Report image generation placeholder called.")
-        # We want to use pyplot to generate a chart, save it as an image, then use Pillow to composite text and images into a final report image.
-        placeholder_path = f"{Config.DATA_DIR}/tmp/report_placeholder.png"
+    def template_generate_placeholder_chart(path: str):
+        """Create and save a placeholder matplotlib chart."""
         fig, ax = plt.subplots(figsize=(8, 10))
         ax.text(0.5, 0.5, "Report Image Placeholder", fontsize=24, ha='center')
         ax.axis("off")
-        plt.savefig(placeholder_path, bbox_inches='tight', dpi=100)
+        plt.savefig(path, bbox_inches='tight', dpi=100)
         plt.close(fig)
 
-        # Return the path to the placeholder image
-        return placeholder_path
+    @staticmethod
+    def template_generate_report_image_placeholder(width=800, height=1000):
+        Logger.info("Report image generation placeholder called.")
+
+        import os
+
+        report_shorthand = "placeholder"
+        tmp_dir = f"{Config.DATA_DIR}/tmp"
+        os.makedirs(tmp_dir, exist_ok=True)
+
+        placeholder_path = f"{tmp_dir}/report_placeholder_{report_shorthand}.png"
+        final_path = f"./report_{report_shorthand}_{pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
+
+        # Generate placeholder chart (ONLY if needed)
+        if not os.path.exists(placeholder_path):
+            ReportService.template_generate_placeholder_chart(placeholder_path)
+
+        # Composite final image
+        img = Image.new("RGB", (width, height), color="white")
+
+        placeholder_img = Image.open(placeholder_path)
+        img.paste(placeholder_img, (0, 0))
+
+        img.save(final_path)
+
+        return final_path
+    
+    @staticmethod
+    def generate_cost_per_gram_over_time_reviews_report(datamanager, width=800, height=600):
+        Logger.info("Generating cost per gram over time report.")
+    
+        report_shorthand = "cpg_over_time_type"
+        tmp_dir = f"{Config.DATA_DIR}/tmp"
+        os.makedirs(tmp_dir, exist_ok=True)
+    
+        placeholder_path = f"{tmp_dir}/report_placeholder_{report_shorthand}.png"
+        final_path = f"./report_{report_shorthand}_{pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
+    
+        # -------------------------
+        # Flatten data
+        # -------------------------
+        rows = []
+    
+        for tea in datamanager.teas:
+            if tea.quantity == 0:
+                continue
+                
+            for r in tea.reviews:
+                if r.amount_drunk <= 0:
+                    continue
+                
+                rows.append({
+                    "date": pd.to_datetime(r.date),
+                    "tea_type": tea.tea_type,
+                    "amount": r.amount_drunk,
+                    "cpg": tea.catalog_price_per_gram,
+                    "session_cost": r.amount_drunk * tea.catalog_price_per_gram
+                })
+    
+        df = pd.DataFrame(rows)
+        if df.empty:
+            raise ValueError("No valid review data to plot.")
+    
+        df = df.sort_values("date")
+
+        # total spend per tea type
+        type_totals = df.groupby("tea_type")["session_cost"].sum()
+
+        # keep only meaningful ones
+        top_types = type_totals[type_totals > type_totals.sum() * 0.02].index  # 2% threshold
+
+        df["tea_type_grouped"] = df["tea_type"].where(
+            df["tea_type"].isin(top_types),
+            "Other"
+        )
+        # debug print all sums
+        Logger.info("Total spend by tea type:")
+        for tea_type, total in type_totals.items():
+            Logger.info(f"  {tea_type}: ${total:.2f}")
+        Logger.info(f"  Other: ${type_totals[~type_totals.index.isin(top_types)].sum():.2f}")
+        Logger.info(f"  Total: ${type_totals.sum():.2f}")
+    
+        # -------------------------
+        # Monthly % spend by tea type
+        # -------------------------
+        df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
+    
+        monthly = df.groupby(["month", "tea_type_grouped"])["session_cost"].sum().reset_index()
+    
+        total_monthly = monthly.groupby("month")["session_cost"].sum().reset_index()
+        total_monthly = total_monthly.rename(columns={"session_cost": "total"})
+    
+        monthly = monthly.merge(total_monthly, on="month")
+        monthly["pct"] = 100 * monthly["session_cost"] / monthly["total"]
+    
+        pivot = monthly.pivot(index="month", columns="tea_type_grouped", values="pct").fillna(0)
+        pivot.index = pivot.index + pd.offsets.Day(15)
+        pivot = pivot[pivot.mean().sort_values(ascending=False).index]
+        pivot = pivot.rolling(2).mean()
+    
+        # -------------------------
+        # Rolling 30-day avg $/g
+        # -------------------------
+        df["weighted_cpg"] = df["cpg"] * df["amount"]
+    
+        df = df.set_index("date").sort_index()
+
+        rolling = (
+            (df["cpg"] * df["amount"]).rolling("30D", min_periods=5).sum() /
+            df["amount"].rolling("30D", min_periods=5).sum()
+        )
+
+        rolling = rolling.dropna()
+    
+        # -------------------------
+        # Plot
+        # -------------------------
+        fig, ax1 = plt.subplots(figsize=(18, 10))
+
+        # If you have your own types you should define them here with colors, otherwise it will default to gray
+        # Just ask chatgpt or some other llm to suggest a color palette for the tea types you have in your stash and put them here
+        COLOR_MAP = {
+            "Sheng": "#1f77b4",             # blue (fresh, lively)
+            "Shou": "#4e342e",              # dark earthy brown
+            "Hong": "#b71c1c",              # deep red
+            "Yancha": "#546e7a",            # slate blue-gray (FIXED, distinct)
+            "White": "#f8bbd0",             # soft pink
+            "Dancong": "#ff7043",           # bright orange (aromatic)
+            "Taiwanese Oolong": "#ff9800",  # golden orange
+            "Gyokuro": "#2e7d32",           # deep green (umami)
+            "Matcha": "#66bb6a",            # bright green
+            "Fuzhuan": "#8d6e63",           # fermented brown
+            "Other": "#9e9e9e"              # neutral gray
+        }
+
+        # Move other to end if it exists
+        cols = list(pivot.columns)
+        if "Other" in cols:
+            cols.remove("Other")
+            cols.append("Other")
+
+        pivot = pivot[cols]
+    
+        # Stacked area
+        ax1.stackplot(
+            pivot.index,
+            pivot.values.T,
+            labels=pivot.columns,
+            colors=[COLOR_MAP.get(x, "#9E9E9E") for x in pivot.columns],
+            linewidth=0.5
+        )
+    
+        ax1.set_ylim(0, 100)
+        start = pivot.index.min()
+        end = pivot.index.max() + pd.offsets.MonthEnd(1)
+
+        ax1.set_xlim(start, end)
+        ax1.margins(x=0)
+        ax1.set_ylabel("Percent of Spend, Drinking (%)")
+        ax1.set_title("Tea Spend Composition + Rolling Cost")
+
+        ax1.legend(
+        labels=[trim_label(l) for l in pivot.columns],
+        loc="center left",
+        bbox_to_anchor=(1.08, 0.5),
+        borderaxespad=0,
+        frameon=False
+        )
+    
+        # Secondary axis for rolling cost
+        ax2 = ax1.twinx()
+        line = ax2.plot(
+            rolling.index,
+            rolling.values,
+            linewidth=2.5,
+            color="red",
+        )[0]
+
+        line.set_path_effects([
+            pe.Stroke(linewidth=5, foreground='white'),
+            pe.Normal()
+        ])
+        ax2.set_ylabel("Cost ($/g, 30D rolling avg)")
+
+        ax2.yaxis.set_major_formatter(
+            FuncFormatter(lambda x, pos: f"${x:.2f}/g")
+        )
+    
+        # Get size of image in width and height
+        width, height = fig.get_size_inches() * fig.dpi
+        # convert numpy.float64 to int for width and height
+        width = int(width)
+        height = int(height)
+
+        plt.subplots_adjust(top=0.95, left=0.05, bottom=0.1, right=0.82)  # Adjust to make room for legend
+        plt.savefig(placeholder_path, dpi=100)
+        plt.close(fig)
+    
+        # -------------------------
+        # Composite image
+        # -------------------------
+        img = Image.new("RGB", (width, height + 20), color="white")
+        placeholder_img = Image.open(placeholder_path)
+        xoffset = 15
+        yoffset = 15
+        draw = ImageDraw.Draw(img)
+        tag_font = ImageFont.truetype("arial.ttf", 24)
+        tag_font_body = ImageFont.truetype("arial.ttf", 18)
+        # Black
+        tag_color = (0, 0, 0)
+        draw.text((xoffset, yoffset), "Tea Spend Analysis", font=tag_font, fill=tag_color)
+        yoffset += 30
+
+        draw.text((xoffset, yoffset), "This chart shows the composition of your tea spending over time by tea type, along with a rolling average of cost per gram.", font=tag_font_body, fill=tag_color)
+        yoffset += 20
+
+        img.paste(placeholder_img, (xoffset-10, yoffset))
+        img.save(final_path)
+    
+        return final_path
+    
+
 
 def draw_tag_value(draw, x, y, tag, value, tag_font, value_font, tag_color=(80, 80, 80), value_color="black"):
     """Helper to draw a tag and value pair on an image at specified coordinates."""
@@ -1294,3 +1513,6 @@ def create_star(cx, cy, outer_radius, inner_radius, points=5):
         angle += step
 
     return star_points
+
+def trim_label(label, max_len=14):
+    return label if len(label) <= max_len else label[:max_len-1] + "…"

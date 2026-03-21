@@ -585,10 +585,11 @@ class TeaApp:
                 with dpg.menu(label="View"):
                     dpg.add_menu_item(label="Tea Stash")
                     dpg.add_menu_item(label="Reviews")
-                    dp.Button(label="Demo", callback=demo.show_demo)
                 with dpg.menu(label="Reports"):
-                    dpg.add_menu_item(label="Generate Sel. Tea Vendor Tierlist", callback=self._generate_tierlist_for_selected_vendor)
-                    dpg.add_menu_item(label="Generate Sel. Review Chart", callback=self._generate_chart_for_selected_review)
+                    dpg.add_menu_item(label="Report: Sel. Tea Vendor Tierlist", callback=self._generate_tierlist_for_selected_vendor)
+                    dpg.add_menu_item(label="Report: Generate Sel. Review Chart", callback=self._generate_chart_for_selected_review)
+                    dpg.add_menu_item(label="Chart: $/g over time by type", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager))
+                    #dpg.add_menu_item(label="Cost per Gram over time. By Type", callback=lambda: ReportService.generate_cost_per_gram_over_time_by_type_report(self.data_manager))
 
             # 2. The Main Content Area (Tabs are great for this app)
             with dpg.tab_bar(tag="main_tab_bar"):
@@ -648,7 +649,7 @@ class TeaApp:
 
 
                     # Selected ID and name display
-                    self.selected_text_display = dp.Text("No tea selected")
+                    self.selected_text_display = dpg.add_text("No tea selected")
                     dpg.bind_item_font(self.selected_text_display, self.fonts.getFontName(size=2, bold=True))
 
 
