@@ -38,6 +38,16 @@ Configs in `./ratea/src/config.py`
 Set UI_SCALE to 2 for 4k monitor, to 1 or 1.5 for normal monitors.
 
 
+## Charting
+
+Can also make some charts, mainly running off of pyplot.
+
+Example:
+
+![Example](./cpg_over_time_example.png)
+
+
+
 
 Hobby project started late 2025
 
