@@ -76,8 +76,8 @@ class DataManager:
 
     def refresh_dropdown_data(self):
         """Refreshes any dropdown options based on current stash data."""
-        self.dropdownTeaTypes = self.stash.get_most_common_tea_types(top_n=30)
-        self.dropdownTeaVendors = self.stash.get_most_common_tea_vendors(top_n=30)
+        self.dropdownTeaTypes = self.stash.get_most_common_tea_types(top_n=-1)
+        self.dropdownTeaVendors = self.stash.get_most_common_tea_vendors(top_n=-1)
 
         Logger.info(f"Dropdown tea types refreshed: {len(self.dropdownTeaTypes)} types available.")
         if len(self.dropdownTeaTypes) > 5:
