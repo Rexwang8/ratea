@@ -186,6 +186,11 @@ class TeaApp:
         #self.selected_review_idx = review_row.iloc[0]["IDX"] if not review_row.empty else None
         review_data = self.review_lookup.get(self.selected_review_id)
 
+        if review_data:
+            self.selected_review_idx = review_data[0]
+        else:
+            self.selected_review_idx = None
+
         # 3. Update any UI elements that depend on the selection
         display_text = "No review selected"
         if review_data:
