@@ -58,6 +58,16 @@ class TeaApp:
 
         self.data_manager.refresh_all()
 
+        self.tea_lookup = {
+            row["UUID"]: (row["IDX"], row["Name"])
+            for _, row in self.data_manager.df.iterrows()
+        }
+
+        self.review_lookup = {
+            row["Review UUID"]: (row["IDX"], row["Tea Name"], row["Session Number"])
+            for _, row in self.data_manager.get_stash_reviews_dataframe().iterrows()
+        }
+
     def _setup_fonts(self):
         """Private method to load fonts."""
         self.fonts.bindLoadFonts()
@@ -90,12 +100,19 @@ class TeaApp:
         """Called when a user clicks any row."""
 
         # 1. Manually deselect all other selectables (Radio-button behavior)
-        self.selectable_tags = [tag for tag in self.selectable_tags if dpg.does_item_exist(tag)]
-        for tag in self.selectable_tags:
-            if tag != sender:
-                dpg.set_value(tag, False)
-            else:
-                dpg.set_value(tag, True) # Ensure the clicked one stays on
+        #self.selectable_tags = [tag for tag in self.selectable_tags if dpg.does_item_exist(tag)]
+        #for tag in self.selectable_tags:
+        #    if tag != sender:
+        #        dpg.set_value(tag, False)
+        #    else:
+        #        dpg.set_value(tag, True) # Ensure the clicked one stays on
+
+        if hasattr(self, "last_selected_tag") and self.last_selected_tag != sender:
+            if dpg.does_item_exist(self.last_selected_tag):
+                dpg.set_value(self.last_selected_tag, False)
+
+        dpg.set_value(sender, True)
+        self.last_selected_tag = sender
 
         # If the same row is clicked again, deselect it
         if self.selected_tea_id == user_data:
@@ -108,16 +125,25 @@ class TeaApp:
 
         # 2. Update the App state
         self.selected_tea_id = user_data
-        df = self.data_manager.df
-        tea_row = df[df["UUID"] == self.selected_tea_id]
-        self.selected_tea_idx = tea_row.iloc[0]["IDX"] if not tea_row.empty else None
+        #df = self.data_manager.df
+        #tea_row = df[df["UUID"] == self.selected_tea_id]
+        #self.selected_tea_idx = tea_row.iloc[0]["IDX"] if not tea_row.empty else None
+
+        tea_data = self.tea_lookup.get(self.selected_tea_id)
+
+        if tea_data:
+            self.selected_tea_idx, tea_name = tea_data
+        else:
+            self.selected_tea_idx = None
+            tea_name = None
 
         # 3. Update any UI elements that depend on the selection
         display_text = "No tea selected"
         if self.selected_tea_idx is not None:
             # Find the tea name from the DataFrame
-            if not tea_row.empty:
-                tea_name = tea_row.iloc[0]["Name"]
+            #if not tea_row.empty:
+            #    tea_name = tea_row.iloc[0]["Name"]
+            if tea_name:
                 display_text = f"Selected Tea: {tea_name} (IDX: {self.selected_tea_idx} UUID: {self.selected_tea_id})"
             else:
                 display_text = f"Selected Tea ID: {self.selected_tea_idx}"
@@ -128,14 +154,20 @@ class TeaApp:
 
     def _on_row_selected_reviews(self, sender, app_data, user_data):
         """Called when a user clicks any row."""
-
         # 1. Manually deselect all other selectables (Radio-button behavior)
-        self.selectable_tags_reviews = [tag for tag in self.selectable_tags_reviews if dpg.does_item_exist(tag)]
-        for tag in self.selectable_tags_reviews:
-            if tag != sender:
-                dpg.set_value(tag, False)
-            else:
-                dpg.set_value(tag, True) # Ensure the clicked one stays on
+        #self.selectable_tags_reviews = [tag for tag in self.selectable_tags_reviews if dpg.does_item_exist(tag)]
+        #for tag in self.selectable_tags_reviews:
+        #    if tag != sender:
+        #        dpg.set_value(tag, False)
+        #    else:
+        #        dpg.set_value(tag, True) # Ensure the clicked one stays on
+
+        if hasattr(self, "last_selected_review_tag") and self.last_selected_review_tag != sender:
+            if dpg.does_item_exist(self.last_selected_review_tag):
+                dpg.set_value(self.last_selected_review_tag, False)
+        
+        dpg.set_value(sender, True)
+        self.last_selected_review_tag = sender
 
         # If the same row is clicked again, deselect it
         if self.selected_review_id == user_data:
@@ -149,21 +181,18 @@ class TeaApp:
         # 2. Update the App state
         self.selected_review_id = user_data
         #tea, review = self.data_manager.stash.get_review_by_id(self.selected_review_id)
-        df_reviews = self.data_manager.get_stash_reviews_dataframe()
-        review_row = df_reviews[df_reviews["Review UUID"] == user_data]
-        self.selected_review_idx = review_row.iloc[0]["IDX"] if not review_row.empty else None
+        #df_reviews = self.data_manager.get_stash_reviews_dataframe()
+        #review_row = df_reviews[df_reviews["Review UUID"] == user_data]
+        #self.selected_review_idx = review_row.iloc[0]["IDX"] if not review_row.empty else None
+        review_data = self.review_lookup.get(self.selected_review_id)
 
         # 3. Update any UI elements that depend on the selection
         display_text = "No review selected"
-        if self.selected_review_idx is not None:
-            # Find the review text from the DataFrame
-            if not review_row.empty:
-                tea_name = review_row.iloc[0]["Tea Name"]
-                tea_year = review_row.iloc[0]["Tea Year"]
-                session_num = review_row.iloc[0]["Session Number"]
-                display_text = f"Selected Review: {tea_name} (Year: {tea_year}, Session: {session_num}, IDX: {self.selected_review_idx} UUID: {self.selected_review_id})"
-            else:
-                display_text = f"Selected Review UUID: {self.selected_review_idx} (Match not found!)"
+        if review_data:
+            tea_name, session_num = review_data[1], review_data[2]
+            display_text = f"Selected Review: {tea_name} (Session: {session_num}, IDX: {self.selected_review_idx} UUID: {self.selected_review_id})"
+        else:
+            display_text = f"Selected Review UUID: {self.selected_review_idx} (Match not found!)"
         dpg.set_value(self.selected_text_display_reviews, display_text)
 
         Logger.info(f"UI: Active Review selection set to {user_data}")
@@ -243,6 +272,16 @@ class TeaApp:
         self._on_search_change(None, None)
         self._on_search_change_reviews()
 
+        self.tea_lookup = {
+            row["UUID"]: (row["IDX"], row["Name"])
+            for _, row in self.data_manager.df.iterrows()
+        }
+
+        self.review_lookup = {
+            row["Review UUID"]: (row["IDX"], row["Tea Name"], row["Session Number"])
+            for _, row in self.data_manager.get_stash_reviews_dataframe().iterrows()
+        }
+
     def render_table_rows(self, parent=None):
         """Renders the table rows based on the current DataFrame."""
         # 1. Clear existing rows (we target the children of the table)
@@ -258,6 +297,11 @@ class TeaApp:
         
         df_to_show = self.data_manager.filtered_df
         Logger.info(f"DataFrame retrieved: {df_to_show.shape[0]} rows")
+
+        self.tea_lookup = {
+            row["UUID"]: (row["IDX"], row["Name"])
+            for _, row in self.data_manager.df.iterrows()
+        }
 
         # 3. Build the rows
         for i in range(len(df_to_show)):
@@ -332,6 +376,11 @@ class TeaApp:
         
         df_to_show = self.data_manager.filtered_reviews_df
         Logger.info(f"DataFrame retrieved: {df_to_show.shape[0]} rows")
+
+        self.review_lookup = {
+            row["Review UUID"]: (row["IDX"], row["Tea Name"], row["Session Number"])
+            for _, row in self.data_manager.get_stash_reviews_dataframe().iterrows()
+        }
 
         # 3. Build the rows
         for i in range(len(df_to_show)):
