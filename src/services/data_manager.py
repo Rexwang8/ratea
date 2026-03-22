@@ -117,7 +117,15 @@ class DataManager:
         with open(filepath, 'r') as f:
             raw_data = yaml.safe_load(f)
             # Your YAML is a list of teas at the top level
-            self.teas = [Tea.from_dict_or_yaml(item) for item in raw_data]
+            teas = []
+            try:
+                teas = [Tea.from_dict_or_yaml(item) for item in raw_data]
+            except Exception as e:
+                Logger.error(f"Error loading teas from YAML: {e}")
+                Logger.error(f"Raw data that caused the error: {raw_data}")
+                raise e  # Re-raise after logging
+            self.teas = teas
+            
         self.stash = TeaStash(self.teas)
         Logger.info(f"Loaded {len(self.teas)} teas from {filepath}")
 
