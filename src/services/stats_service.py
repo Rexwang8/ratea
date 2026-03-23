@@ -353,10 +353,23 @@ class StatsService:
     # Gets the data for the first report image relating to tea rating vs price percentile bubble chart
     # Items are returned as datapoints of (x, y, size) where x is rating, y is price percentile, size is count of teas at that point
     @staticmethod
-    def get_report_image_comparison_1_data(teas, thisReview: Review=None, thisTea: Tea=None, By="All"):
+    def get_report_image_comparison_1_data(teas, thisReview: Review=None, thisTea: Tea=None, By="All", exp=1.1, scale=4.0):
+        if By not in ["All", "Type", "Vendor", "All_Under_20"]:
+            raise ValueError("Invalid 'By' argument. Must be one of: 'All', 'Type', 'Vendor', 'All_Under_20'")
+        teas_same_type = [t for t in teas if thisTea and t.tea_type == thisTea.tea_type] if thisTea else []
+        if By == "All_Under_20":
+            if len(teas_same_type) > 20:
+                By = "Type"
+            else:
+                By = "All"
+
         data = []
         for t in teas:
             t: Tea
+            if By == "Type" and thisTea and t.tea_type != thisTea.tea_type:
+                continue
+            if By == "Vendor" and thisTea and t.vendor != thisTea.vendor:
+                continue
             data.append({
                 "Type": t.tea_type,
                 "Vendor": t.vendor,
@@ -431,32 +444,33 @@ class StatsService:
                 )
 
         final_clustered_datapoints = []
-        scalingFactor = 4.0
         for (x, y), size in clustered_datapoints.items():
             # We use the percentile data but ignore the untried teas for clustering. 
             # If it is 0 reviews, we skip it.
             if x == 0:
                 continue
-            final_clustered_datapoints.append( (x, y, size*scalingFactor) )
+            final_clustered_datapoints.append( (x, y, size * scale * (size ** (exp - 1))) )
 
         return final_clustered_datapoints, max_cluster_size, thisReview_point
     
     @staticmethod
-    def get_report_image_1_percentile_data(teas, thisReview=None, thisTea=None):
+    def get_report_image_1_percentile_data(teas, thisReview=None, thisTea=None, By="All"):
         # Helper that gets the 0-100 percentile of the price percentile pct[0-100] and assigns an exact price to it in a tuple list
         # for example pct[0] might be $0.01/g, pct[25] might be $0.10/g, pct[50] might be $0.50/g, pct[75] might be $1.00/g, pct[100] might be $5.00/g
         data = []
         for pct in range(0, 101, 25):
-            price = StatsService.get_price_percentile(teas, pct)
+            price = StatsService.get_price_percentile(teas, pct, By=By, thisTea=thisTea)
             data.append((pct, price))
         return data
 
     @staticmethod
-    def get_price_percentile(teas, percentile):
+    def get_price_percentile(teas, percentile, By="All", thisTea=None):
         # Helper that gets the price at a given percentile for the report image
         prices = []
         for t in teas:
             t: Tea
+            if By == "Type" and thisTea and t.tea_type != thisTea.tea_type:
+                continue
             if t.catalogPrice is not None and t.quantity is not None and t.quantity > 0:
                 price = t.catalogPrice / t.quantity
                 prices.append(price)
@@ -591,7 +605,7 @@ class ReportService:
         offset_y += math.ceil(((font_size - 4) * review_notes_len) * 1.25) # Rough estimate of height used by notes
         offset_y += 15 + line_spacing
         # Rating of this session
-        draw_tag_value(draw, padding_x, padding_y + offset_y, "Rating this session: ", f"{review.rating_letter} ({review.rating}/5)", body_font, body_font)
+        draw_tag_value(draw, padding_x, padding_y + offset_y, "Rating this session: ", f"{review.rating_letter}", body_font, body_font)
         
         # Tea cross-review comparison section
         if len(reviews) > 1 and False: # Hiding for now since it's not fully implemented and can be confusing without context, will add back in future
@@ -840,17 +854,86 @@ class ReportService:
     @staticmethod
     # Generates a comparison between the ratings of this tea vs all other teas in the stash as a bubble chart
     # The X axis is the rating, the Y axis is the percentile of price per gram. Bubble size is the clustered count of teas at that rating/price point
-    def generate_report_image_comparison_1(data_manager, thisReview=None, thisTea=None):
+    def generate_report_image_comparison_1(data_manager, thisReview=None, thisTea=None, By="All_Under_20"):
         Logger.info("Report image comparison 1 generation called.")
-        clustered_datapoints, max_size, this_review_point = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, thisReview=thisReview, thisTea=thisTea)
-        clustered_datapoints_type, _, _ = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, By="Type", thisReview=thisReview, thisTea=thisTea)
+
+        # For scaling of the size of bubbles.
+        scaleFactor = 4.0
+        expFactor = 1.1
+        
+        # vars
+        INCLUDE_BACKGROUND_DISTRIBUTION = True
+
+
+        clustered_datapoints, max_size, this_review_point = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, By=By, thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
+        clustered_datapoints_type, _, _ = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, By="Type", thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
 
         num_all_teas = sum([size for x, y, size in clustered_datapoints])
         num_type_teas = sum([size for x, y, size in clustered_datapoints_type])
         Logger.info(f"Total teas in comparison (ALL): {num_all_teas}, (Type): {num_type_teas}")
 
+        num_teas_same_type = len([t for t in data_manager.stash.teas if t.tea_type == thisTea.tea_type])
+        if num_teas_same_type > 20 and By == "All_Under_20":
+            By = "Type"
+            Logger.info(f"Switching to Type filter for comparison since there are {num_teas_same_type} teas of the same type as this tea, which is above the threshold of 20.")
+
         # Create the bubble chart using matplotlib
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig = plt.figure(figsize=(8, 7))
+        # Main plot
+        ax = fig.add_axes([0.1, 0.1, 0.8, 0.6])
+        ratings = []
+
+        if INCLUDE_BACKGROUND_DISTRIBUTION:
+            for tea in data_manager.stash.teas:
+                if By == "Type" and thisTea and tea.tea_type != thisTea.tea_type:
+                    continue
+                for r in tea.reviews:
+                    if r.rating is not None:
+                        ratings.append(r.rating)
+
+
+            #bins = [0, 0.25, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.25, 4.5, 4.75, 5, 5.25]
+            # shift bins to left slightly so that the center of the bar is at the rating value
+            #bins = [b - 0.125 for b in bins]
+            #hist, edges = np.histogram(ratings, bins=bins)
+            #centers = [(edges[i] + edges[i+1]) / 2 for i in range(len(hist))]
+            #hist_scaled = hist / hist.max() * 100
+
+            # Lin interp for smooth curve
+            #x_smooth = np.linspace(0, 5, 200)
+            #y_smooth = np.interp(x_smooth, centers, hist_scaled)
+
+            # create dense x grid
+            x_smooth = np.linspace(0, 5, 300)
+
+            # bandwidth controls smoothness
+            bandwidth = 0.17
+
+            y_smooth = np.zeros_like(x_smooth)
+
+            for r in ratings:
+                y_smooth += np.exp(-0.5 * ((x_smooth - r) / bandwidth) ** 2)
+
+            # normalize to 0–80 (100 is too tall visually, we want it to be more like 80% of the height of the graph)
+            y_smooth = y_smooth / y_smooth.max() * 80
+
+            ax.fill_between(
+                x_smooth,
+                y_smooth,
+                color='gray',
+                alpha=0.2,
+                zorder=0
+            )
+
+            ax.plot(
+                x_smooth,
+                y_smooth,
+                color='gray',
+                alpha=0.3,
+                linewidth=1,
+                zorder=1
+            )
+
         scatter = ax.scatter(
             x=[x for x, y, size in clustered_datapoints],
             y=[y for x, y, size in clustered_datapoints],
@@ -865,6 +948,7 @@ class ReportService:
             color='orange',
             label='Same Type'
         )
+
         # Plot a red line for average for all teas
         avg_rating = np.mean([x for x, y, size in clustered_datapoints])
         ax.axvline(avg_rating, color='red', linestyle='--', label=f'Average ({ScoreConverter.score_to_letter(avg_rating)})')
@@ -895,10 +979,16 @@ class ReportService:
 
         # Larger font
         ax.set_xlabel("Rating", fontsize=14)
-        ax.set_ylabel("Price Percentile", fontsize=14)
+        by_text = f"ALL"
+        if By == "Type":
+            by_text = f"{thisTea.tea_type}"
+        elif By == "Vendor":
+            by_text = f"{thisTea.vendor}"
+        ylabel = "Price Percentile" if By in ["All", "All_Under_20"] else f"Price Percentile ({by_text})"
+        ax.set_ylabel(ylabel, fontsize=14)
         ax.set_title("")
         # Create size legend instead of colorbar
-        # Round max size to nearest 10 for cleaner legend
+        # Round max size to nearest 10 for cleaner legend        
         max_size_rounded = math.ceil(max_size / 10) * 10
         legend_sizes = [
             max_size_rounded,
@@ -906,10 +996,13 @@ class ReportService:
             max(1, max_size_rounded // 4),
         ]
 
+        sizes = [size for x, y, size in clustered_datapoints]
+        Logger.info(f"Cluster sizes in data: min={min(sizes) if sizes else 0}, max={max(sizes) if sizes else 0}, avg={np.mean(sizes) if sizes else 0:.2f}")
+
         legend_handles = [
             ax.scatter(
                 [], [],
-                s=size * 4,  # same scaling factor you used
+                s=size * 10,
                 edgecolors="black",
                 facecolors="none"
             )
@@ -934,7 +1027,7 @@ class ReportService:
         
         # Custom Y axis ticks, 0, 25, 50, 75, 100 with labels
         # Get data for these percentiles to show as horizontal lines
-        percentile_data = StatsService.get_report_image_1_percentile_data(data_manager.stash.teas)
+        percentile_data = StatsService.get_report_image_1_percentile_data(data_manager.stash.teas, By=By, thisTea=thisTea)
         yticklabels = []
         for pct, price in percentile_data:
             yticklabels.append(f"{int(pct)}%\n${price:.2f}/g")
@@ -945,135 +1038,11 @@ class ReportService:
         plt.grid(True)
         ax.xaxis.grid(False)
         ax.yaxis.grid(True)
-
         
         temp_path = f"{Config.DATA_DIR}/tmp/report_comparison1.png"
         plt.savefig(temp_path, bbox_inches='tight', dpi=100)
         plt.close(fig)
         return temp_path
-    
-
-    @staticmethod
-    # Generates a comparison bubble chart of rating vs price percentile
-    # X axis = rating, Y axis = percentile of price per gram
-    # Bubble size = clustered count of teas at that rating/price point
-    def experimental_generate_rating_vs_price_percentile_bubble_chart(data_manager, thisReview=None, thisTea=None):
-        Logger.info("Rating vs price percentile chart generation called.")
-
-        clustered_datapoints, max_size, this_review_point = StatsService.get_report_image_comparison_1_data(
-            teas=data_manager.stash.teas,
-            thisReview=thisReview,
-            thisTea=thisTea
-        )
-        clustered_datapoints_type, _, _ = StatsService.get_report_image_comparison_1_data(
-            teas=data_manager.stash.teas,
-            By="Type",
-            thisReview=thisReview,
-            thisTea=thisTea
-        )
-
-        num_all_teas = sum([size for x, y, size in clustered_datapoints])
-        num_type_teas = sum([size for x, y, size in clustered_datapoints_type])
-        Logger.info(f"Total teas in comparison (ALL): {num_all_teas}, (Type): {num_type_teas}")
-
-        fig, ax = plt.subplots(figsize=(8, 6))
-
-        # --- Base bubbles ---
-        ax.scatter(
-            x=[x for x, y, size in clustered_datapoints],
-            y=[y for x, y, size in clustered_datapoints],
-            s=[size * 10 for x, y, size in clustered_datapoints],
-            alpha=0.40,
-        )
-
-        # --- Same type overlay ---
-        ax.scatter(
-            x=[x for x, y, size in clustered_datapoints_type],
-            y=[y for x, y, size in clustered_datapoints_type],
-            s=[size * 10 for x, y, size in clustered_datapoints_type],
-            alpha=0.75,
-            color='orange',
-            label='Same Type'
-        )
-
-        # --- Weighted quadratic trendline (proper calculation) ---
-        if len(clustered_datapoints) > 2:
-            x_vals = np.array([x for x, y, size in clustered_datapoints])
-            y_vals = np.array([y for x, y, size in clustered_datapoints])
-            weights = np.array([size for x, y, size in clustered_datapoints])
-
-            z = np.polyfit(x_vals, y_vals, 2, w=weights)
-            p = np.poly1d(z)
-
-            x_trend = np.linspace(0, 5, 200)
-            trend_color = (0.0, 0.45, 0.0, 0.65)  # darker + more opaque green
-            ax.plot(x_trend, p(x_trend), color=trend_color, linestyle='-', linewidth=2, label='Price Trend')
-
-        # --- Legends ---
-        type_legend = ax.legend(loc='lower left', frameon=True)
-        ax.add_artist(type_legend)
-
-        # --- Highlight current tea ---
-        if this_review_point:
-            ax.scatter(
-                x=[this_review_point[0]],
-                y=[this_review_point[1]],
-                s=150,
-                color='red',
-                label='This Tea',
-                edgecolors='black'
-            )
-
-        ax.set_xlabel("Rating")
-        ax.set_ylabel("Price Percentile")
-        ax.set_title("")
-
-        # --- Size legend ---
-        max_size_rounded = math.ceil(max_size / 10) * 10
-        legend_sizes = [
-            max_size_rounded,
-            max_size_rounded // 2,
-            max(1, max_size_rounded // 4),
-        ]
-
-        legend_handles = [
-            ax.scatter([], [], s=size * 4, edgecolors="black", facecolors="none")
-            for size in legend_sizes
-        ]
-        legend_labels = [f"{int(size)} teas" for size in legend_sizes]
-
-        ax.legend(
-            legend_handles,
-            legend_labels,
-            title="Cluster size",
-            scatterpoints=1,
-            frameon=True,
-            labelspacing=1.2,
-            loc="lower right"
-        )
-
-        # --- X axis rating grades ---
-        ax.set_xticks([0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.0])
-        ax.set_xticklabels(['F', 'D', 'C', 'B', 'A', 'S', 'S+'])
-        ax.set_xlim(0.0, 5.25)
-
-        # --- Y axis percentiles ---
-        percentile_data = StatsService.get_report_image_1_percentile_data(data_manager.stash.teas)
-        yticklabels = [f"{int(pct)}%\n${price:.2f}/g" for pct, price in percentile_data]
-
-        ax.set_yticks([0, 25, 50, 75, 100])
-        ax.set_yticklabels(yticklabels)
-
-        # --- Grid styling ---
-        plt.grid(True)
-        ax.xaxis.grid(False)
-        ax.yaxis.grid(True)
-
-        temp_path = "rating_vs_price_percentile.png"
-        plt.savefig(temp_path, bbox_inches='tight', dpi=100)
-        plt.close(fig)
-        return temp_path
-    
 
     @staticmethod
     def generate_tierlist_for_vendor(data_manager, thisVendor, highlight_recent_review=True):
