@@ -635,7 +635,7 @@ class ReportService:
         placeholder_1_img = placeholder_1_img.resize((width, new_height))
         offset_y += 0.1 * new_height
         img.paste(placeholder_1_img, (2*padding_x, int(offset_y)))
-        offset_y += placeholder_1_img.height * 0.95
+        offset_y += placeholder_1_img.height * 1
         # Few lines of text here about the graph
         num_total_teas = len(data_manager.stash.teas)
         num_total_teas_reviewed = len([t for t in data_manager.stash.teas if t.finished or len(t.reviews) > 0])
@@ -859,10 +859,14 @@ class ReportService:
 
         # For scaling of the size of bubbles.
         scaleFactor = 4.0
-        expFactor = 1.1
+        expFactor = 1
         
         # vars
+        #By = "All"
         INCLUDE_BACKGROUND_DISTRIBUTION = True
+        # 4 works well for my screen with max size of ~60. You may need to adjust on your end.
+        legendSizeMultiplier = 4 # Multiplier for the size of the legend bubbles, can adjust based on how it looks visually
+        color_type = 'darkorange'
 
 
         clustered_datapoints, max_size, this_review_point = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, By=By, thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
@@ -878,12 +882,20 @@ class ReportService:
             Logger.info(f"Switching to Type filter for comparison since there are {num_teas_same_type} teas of the same type as this tea, which is above the threshold of 20.")
 
         # Create the bubble chart using matplotlib
-        fig = plt.figure(figsize=(8, 7))
-        # Main plot
-        ax = fig.add_axes([0.1, 0.1, 0.8, 0.6])
+        #fig = plt.figure(figsize=(8, 7))
+        ## Main plot
+        #ax = fig.add_axes([0.1, 0.1, 0.8, 0.6])
         ratings = []
-
+        fig, ax = None, None
         if INCLUDE_BACKGROUND_DISTRIBUTION:
+            fig, (ax, ax_dist) = plt.subplots(
+                2, 1,
+                figsize=(10, 8),
+                sharex=True,
+                gridspec_kw={"height_ratios": [3, 1]}
+            )
+            # make subplot
+
             for tea in data_manager.stash.teas:
                 if By == "Type" and thisTea and tea.tea_type != thisTea.tea_type:
                     continue
@@ -892,62 +904,101 @@ class ReportService:
                         ratings.append(r.rating)
 
 
-            #bins = [0, 0.25, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.25, 4.5, 4.75, 5, 5.25]
+            bins = [0, 0.25, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.25, 4.5, 4.75, 5, 5.25]
             # shift bins to left slightly so that the center of the bar is at the rating value
-            #bins = [b - 0.125 for b in bins]
-            #hist, edges = np.histogram(ratings, bins=bins)
-            #centers = [(edges[i] + edges[i+1]) / 2 for i in range(len(hist))]
-            #hist_scaled = hist / hist.max() * 100
+            bins = [b - 0.125 for b in bins]
+            hist, edges = np.histogram(ratings, bins=bins)
+            centers = [(edges[i] + edges[i+1]) / 2 for i in range(len(hist))]
+            #hist_scaled = hist / hist.max() * 90 # Don't scale to 100% height, we want it to be more like 90% so that it doesn't overpower the main graph
+            hist_counts = hist
+            ax_dist.set_ylabel("Count", fontsize=14)
+            ax_dist.set_xlabel("Rating", fontsize=14)
+            ax.tick_params(labelbottom=False)
+
+            # bar graph for distribution
+            ax_dist.bar(
+                centers,
+                hist_counts,
+                width=0.25,
+                color=color_type,
+                alpha=0.7,
+                zorder=0,
+            )
+            ax_dist.set_ylim(0, max(hist_counts)*1.2)  # Add some padding to the top of the distribution graph
+            
 
             # Lin interp for smooth curve
             #x_smooth = np.linspace(0, 5, 200)
             #y_smooth = np.interp(x_smooth, centers, hist_scaled)
 
             # create dense x grid
-            x_smooth = np.linspace(0, 5, 300)
+            #x_smooth = np.linspace(0, 5, 300)
 
             # bandwidth controls smoothness
-            bandwidth = 0.17
+            #bandwidth = 0.17
+            #y_smooth = np.zeros_like(x_smooth)
+            #for r in ratings:
+            #    y_smooth += np.exp(-0.5 * ((x_smooth - r) / bandwidth) ** 2)
+            ## normalize to 0–80 (100 is too tall visually, we want it to be more like 80% of the height of the graph)
+            #y_smooth = y_smooth / y_smooth.max() * 80
+            #ax.fill_between(
+            #    x_smooth,
+            #    y_smooth,
+            #    color='gray',
+            #    alpha=0.2,
+            #    zorder=0
+            #)
+            #ax.plot(
+            #    x_smooth,
+            #    y_smooth,
+            #    color='gray',
+            #    alpha=0.3,
+            #    linewidth=1,
+            #    zorder=1
+            #)
+        else:
+            fig = plt.figure(figsize=(8, 7))
+            # Main plot
+            ax = fig.add_axes([0.1, 0.1, 0.8, 0.6])
 
-            y_smooth = np.zeros_like(x_smooth)
+        assert ax is not None, "Main axis not created properly."
+        if INCLUDE_BACKGROUND_DISTRIBUTION:
+            assert ax_dist is not None, "Distribution axis not created properly."
+            plt.subplots_adjust(hspace=0.07)
+            ax_dist.tick_params(axis='x', labelsize=13)
+            ax_dist.tick_params(axis='y', labelsize=12)
 
-            for r in ratings:
-                y_smooth += np.exp(-0.5 * ((x_smooth - r) / bandwidth) ** 2)
+        ax.grid(True)
 
-            # normalize to 0–80 (100 is too tall visually, we want it to be more like 80% of the height of the graph)
-            y_smooth = y_smooth / y_smooth.max() * 80
-
-            ax.fill_between(
-                x_smooth,
-                y_smooth,
-                color='gray',
-                alpha=0.2,
-                zorder=0
-            )
-
-            ax.plot(
-                x_smooth,
-                y_smooth,
-                color='gray',
-                alpha=0.3,
-                linewidth=1,
-                zorder=1
-            )
+            
 
         scatter = ax.scatter(
             x=[x for x, y, size in clustered_datapoints],
             y=[y for x, y, size in clustered_datapoints],
             s=[size * 10 for x, y, size in clustered_datapoints],  # Scale bubble size
             alpha=0.40,
+            edgecolors='none'
         )
-        scatter_type = ax.scatter(
-            x=[x for x, y, size in clustered_datapoints_type],
-            y=[y for x, y, size in clustered_datapoints_type],
-            s=[size * 10 for x, y, size in clustered_datapoints_type],  # Scale bubble size
-            alpha=0.75,
-            color='orange',
-            label='Same Type'
-        )
+
+        # Don't label the type scatter if we're only showing type, to avoid confusion in the legend. We can add a label for the type filter in the title instead.
+        if By=="All" or By=="All_Under_20":
+            scatter_type = ax.scatter(
+                x=[x for x, y, size in clustered_datapoints_type],
+                y=[y for x, y, size in clustered_datapoints_type],
+                s=[size * 10 for x, y, size in clustered_datapoints_type],  # Scale bubble size
+                alpha=0.7,
+                color=color_type,
+                label='Same Type',
+                edgecolors='none'
+            )
+        else:
+            scatter_type = ax.scatter(
+                x=[x for x, y, size in clustered_datapoints_type],
+                y=[y for x, y, size in clustered_datapoints_type],
+                s=[size * 10 for x, y, size in clustered_datapoints_type],  # Scale bubble size
+                alpha=0.7,
+                color=color_type
+                )
 
         # Plot a red line for average for all teas
         avg_rating = np.mean([x for x, y, size in clustered_datapoints])
@@ -978,7 +1029,9 @@ class ReportService:
             )
 
         # Larger font
-        ax.set_xlabel("Rating", fontsize=14)
+        if not INCLUDE_BACKGROUND_DISTRIBUTION:
+            ax.set_xlabel("Rating", fontsize=14)
+
         by_text = f"ALL"
         if By == "Type":
             by_text = f"{thisTea.tea_type}"
@@ -1002,7 +1055,7 @@ class ReportService:
         legend_handles = [
             ax.scatter(
                 [], [],
-                s=size * 10,
+                s=size * legendSizeMultiplier,  # Scale legend bubble size
                 edgecolors="black",
                 facecolors="none"
             )
@@ -1020,10 +1073,12 @@ class ReportService:
             labelspacing=1.2,
             loc="lower right"
         )
+
         # Custom X axis label for letter grades
         ax.set_xticks([0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.0])
         ax.set_xticklabels(['F', 'D', 'C', 'B', 'A', 'S', 'S+'])
         ax.set_xlim(0.0, 5.25)
+        ax.tick_params(axis='x', labelsize=13) # Change x-axis tick font size
         
         # Custom Y axis ticks, 0, 25, 50, 75, 100 with labels
         # Get data for these percentiles to show as horizontal lines
@@ -1033,11 +1088,16 @@ class ReportService:
             yticklabels.append(f"{int(pct)}%\n${price:.2f}/g")
         ax.set_yticks([0, 25, 50, 75, 100])
         ax.set_yticklabels(yticklabels)
+        ax.tick_params(axis='y', labelsize=12) # Change y-axis tick font size
 
         # Vertical grid lines should be removed to reduce clutter, horizontal grid lines can stay
         plt.grid(True)
-        ax.xaxis.grid(False)
-        ax.yaxis.grid(True)
+        # put xaxis labels on top to make them more visible without vertical grid lines
+        ax.tick_params(axis='x', which='both', bottom=False, top=True, labeltop=True, labelbottom=False)
+        #ax.xaxis.grid(False)
+        #ax.yaxis.grid(True)
+        #ax.grid(axis="y", linestyle="--", alpha=0.4)
+        #ax.grid(axis="x", linestyle=":", alpha=0.2)
         
         temp_path = f"{Config.DATA_DIR}/tmp/report_comparison1.png"
         plt.savefig(temp_path, bbox_inches='tight', dpi=100)
