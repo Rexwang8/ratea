@@ -353,22 +353,22 @@ class StatsService:
     # Gets the data for the first report image relating to tea rating vs price percentile bubble chart
     # Items are returned as datapoints of (x, y, size) where x is rating, y is price percentile, size is count of teas at that point
     @staticmethod
-    def get_report_image_comparison_1_data(teas, thisReview: Review=None, thisTea: Tea=None, By="All", exp=1.1, scale=4.0):
-        if By not in ["All", "Type", "Vendor", "All_Under_20"]:
-            raise ValueError("Invalid 'By' argument. Must be one of: 'All', 'Type', 'Vendor', 'All_Under_20'")
+    def get_report_image_comparison_1_data(teas, thisReview: Review=None, thisTea: Tea=None, by="All", exp=1.1, scale=4.0):
+        if by not in ["All", "Type", "Vendor", "All_Under_20"]:
+            raise ValueError("Invalid 'by' argument. Must be one of: 'All', 'Type', 'Vendor', 'All_Under_20'")
         teas_same_type = [t for t in teas if thisTea and t.tea_type == thisTea.tea_type] if thisTea else []
-        if By == "All_Under_20":
+        if by == "All_Under_20":
             if len(teas_same_type) > 20:
-                By = "Type"
+                by = "Type"
             else:
-                By = "All"
+                by = "All"
 
         data = []
         for t in teas:
             t: Tea
-            if By == "Type" and thisTea and t.tea_type != thisTea.tea_type:
+            if by == "Type" and thisTea and t.tea_type != thisTea.tea_type:
                 continue
-            if By == "Vendor" and thisTea and t.vendor != thisTea.vendor:
+            if by == "Vendor" and thisTea and t.vendor != thisTea.vendor:
                 continue
             data.append({
                 "Type": t.tea_type,
@@ -390,10 +390,10 @@ class StatsService:
         df["PricePercentile"] = df["PricePercentile"].round(1)
         df["PricePercentile"] = df["PricePercentile"].fillna(0)
 
-        # Remove based on By argument
-        if By == "Type":
+        # Remove based on by argument
+        if by == "Type":
             df = df[df["Type"] == thisTea.tea_type]
-        elif By == "Vendor":
+        elif by == "Vendor":
             df = df[df["Vendor"] == thisTea.vendor]
 
         # Group by rating and price percentile to get counts
@@ -454,22 +454,22 @@ class StatsService:
         return final_clustered_datapoints, max_cluster_size, thisReview_point
     
     @staticmethod
-    def get_report_image_1_percentile_data(teas, thisReview=None, thisTea=None, By="All"):
+    def get_report_image_1_percentile_data(teas, thisReview=None, thisTea=None, by="All"):
         # Helper that gets the 0-100 percentile of the price percentile pct[0-100] and assigns an exact price to it in a tuple list
         # for example pct[0] might be $0.01/g, pct[25] might be $0.10/g, pct[50] might be $0.50/g, pct[75] might be $1.00/g, pct[100] might be $5.00/g
         data = []
         for pct in range(0, 101, 25):
-            price = StatsService.get_price_percentile(teas, pct, By=By, thisTea=thisTea)
+            price = StatsService.get_price_percentile(teas, pct, by=by, thisTea=thisTea)
             data.append((pct, price))
         return data
 
     @staticmethod
-    def get_price_percentile(teas, percentile, By="All", thisTea=None):
+    def get_price_percentile(teas, percentile, by="All", thisTea=None):
         # Helper that gets the price at a given percentile for the report image
         prices = []
         for t in teas:
             t: Tea
-            if By == "Type" and thisTea and t.tea_type != thisTea.tea_type:
+            if by == "Type" and thisTea and t.tea_type != thisTea.tea_type:
                 continue
             if t.catalogPrice is not None and t.quantity is not None and t.quantity > 0:
                 price = t.catalogPrice / t.quantity
@@ -854,7 +854,7 @@ class ReportService:
     @staticmethod
     # Generates a comparison between the ratings of this tea vs all other teas in the stash as a bubble chart
     # The X axis is the rating, the Y axis is the percentile of price per gram. Bubble size is the clustered count of teas at that rating/price point
-    def generate_report_image_comparison_1(data_manager, thisReview=None, thisTea=None, By="All_Under_20"):
+    def generate_report_image_comparison_1(data_manager, thisReview=None, thisTea=None, by="All_Under_20"):
         Logger.info("Report image comparison 1 generation called.")
 
         # For scaling of the size of bubbles.
@@ -862,23 +862,23 @@ class ReportService:
         expFactor = 1
         
         # vars
-        #By = "All"
+        #by = "All"
         INCLUDE_BACKGROUND_DISTRIBUTION = True
         # 4 works well for my screen with max size of ~60. You may need to adjust on your end.
         legendSizeMultiplier = 4 # Multiplier for the size of the legend bubbles, can adjust based on how it looks visually
         color_type = 'darkorange'
 
 
-        clustered_datapoints, max_size, this_review_point = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, By=By, thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
-        clustered_datapoints_type, _, _ = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, By="Type", thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
+        clustered_datapoints, max_size, this_review_point = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, by=by, thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
+        clustered_datapoints_type, _, _ = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, by="Type", thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
 
         num_all_teas = sum([size for x, y, size in clustered_datapoints])
         num_type_teas = sum([size for x, y, size in clustered_datapoints_type])
         Logger.info(f"Total teas in comparison (ALL): {num_all_teas}, (Type): {num_type_teas}")
 
         num_teas_same_type = len([t for t in data_manager.stash.teas if t.tea_type == thisTea.tea_type])
-        if num_teas_same_type > 20 and By == "All_Under_20":
-            By = "Type"
+        if num_teas_same_type > 20 and by == "All_Under_20":
+            by = "Type"
             Logger.info(f"Switching to Type filter for comparison since there are {num_teas_same_type} teas of the same type as this tea, which is above the threshold of 20.")
 
         # Create the bubble chart using matplotlib
@@ -897,7 +897,7 @@ class ReportService:
             # make subplot
 
             for tea in data_manager.stash.teas:
-                if By == "Type" and thisTea and tea.tea_type != thisTea.tea_type:
+                if by == "Type" and thisTea and tea.tea_type != thisTea.tea_type:
                     continue
                 for r in tea.reviews:
                     if r.rating is not None:
@@ -981,7 +981,7 @@ class ReportService:
         )
 
         # Don't label the type scatter if we're only showing type, to avoid confusion in the legend. We can add a label for the type filter in the title instead.
-        if By=="All" or By=="All_Under_20":
+        if by=="All" or by=="All_Under_20":
             scatter_type = ax.scatter(
                 x=[x for x, y, size in clustered_datapoints_type],
                 y=[y for x, y, size in clustered_datapoints_type],
@@ -1033,11 +1033,11 @@ class ReportService:
             ax.set_xlabel("Rating", fontsize=14)
 
         by_text = f"ALL"
-        if By == "Type":
+        if by == "Type":
             by_text = f"{thisTea.tea_type}"
-        elif By == "Vendor":
+        elif by == "Vendor":
             by_text = f"{thisTea.vendor}"
-        ylabel = "Price Percentile" if By in ["All", "All_Under_20"] else f"Price Percentile ({by_text})"
+        ylabel = "Price Percentile" if by in ["All", "All_Under_20"] else f"Price Percentile ({by_text})"
         ax.set_ylabel(ylabel, fontsize=14)
         ax.set_title("")
         # Create size legend instead of colorbar
@@ -1082,7 +1082,7 @@ class ReportService:
         
         # Custom Y axis ticks, 0, 25, 50, 75, 100 with labels
         # Get data for these percentiles to show as horizontal lines
-        percentile_data = StatsService.get_report_image_1_percentile_data(data_manager.stash.teas, By=By, thisTea=thisTea)
+        percentile_data = StatsService.get_report_image_1_percentile_data(data_manager.stash.teas, by=by, thisTea=thisTea)
         yticklabels = []
         for pct, price in percentile_data:
             yticklabels.append(f"{int(pct)}%\n${price:.2f}/g")
