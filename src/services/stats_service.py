@@ -904,7 +904,7 @@ class ReportService:
                         ratings.append(r.rating)
 
 
-            bins = [0, 0.25, 0.5, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.25, 4.5, 4.75, 5, 5.25]
+            bins = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.25, 4.5, 4.75, 5]
             # shift bins to left slightly so that the center of the bar is at the rating value
             bins = [b - 0.125 for b in bins]
             hist, edges = np.histogram(ratings, bins=bins)
@@ -919,7 +919,7 @@ class ReportService:
             ax_dist.bar(
                 centers,
                 hist_counts,
-                width=0.25,
+                width=0.2,
                 color=color_type,
                 alpha=0.7,
                 zorder=0,
@@ -1009,6 +1009,12 @@ class ReportService:
             z = np.polyfit([x for x, y, size in clustered_datapoints], [y for x, y, size in clustered_datapoints], 2)
             p = np.poly1d(z)
             x_trend = np.linspace(0, 5, 100)
+            # Cut off the trendline at the max rating in the data to avoid extrapolation beyond the data range
+            max_rating_in_data = max([x for x, y, size in clustered_datapoints]) + 0.25 # Add a small buffer to the max rating for better visualization of the trendline endpoint
+            min_rating_in_data = min([x for x, y, size in clustered_datapoints]) - 0.25 # Add a small buffer to the min rating for better visualization of the trendline startpoint
+            x_trend = np.linspace(min_rating_in_data, max_rating_in_data, 100)
+            # clamp at 0 and 5
+            x_trend = np.clip(x_trend, 0, 5)
             col_faint_green = (0.0, 0.5, 0.0, 0.3)  # RGBA with alpha for faintness
             ax.plot(x_trend, p(x_trend), color=col_faint_green, linestyle='-', label='Price Trend')
 
