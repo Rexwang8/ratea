@@ -50,17 +50,22 @@ class TeaReviewModal:
             dpg.add_text("Edit Review" if is_editing else "Add Review")
 
             with dpg.child_window(width=-1, height=450 * Config.UI_SCALE, border=True):
-            
                 validRatings = ScoreConverter.LETTER_GRADE_MAP
                 itemsSequence = list(validRatings.keys())
 
-                rating_default = itemsSequence[8]  # Default to the 8th item if not editing (B)
+                rating_default = itemsSequence[8]  # Default to the 8th item if not editing (B-)
+                # If config has a default rating, use that instead
+                if hasattr(Config, "DEFAULT_RATING") and Config.DEFAULT_RATING in validRatings:
+                    rating_default = Config.DEFAULT_RATING
+
                 if is_editing:
                     # Find the letter grade corresponding to the numeric rating
                     for letter, score in validRatings.items():
                         if score == review.rating:
                             rating_default = letter
                             break
+
+
                 newDataFields['rating'] = dp.Combo(label="Rating", items=itemsSequence, default_value=rating_default)
 
                 date_default = datetime_to_dearpygui_dt(review.date) if is_editing else datetime_to_dearpygui_dt(dt.datetime.now())
@@ -68,8 +73,11 @@ class TeaReviewModal:
                 dpg.bind_item_font(dateField, self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
                 newDataFields['date'] = dateField
 
-                newDataFields['amount'] = dp.InputFloat(label="Amount Drunk (g)", width=150 * Config.UI_SCALE, default_value=review.amount_drunk if is_editing else 6, format="%.2f")
-                newDataFields['vessel'] = dp.InputFloat(label="Vessel Size (ml)", width=150 * Config.UI_SCALE, default_value=review.vesselSize if is_editing else 150, format="%.1f")
+                defaultAmount = review.amount_drunk if is_editing else Config.DEFAULT_AMOUNT_DRUNK if hasattr(Config, "DEFAULT_AMOUNT_DRUNK") else 5.0
+                newDataFields['amount'] = dp.InputFloat(label="Amount Drunk (g)", width=150 * Config.UI_SCALE, default_value=defaultAmount, format="%.2f")
+                
+                defaultVessel = review.vesselSize if is_editing else Config.DEFAULT_VESSEL_SIZE if hasattr(Config, "DEFAULT_VESSEL_SIZE") else 100.0
+                newDataFields['vessel'] = dp.InputFloat(label="Vessel Size (ml)", width=150 * Config.UI_SCALE, default_value=defaultVessel, format="%.1f")
 
                 methodOptions = ["Gongfu", "Western", "Cold Brew", "Japanese Western", "Thermos", "Boiled", "Mugged", "Usucha", "Koicha", "Other"]
                 newDataFields['method'] = add_autocomplete_input(
@@ -82,12 +90,13 @@ class TeaReviewModal:
                 
                 #newDataFields['method'] = dp.Combo(label="Brew Method", items=methodOptions, default_value=review.method if is_editing else methodOptions[0])
 
-                newDataFields['steeps'] = dp.InputInt(label="Steep Count", width=150 * Config.UI_SCALE, default_value=int(review.steep_count) if is_editing else 6)
+                defaultSteeps = review.steep_count if is_editing else Config.DEFAULT_STEEPS if hasattr(Config, "DEFAULT_STEEPS") else 5
+                newDataFields['steeps'] = dp.InputInt(label="Steep Count", width=150 * Config.UI_SCALE, default_value=defaultSteeps)
                 newDataFields['notes'] = dp.InputText(label="Notes", multiline=True, width=-1, height=150 * Config.UI_SCALE, default_value=review.notes if is_editing else "")
 
                 # padding
                 dpg.add_spacer(height=10 * Config.UI_SCALE)
-                
+
             # Confirm action button
             dpg.add_separator()
             with dpg.group(horizontal=True):
