@@ -268,6 +268,10 @@ class Tea:
             "reviews": [review.to_dict() for review in self.reviews],
         }
     
+    def get(self, key, default=None):
+        """Helper to allow dict-like access to attributes."""
+        return getattr(self, key, default)
+    
 def _get_value_with_flexible_key(data: dict, possible_keys: list, default=None):
         """Helper to get a value from a dict using a list of possible keys."""
         for key in possible_keys:
