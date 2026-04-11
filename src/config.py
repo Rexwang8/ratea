@@ -9,7 +9,7 @@ class Config:
     DEFAULT_STEEPS = 5  # Default number of steeps
     DEFAULT_VESSEL_SIZE = 100.0  # Default vessel size in ml
 
-    
+
     # --- UI Settings ---
     THEME = "Dark"  # Options: Dark
     LANGUAGE = "en"  # Default language
@@ -19,8 +19,7 @@ class Config:
     DEFAULT_WIDTH = 1800 * 2
     DEFAULT_HEIGHT = 1000 * 2
 
-
-
+    
 
 
     # Things you shouldn't change unless you know what you're doing, as they are more fundamental to how the app works
@@ -34,6 +33,14 @@ class Config:
     BACKUP_DIR = os.path.join(BASE_DIR, "..", "backup")
     SRC_DIR = os.path.join(BASE_DIR, "..", "src")
     FONTS_DIR = os.path.join(SRC_DIR, "fonts") # Default: src/fonts
+
+    # TEADB INTEGRATION (EXPERIMENTAL)
+    TEADB_API_BASE_URL = "https://my.teadb.org/api/user"
+    TEADB_TOKEN = "your-api-token"  # Replace with your actual token
+    TEADB_INTEGRATION_ENABLED = True  # Set to False to disable Teadb integration
+    # under src/connectors/teadb
+    TEADB_MAPPING_FILE_PATH = os.path.join(SRC_DIR, "connectors", "teadb", "teadb_mapping.json")  # Path to the tea mapping file
+    TEADB_RAW_DATA_FILE_PATH = os.path.join(SRC_DIR, "connectors", "teadb", "teadb_raw_data.json")  # Path to the raw tea data file
 
     # --- Colors (RGBA) ---
     # Using a nested class or dict for grouping makes it readable
