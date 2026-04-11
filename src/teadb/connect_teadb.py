@@ -266,7 +266,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
 
     # notes add to end
     notes = review.get("notes", "")
-    notes += f" (Imported via API) teaid: {tea_id}, vintage_id: {vintage_id}" if notes else f"Imported via API (teaid: {tea_id}, vintage_id: {vintage_id})"
+    notes += f"\n (Imported via API) teaid: {tea_id}, vintage_id: {vintage_id}" if notes else f"Imported via API (teaid: {tea_id}, vintage_id: {vintage_id})"
 
     # Teadb has timezone support, ratea does not. We assume user is in US and thus add 8 hours to convert to UTC for session_date. This is a simplification and may need to be improved by allowing user to specify timezone in Tea model and converting accordingly.
     session_date = review.date + timedelta(hours=8) if isinstance(review.date, datetime) else review.date
@@ -280,7 +280,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
             "tea_producer": tea.vendor,
             "tea_year": tea.year,
             "rating": review.rating * 2,  # Convert 0-5 scale to 0-10
-            "notes": review.notes,
+            "notes": notes,
             "grams": review.amount_drunk,
             "vessel_ml": review.vesselSize,
             "temp_f": 212,  # Default to boiling if not specified
