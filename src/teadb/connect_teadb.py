@@ -59,16 +59,43 @@ def add_custom_tea(
         "raw liubao": "heicha",
         "ripe liubao": "heicha",
     }
-    if tea_type in tea_type_mapping:
-        tea_type = tea_type_mapping[tea_type]
+    new_tea_type = tea_type_mapping.get(tea_type)
 
+
+
+    producer = tea_producer if tea_producer else vendor_name
+    vendor = vendor_name if vendor_name else tea_producer
+    # According to teadb, vendor should only be provided if producer is not provided. If we set either producer or vendor to 'community',
+    # We want to set producer as 'Unknown' and vendor as '' (empty string). Otherwise, we want to unset vendor if we have a producer.
+    if producer == "community" or vendor == "community":
+        producer = "Unknown"
+        vendor = ""
+
+    if producer and vendor:
+        vendor = ""  # Unset vendor if we have a producer, to avoid confusion.
+
+    # We auto-set origin based on original tea type.
+    originMapping = {
+        "hong": "China",
+        "sheng": "Yunnan, China",
+        "shou": "Yunnan, China",
+        "liubao": "Guangxi, China",
+        "fuzhuan": "Hunan, China",
+        "raw liubao": "Guangxi, China",
+        "ripe liubao": "Guangxi, China",
+    }
+    if not origin and tea_type in originMapping:
+        origin = originMapping[tea_type]
+    else:
+        origin = origin if origin else "China"  # Default to China if not provided
+    
     payload = {
         "name": name,
-        "type": tea_type,
+        "type": new_tea_type,
         "origin": origin,
         "tea_year": str(tea_year) if tea_year else None,
-        "tea_producer": tea_producer,
-        "vendor_name": vendor_name,
+        "tea_producer": producer,
+        "vendor_name": vendor,
         "vendor_id": vendor_id,
         "producer_id": producer_id
     }
@@ -231,7 +258,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
                 tea_year=tea.year,
                 tea_producer=tea.vendor,
                 vendor_name=tea.vendor,
-                origin="China",  # Default origin, could be improved by adding to Tea model and passing through
+                origin="",
                 dry_run=dry_run
             )
         else:
