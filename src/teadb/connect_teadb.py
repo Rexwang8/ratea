@@ -259,7 +259,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
             "temp_f": 212,  # Default to boiling if not specified
             "steep_seconds": 15,  # Default to 15 seconds if not specified
             "method": review.method,
-            "tags": [],
+            "tags": tags,
             "flavors": [],
             "session_date": session_date.strftime("%Y-%m-%d %H:%M:%S") if isinstance(session_date, datetime) else session_date,
         }
