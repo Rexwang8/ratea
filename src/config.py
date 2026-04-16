@@ -8,6 +8,8 @@ class Config:
     DEFAULT_AMOUNT_DRUNK = 5.0  # Default amount drunk in grams
     DEFAULT_STEEPS = 5  # Default number of steeps
     DEFAULT_VESSEL_SIZE = 100.0  # Default vessel size in ml
+    DEFAULT_TAILING_STATEMENT = "70 tds water, RO+brita filtered tap"  # Default tailing statement for reviews (above footer)
+    DEFAULT_FOOTER_STATEMENT = "Made possible by Seš'qa's latest technology! | Work in progress! (End of Report)"  # Default footer statement for reviews (below tailing statement)
 
 
     # --- UI Settings ---

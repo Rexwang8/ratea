@@ -647,7 +647,13 @@ class ReportService:
         # Final footer
         offset_y += line_spacing
         draw.line((padding_x, padding_y + offset_y, base_width - padding_x, padding_y + offset_y), fill="black", width=2)
-        draw.text((padding_x, padding_y + offset_y+5), f"Made possible by Seš'qa's latest technology! | Work in progress! (End of Report)", font=body_font_small, fill="gray")
+        tailingStatement = Config.DEFAULT_TAILING_STATEMENT
+        footerStatement = Config.DEFAULT_FOOTER_STATEMENT
+        if tailingStatement:
+            draw.text((padding_x, padding_y + offset_y+5), tailingStatement, font=body_font_small, fill="gray")
+            offset_y += line_spacing * 1.5
+        if footerStatement:
+            draw.text((padding_x, padding_y + offset_y+5), footerStatement, font=body_font_small, fill="gray")
 
         # Trim image to used height
         img = img.crop((0, 0, base_width, padding_y + offset_y + 50))
