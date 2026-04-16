@@ -58,8 +58,12 @@ def add_custom_tea(
         "fuzhuan": "heicha",
         "raw liubao": "heicha",
         "ripe liubao": "heicha",
+        "white": "white",
+        "green": "green",
     }
     new_tea_type = tea_type_mapping.get(tea_type)
+    if not new_tea_type:
+        new_tea_type=tea_type  # If we don't have a mapping, just use the original type. Teadb will validate and reject if it's invalid.
 
 
 
@@ -99,9 +103,10 @@ def add_custom_tea(
         "vendor_id": vendor_id,
         "producer_id": producer_id
     }
+    print("Adding custom tea with payload:")
+    print(json.dumps(payload, indent=2))
     if dry_run:
         print("Dry run - would add custom tea with payload:")
-        print(json.dumps(payload, indent=2))
         return {"status": "dry_run"}
 
     response = requests.post(url, headers=HEADERS, json=payload)
@@ -266,7 +271,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
 
     # notes add to end
     notes = review.get("notes", "")
-    notes += f"\n (Imported via API) teaid: {tea_id}, vintage_id: {vintage_id}" if notes else f"Imported via API (teaid: {tea_id}, vintage_id: {vintage_id})"
+    notes += f"\n (Imported via API) teaid: {tea_id}, vintage_id: {vintage_id} Cost per gram (catalog cost w/o sales): {tea.catalog_price_per_gram:.2f}"
 
     # Teadb has timezone support, ratea does not. We assume user is in US and thus add 8 hours to convert to UTC for session_date. This is a simplification and may need to be improved by allowing user to specify timezone in Tea model and converting accordingly.
     session_date = review.date + timedelta(hours=8) if isinstance(review.date, datetime) else review.date
@@ -309,7 +314,7 @@ def upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_r
         userid = response.get("session", {}).get("user_id", "unknown")
         tea_id = response.get("session", {}).get("tea_id", "unknown")
         vintage_id = response.get("session", {}).get("vintage_id", "unknown")
-        tea_name = response.get("session", {}).get("tea_name", "unknown")
+        tea_name = response.get("session", {}).get("name", "unknown")
         print(f"Session created for user: {userid}, tea_id: {tea_id}, vintage_id: {vintage_id}, tea_name: {tea_name}")
     else:
         print("Failed to create session.")
