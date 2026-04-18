@@ -31,8 +31,6 @@ class DataManager:
             "hide_finished_reviews": False,
         }
 
-        #yaml.SafeDumper.add_representer(object, self.default_representer)  # Use custom representer for all objects
-
         self.check_yaml_file_exists()
 
     def check_yaml_file_exists(self):
@@ -403,10 +401,6 @@ class DataManager:
         col = mapping.get(ui_column_name)
         if col:
             self._type_vendor_stats_cache.sort_values(by=col, ascending=ascending, inplace=True)
-
-    def default_representer(self, dumper, data):
-        # Converts any unknown object to its string representation
-        return dumper.represent_scalar('tag:yaml.org,2002:str', str(data))
 
 
 
