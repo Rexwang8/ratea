@@ -1,3 +1,4 @@
+from math import erf
 import os
 import yaml
 import pandas as pd
@@ -29,6 +30,8 @@ class DataManager:
             "hide_reviewed": False,
             "hide_finished_reviews": False,
         }
+
+        #yaml.SafeDumper.add_representer(object, self.default_representer)  # Use custom representer for all objects
 
         self.check_yaml_file_exists()
 
@@ -359,7 +362,19 @@ class DataManager:
             filepath = self.data_save_path
         with open(filepath, 'w') as f:
             data_to_save = [tea.to_dict() for tea in self.teas]
-            yaml.safe_dump(data_to_save, f, sort_keys=False)
+            try:
+                yaml.safe_dump(data_to_save, f, sort_keys=False)
+            except Exception as e:
+                for item in data_to_save:
+                    for key, value in item.items():
+                        try:
+                            yaml.safe_dump({key: value})
+                        except yaml.representer.RepresenterError as re:
+                            print(f"Failing to export YAML field: {key} with type {type(value)}")
+                            print(f"Value contents: {value}")
+                            print(f"Representer error details: {re}")
+                Logger.error(f"Error exporting teas to YAML: {e}")
+                raise e  # Re-raise after logging
         Logger.info(f"Exported {len(self.teas)} teas to {filepath}")
 
     def export_to_csv(self, filepath=None):
@@ -389,6 +404,10 @@ class DataManager:
         if col:
             self._type_vendor_stats_cache.sort_values(by=col, ascending=ascending, inplace=True)
 
+    def default_representer(self, dumper, data):
+        # Converts any unknown object to its string representation
+        return dumper.represent_scalar('tag:yaml.org,2002:str', str(data))
+
 
 
 # Ensure folders exist
@@ -403,3 +422,4 @@ def ensure_folders_exist():
     os.makedirs(Config.BACKUP_DIR, exist_ok=True)
     os.makedirs(Config.SRC_DIR, exist_ok=True)
     os.makedirs(Config.FONTS_DIR, exist_ok=True)
+

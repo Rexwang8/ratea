@@ -15,10 +15,16 @@ class Adjustment:
         self.adjustment_type = adjustment_type  # e.g., "discard", "gift", "sale"
 
     def to_dict(self):
-        return {
+        # Assert amount and cost are primative types to avoid YAML export issues
+        if not isinstance(self.amount, (int, float)):
+            raise ValueError(f"Adjustment amount must be a number, got {type(self.amount)}")
+        if not isinstance(self.cost, (int, float)):
+            raise ValueError(f"Adjustment cost must be a number, got {type(self.cost)}")
+        adjustment = {
             "id": self.id,
             "tea_id": self.tea_id,
             "amount": self.amount,
             "cost": self.cost,
             "adjustment_type": self.adjustment_type,
         }
+        return adjustment

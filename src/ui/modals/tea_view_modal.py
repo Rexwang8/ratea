@@ -3,6 +3,7 @@ import dearpypixl as dp
 from config import Config
 from models.adjustment import Adjustment
 from models.tea import Tea
+from services.data_manager import DataManager
 from services.logger import Logger
 from services.score_converter import ScoreConverter
 
@@ -17,7 +18,7 @@ class Modal:
         self.tea: Tea = tea
         self.fonts = fonts
         self.win = None
-        self.data_manager = data_manager
+        self.data_manager: DataManager = data_manager
 
 
     def show(self):
@@ -136,14 +137,18 @@ class Modal:
         for adj in Config.TYPES_OF_ADJUSTMENTS_TO_TEA:
             amount = 0
             cost = 0
+
+            # Because dearpygui uses ints as identifiers for items, we have to check if the user_data is an int and corresponds to the input field for the adjustment amount or cost. If it does, we get the value from the input field instead of using the user_data directly. This allows us to use the same function for both the "Mark remaining as adjustment" buttons and the "Update Adjustments" button.
             if user_data and adj in user_data and f"{adj}_cost" in user_data:
-                if isinstance(user_data[adj], (int, float)) and isinstance(user_data[f"{adj}_cost"], (int, float)):
-                    amount = user_data[adj]
-                    cost = user_data[f"{adj}_cost"]
-                else:
-                    amount = user_data[adj].get_value()
-                    cost = user_data[f"{adj}_cost"].get_value()
+                    amount = user_data[adj].get_value() if hasattr(user_data[adj], "get_value") else user_data[adj] if isinstance(user_data[adj], (int, float)) else 0.0
+            if user_data and f"{adj}_cost" in user_data:
+                    cost = user_data[f"{adj}_cost"].get_value() if hasattr(user_data[f"{adj}_cost"], "get_value") else user_data[f"{adj}_cost"] if isinstance(user_data[f"{adj}_cost"], (int, float)) else 0.0
+
             Logger.info(f"Adjustment '{adj}': amount={amount}, cost={cost}")
+            # Assert that amount is not a mvInputFloat
+            assert not isinstance(amount, dp.mvInputFloat), f"Adjustment '{adj}' has an invalid amount type."
+            assert not isinstance(cost, dp.mvInputFloat), f"Adjustment '{adj}' has an invalid cost type."
+
             # Check if adjustment already exists for this tea
             existing_adj = next((a for a in self.tea.adjustments if a.adjustment_type == adj), None)
             if existing_adj:

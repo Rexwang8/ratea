@@ -17,6 +17,7 @@ from ui.modals.tea_add_edit_modal import show_tea_modal
 from ui.modals.tea_review_modal import show_tea_review_modal
 from ui.modals.tea_view_modal import show_tea_view_modal
 import dearpygui.demo as demo
+from connectors.teadb.connect_teadb import dummy_funct, upload_ratea_review_to_teadb
 
 class TeaApp:
     selectable_tags = []
@@ -623,6 +624,14 @@ class TeaApp:
         vendor_name = tea.vendor
         report = ReportService.generate_tierlist_for_vendor(self.data_manager, vendor_name)
 
+    def _connect_teadb_review(self, sender, app_data, user_data):
+        # Send teadb full tea and review data for import/export
+        tea, review = self.data_manager.stash.get_review_by_id(self.selected_review_id)
+        if tea is None or review is None:
+            Logger.error("Selected review or its tea not found in stash for Teadb connector!")
+            return
+        upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_run=False, add_custom_tea_if_not_found=True)
+
     def build_ui(self):
         """Constructs the actual widgets."""
         df = self.data_manager.get_stash_dataframe()  # Example of getting data for UI display
@@ -644,6 +653,9 @@ class TeaApp:
                     dpg.add_menu_item(label="Report: Generate Sel. Review Chart", callback=self._generate_chart_for_selected_review)
                     dpg.add_menu_item(label="Chart: $/g over time by type", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager))
                     #dpg.add_menu_item(label="Cost per Gram over time. By Type", callback=lambda: ReportService.generate_cost_per_gram_over_time_by_type_report(self.data_manager))
+                with dpg.menu(label="Connectors"):
+                    # Teadb folder, for tea and review export and import
+                    dpg.add_menu_item(label="Export Teadb Review", callback=self._connect_teadb_review)
 
             # 2. The Main Content Area (Tabs are great for this app)
             with dpg.tab_bar(tag="main_tab_bar"):
