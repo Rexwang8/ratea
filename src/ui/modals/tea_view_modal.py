@@ -65,6 +65,8 @@ class Modal:
                     dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
                     dpg.add_button(label="Mark remaining as Gift", callback=self.mark_all_as_adjustment, user_data="Gift Deduction", width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
                     dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
+                    dpg.add_button(label="Unmark all adjustments", callback=self.unmark_all_adjustments, user_data=None, width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
+                    dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
                 for adj in types_of_adjustments:
                     # tuples of (adjustment_type, amount, cost) in tea.adjustments
                     amt_adj = 0.0
@@ -132,6 +134,14 @@ class Modal:
             return
         self.update_adjustments(None, None, new_user_data)
 
+    def unmark_all_adjustments(self, sender, app_data, user_data):
+        # Wrap around update_adjustments and set all adjustments to 0
+        new_user_data = dict()
+        for adj in Config.TYPES_OF_ADJUSTMENTS_TO_TEA:
+            new_user_data[adj] = 0.0
+            new_user_data[f"{adj}_cost"] = 0.0
+        self.update_adjustments(None, None, new_user_data)
+
     def update_adjustments(self, sender, app_data, user_data):
         # If user_data is not none, we check if they are integers first, if not, we try to get the values from the data_adjustments inputs. This allows us to use the same function for both the "Mark remaining as adjustment" buttons and the "Update Adjustments" button.
         for adj in Config.TYPES_OF_ADJUSTMENTS_TO_TEA:
@@ -157,6 +167,7 @@ class Modal:
                 if existing_adj.amount > self.tea.quantity:
                     existing_adj.amount = self.tea.quantity
                 existing_adj.cost = cost
+                Logger.info("Updated existing adjustment: " + str(existing_adj.to_dict()))
             else:
                 # If it doesn't exist, create a new adjustment and add it to the tea
                 amt = amount if amount is not None else 0.0
@@ -165,6 +176,8 @@ class Modal:
                     amt = self.tea.quantity
                 new_adjustment = Adjustment(adjustment_type=adj, amount=amt, cost=cst, tea_id=self.tea.id)
                 self.tea.adjustments.append(new_adjustment)
+                Logger.info("Added new adjustment: " + str(new_adjustment.to_dict()))
+
         # After updating adjustments, refresh the modal to show updated values
         self.close()
         self.show()
