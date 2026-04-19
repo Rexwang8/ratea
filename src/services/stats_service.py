@@ -545,7 +545,8 @@ class ReportService:
         # Will auto-size based on content and format nicely for export.
         # We start with base image height and width and then expand height with content as needed, trimming at the end.
         base_width = 800
-        base_height = 1600  # Start with a base height, will expand as needed
+        # We add extra height based on the length of the review notes, since that is the most variable content. We will trim later if we have extra space.
+        base_height = 1400 + (review_notes_len * 20) # Add extra height based on notes length, will trim later if not needed
 
         display_name_sanitized = display_name.replace(" ", "_").replace("/", "_")
         current_dt_str = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
