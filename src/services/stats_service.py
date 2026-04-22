@@ -421,10 +421,10 @@ class StatsService:
         thisReview_point = None
         if thisReview and thisTea:
             price = None # We want the greater of normal price or actual price
-            if thisTea.price_per_gram is not None and thisTea.price_per_gram > 0:
+            if thisTea.catalog_price_per_gram is not None and thisTea.catalog_price_per_gram > 0:
+                price = thisTea.catalog_price_per_gram
+            elif thisTea.price_per_gram is not None and thisTea.price_per_gram > 0:
                 price = thisTea.price_per_gram
-                if thisTea.catalog_price_per_gram > thisTea.price_per_gram:
-                    price = thisTea.catalog_price_per_gram
 
             if thisReview and thisReview.rating is not None and price is not None:
                 # Rating percentile
