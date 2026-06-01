@@ -1,72 +1,102 @@
 # src/config.py
 import os
+from typing import Any
 
+import yaml
+
+
+# ---------------------------------------------------------------------------
+# Paths to configuration file and derived directories
+# ---------------------------------------------------------------------------
+_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml")
+
+# Base directories computed once from the script location — not in YAML
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "src"))
+_DATA_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "data"))
+_BACKUP_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "backup"))
+_FONTS_DIR = os.path.join(_SRC_DIR, "fonts")
+
+# ---------------------------------------------------------------------------
+# Load raw data from YAML
+# ---------------------------------------------------------------------------
+def _load_yaml() -> dict[str, Any]:
+    """Read config.yaml and return the parsed dictionary."""
+    with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+_raw = _load_yaml()
+
+
+# ---------------------------------------------------------------------------
+# Config class — provides typed attribute access matching the old API
+# ---------------------------------------------------------------------------
 class Config:
-    # Things you can easily change to customize the app without digging through the code
-    # --- Review Defaults ---
-    DEFAULT_RATING = 'B'  # Default letter grade for new reviews
-    DEFAULT_AMOUNT_DRUNK = 5.0  # Default amount drunk in grams
-    DEFAULT_STEEPS = 5  # Default number of steeps
-    DEFAULT_VESSEL_SIZE = 100.0  # Default vessel size in ml
-    DEFAULT_TAILING_STATEMENT = "70 tds water, RO+brita filtered tap"  # Default tailing statement for reviews (above footer)
-    DEFAULT_FOOTER_STATEMENT = "Made possible by Seš'qa's latest technology! | Work in progress! (End of Report)"  # Default footer statement for reviews (below tailing statement)
+    """Application configuration, sourced from config.yaml.
 
+    Every attribute maps to a value defined in the YAML file.  Any value that
+    is purely a Python runtime construct (e.g. computed paths) lives at module
+    level above with a leading underscore but is also mirrored here for
+    backwards compatibility.
+    """
 
-    # --- UI Settings ---
-    THEME = "Dark"  # Options: Dark
-    LANGUAGE = "en"  # Default language
-    UI_SCALE = 2.0  # UI scaling factor
-    
-    # Display Defaults
-    DEFAULT_WIDTH = 1800 * 2
-    DEFAULT_HEIGHT = 1000 * 2
+    # -- Computed Paths (not from YAML) --------------------------------------
+    BASE_DIR: str = _BASE_DIR
+    SRC_DIR: str = _SRC_DIR
+    DATA_DIR: str = _DATA_DIR
+    BACKUP_DIR: str = _BACKUP_DIR
+    FONTS_DIR: str = _FONTS_DIR
 
-    
+    # -- Review Defaults -----------------------------------------------------
+    DEFAULT_RATING: str = _raw["review_defaults"]["rating"]
+    DEFAULT_AMOUNT_DRUNK: float = _raw["review_defaults"]["amount_drunk_grams"]
+    DEFAULT_STEEPS: int = _raw["review_defaults"]["steep_count"]
+    DEFAULT_VESSEL_SIZE: float = _raw["review_defaults"]["vessel_size_ml"]
+    DEFAULT_TAILING_STATEMENT: str = _raw["review_defaults"]["tailing_statement"]
+    DEFAULT_FOOTER_STATEMENT: str = _raw["review_defaults"]["footer_statement"]
 
+    # -- UI Settings ---------------------------------------------------------
+    THEME: str = _raw["ui"]["theme"]
+    LANGUAGE: str = _raw["ui"]["language"]
+    UI_SCALE: float = _raw["ui"]["scale"]
+    DEFAULT_WIDTH: int = _raw["ui"]["window_width"]
+    DEFAULT_HEIGHT: int = _raw["ui"]["window_height"]
 
-    # Things you shouldn't change unless you know what you're doing, as they are more fundamental to how the app works
-    # --- App Settings ---
-    APP_NAME = "Ratea Tea Reviewer"
-    VERSION = "2.0.0"
+    # -- App Metadata --------------------------------------------------------
+    APP_NAME: str = _raw["app"]["name"]
+    VERSION: str = _raw["app"]["version"]
 
-    # Paths
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DATA_DIR = os.path.join(BASE_DIR, "..", "data")
-    BACKUP_DIR = os.path.join(BASE_DIR, "..", "backup")
-    SRC_DIR = os.path.join(BASE_DIR, "..", "src")
-    FONTS_DIR = os.path.join(SRC_DIR, "fonts") # Default: src/fonts
+    # -- TeaDB Integration (Experimental) ------------------------------------
+    TEADB_API_BASE_URL: str = _raw["teadb"]["api_base_url"]
+    TEADB_TOKEN: str = _raw["teadb"]["token"]
+    TEADB_INTEGRATION_ENABLED: bool = _raw["teadb"]["enabled"]
+    TEADB_MAPPING_FILE_PATH: str = os.path.join(
+        _SRC_DIR, "connectors", "teadb", _raw["teadb"]["mapping_file"]
+    )
+    TEADB_RAW_DATA_FILE_PATH: str = os.path.join(
+        _SRC_DIR, "connectors", "teadb", _raw["teadb"]["raw_data_file"]
+    )
 
-    # TEADB INTEGRATION (EXPERIMENTAL)
-    TEADB_API_BASE_URL = "https://my.teadb.org/api/user"
-    TEADB_TOKEN = "your-api-token"  # Replace with your actual token
-    TEADB_INTEGRATION_ENABLED = True  # Set to False to disable Teadb integration
-    # under src/connectors/teadb
-    TEADB_MAPPING_FILE_PATH = os.path.join(SRC_DIR, "connectors", "teadb", "teadb_mapping.json")  # Path to the tea mapping file
-    TEADB_RAW_DATA_FILE_PATH = os.path.join(SRC_DIR, "connectors", "teadb", "teadb_raw_data.json")  # Path to the raw tea data file
-
-    # --- Colors (RGBA) ---
-    # Using a nested class or dict for grouping makes it readable
+    # -- Colors (RGBA) -------------------------------------------------------
+    # Keep the nested Colors class so callers can still do Config.Colors.TEXT_WHITE
     class Colors:
-        TEXT_WHITE = (255, 255, 255, 255)
-        TEXT_RED = (255, 0, 0, 200)
-        TEXT_GREEN = (0, 255, 0, 200)
-        
-        # Table Colors
-        CELL_AUTOCALC = (0, 100, 0, 60)
-        CELL_INVALID = (100, 0, 0, 100)
+        TEXT_WHITE: tuple[int, ...] = tuple(_raw["colors"]["text_white"])
+        TEXT_RED: tuple[int, ...] = tuple(_raw["colors"]["text_red"])
+        TEXT_GREEN: tuple[int, ...] = tuple(_raw["colors"]["text_green"])
+        CELL_AUTOCALC: tuple[int, ...] = tuple(_raw["colors"]["cell_autocalc"])
+        CELL_INVALID: tuple[int, ...] = tuple(_raw["colors"]["cell_invalid"])
+        CELL_LIGHT_BLUE: tuple[int, ...] = tuple(_raw["colors"]["cell_light_blue"])
+        CELL_LIGHT_YELLOW: tuple[int, ...] = tuple(_raw["colors"]["cell_light_yellow"])
+        CELL_LIGHT_GREEN: tuple[int, ...] = tuple(_raw["colors"]["cell_light_green"])
+        CELL_DARK_GREEN: tuple[int, ...] = tuple(_raw["colors"]["cell_dark_green"])
 
-        CELL_LIGHT_BLUE = (100, 150, 255, 50)
-        CELL_LIGHT_YELLOW = (255, 255, 100, 50)
-        CELL_LIGHT_GREEN = (100, 255, 100, 40)
-        CELL_DARK_GREEN = (0, 150, 0, 100)
-        
-    # --- Logging ---
-    DEBUG_LEVEL = "INFO" # ALL, INFO, WARNING, ERROR, CRITICAL
+    # -- Logging -------------------------------------------------------------
+    DEBUG_LEVEL: str = _raw["logging"]["level"]
 
-    # --- Font Settings ---
-    DEFAULT_FONT = "OpenSans"
-    VALID_FONTS = ["OpenSans", "Roboto", "Merriweather", "Montserrat"]
+    # -- Font Settings -------------------------------------------------------
+    DEFAULT_FONT: str = _raw["fonts"]["default"]
+    VALID_FONTS: list[str] = _raw["fonts"]["valid"]
 
-    # --- Other Settings ---
-    TYPES_OF_ADJUSTMENTS_TO_TEA = ["Standard", "Gift", "Sale", "Other"]  # Example adjustment types
-    
+    # -- Adjustment Types ----------------------------------------------------
+    TYPES_OF_ADJUSTMENTS_TO_TEA: list[str] = _raw["adjustment_types"]

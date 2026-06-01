@@ -1,0 +1,64 @@
+# =============================================================================
+# ratEA Configuration
+# =============================================================================
+# Edit this file to customize the application.  See comments on each setting
+# for valid options and defaults.
+# =============================================================================
+
+# --- Review Defaults --------------------------------------------------------
+# Default values pre-filled when adding a new review.
+review_defaults:
+  rating: "B"                     # Default letter grade (A+ through F)
+  amount_drunk_grams: 5.0         # Default amount drunk per session (g)
+  steep_count: 5                  # Default number of steeps
+  vessel_size_ml: 100.0           # Default vessel/cup size (ml)
+  tailing_statement: "70 tds water, RO+brita filtered tap. Boiling unless stated"
+  footer_statement: "Made possible by Seš'qa's latest technology! | Work in progress! (End of Report)"
+
+# --- UI Settings ------------------------------------------------------------
+ui:
+  theme: "Dark"                   # Currently only "Dark" is supported
+  language: "en"                  # Locale code
+  scale: 2.0                      # UI scaling factor (1.0 = 100%)
+  window_width: 3600              # Default window width in pixels (1800 * 2)
+  window_height: 2000             # Default window height in pixels (1000 * 2)
+
+# --- App Metadata -----------------------------------------------------------
+app:
+  name: "Ratea Tea Reviewer"
+  version: "2.0.0"
+
+# --- TeaDB Integration (Experimental) --------------------------------------
+# See https://teadb.org for API details.
+teadb:
+  api_base_url: "https://my.teadb.org/api/user"
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjI0OCwiaXNzdWVkQXQiOjE3NzU2ODI0MjI0NTQsImlhdCI6MTc3NTY4MjQyMiwiZXhwIjoxNzc2OTc4NDIyfQ.12FoOUGX9DlwU-NOXIPAZb-9sO5Pfm9ByaiuKC-k2GQ"
+  enabled: true                   # Set to false to disable TeaDB entirely
+  mapping_file: "teadb_mapping.json"      # Relative to src/connectors/teadb/
+  raw_data_file: "teadb_raw_data.json"    # Relative to src/connectors/teadb/
+
+# --- Colors (RGBA) ---------------------------------------------------------
+# Each color is a list of 4 integers [R, G, B, A] (0-255 each).
+colors:
+  text_white: [255, 255, 255, 255]
+  text_red: [255, 0, 0, 200]
+  text_green: [0, 255, 0, 200]
+  cell_autocalc: [0, 100, 0, 60]
+  cell_invalid: [100, 0, 0, 100]
+  cell_light_blue: [100, 150, 255, 50]
+  cell_light_yellow: [255, 255, 100, 50]
+  cell_light_green: [100, 255, 100, 40]
+  cell_dark_green: [0, 150, 0, 100]
+
+# --- Logging ---------------------------------------------------------------
+logging:
+  level: "INFO"                   # ALL, DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# --- Font Settings ----------------------------------------------------------
+fonts:
+  default: "OpenSans"
+  valid: ["OpenSans", "Roboto", "Merriweather", "Montserrat"]
+
+# --- Adjustment Types -------------------------------------------------------
+# Categories for tea amount/cost adjustments.
+adjustment_types: ["Standard", "Gift", "Sale", "Other"]
