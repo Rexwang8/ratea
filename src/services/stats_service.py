@@ -917,11 +917,14 @@ class ReportService:
                         ratings.append(r.rating)
 
 
-            bins = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.25, 4.5, 4.75, 5, 5.25]
-            # shift bins left by half the step so the center of each bar aligns with the rating value
-            # (rightmost edge after shifting is 5.125, covering ratings up to 5.0)
-            bins = [b - 0.125 for b in bins]
-            # The rightmost edge after shifting is 5.125, covering ratings up to 5.0
+            # Build histogram bins from letter-grade boundary midpoints so each bar
+            # represents one grade and there are no empty columns between grades.
+            grade_values = sorted(ScoreConverter.LETTER_GRADE_MAP.values())
+            bins = []
+            for i in range(len(grade_values) - 1):
+                bins.append((grade_values[i] + grade_values[i+1]) / 2)
+            # Pad below F (0.0) and above S+ (5.0) so edge bins have width
+            bins = [-0.2] + bins + [5.2]
             hist, edges = np.histogram(ratings, bins=bins)
             centers = [(edges[i] + edges[i+1]) / 2 for i in range(len(hist))]
             #hist_scaled = hist / hist.max() * 90 # Don't scale to 100% height, we want it to be more like 90% so that it doesn't overpower the main graph
