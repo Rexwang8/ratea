@@ -17,13 +17,40 @@ def wrap_text(input_text: str, width: int) -> str:
         return ""
     wrapped = textwrap.fill(input_text, width=width)
     return wrapped
-def wrap_text_no_break_words(input_text: str, width: int) -> str:
-    """Wrap text to a specified width without breaking words."""
+def wrap_text_no_break_words(input_text: str, width: int) -> tuple[str, int]:
+    """Wrap text to a specified width without breaking words.
+
+    Preserves intentional paragraph breaks (blank-line-separated blocks)
+    and single newlines within blocks are collapsed into spaces.  Each
+    paragraph is wrapped independently so earlier paragraphs don't
+    influence later ones, and blank lines are kept as paragraph separators.
+    """
     if not isinstance(input_text, str):
-        return ""
-    wrapper = textwrap.TextWrapper(width=width, break_long_words=False, replace_whitespace=False, expand_tabs=True)
-    wrapped = wrapper.fill(input_text)
-    return wrapped, len(wrapped.splitlines())
+        return "", 0
+
+    # Split into paragraphs on blank lines (one or more consecutive newlines)
+    paragraphs = input_text.split('\n')
+    wrapped_paras = []
+
+    for para in paragraphs:
+        # Collapse intra-paragraph newlines/spaces into single spaces,
+        # so that soft line breaks within a paragraph don't cause
+        # double-wrapping.
+        flat = ' '.join(para.split())
+        if not flat:
+            # Preserve empty paragraphs as blank lines
+            wrapped_paras.append('')
+            continue
+        wrapper = textwrap.TextWrapper(
+            width=width,
+            break_long_words=False,
+            replace_whitespace=True,
+            expand_tabs=True,
+        )
+        wrapped_paras.append(wrapper.fill(flat))
+
+    result = '\n'.join(wrapped_paras)
+    return result, len(result.splitlines())
 
 
 

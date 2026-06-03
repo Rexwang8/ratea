@@ -538,7 +538,9 @@ class ReportService:
         vessel_size = review.vesselSize
         method = review.method
         review_notes = review.notes if review.notes else "No notes provided."
-        review_notes_wrapped, review_notes_len = wrap_text_no_break_words(review_notes, width=90)
+        review_notes_wrapped, review_notes_len = wrap_text_no_break_words(review_notes, width=85)
+        font_size = 20
+        notes_line_height = font_size - 4  # matches body_font_small size
 
         # Create plots and text report using matplotlib/pillow (not implemented here)
         # ...
@@ -602,8 +604,12 @@ class ReportService:
         offset_y += 15 + line_spacing
         draw_tag_value(draw, padding_x, padding_y + offset_y, "Cost per Gram: ", f"{cost_per_gram_str}, Session cost: ${amount_of_review * cost_per_gram_normal:.2f}", body_font, body_font)
         offset_y += 15 + line_spacing
-        draw_tag_value(draw, padding_x, padding_y + offset_y, "Notes:\n\n", f"{review_notes_wrapped}", body_font, body_font_small)
-        offset_y += math.ceil(((font_size - 4) * review_notes_len) * 1.25) # Rough estimate of height used by notes
+        # Draw notes as a label + multi-line block so each wrapped line
+        # starts at the left margin, not indented by the tag width.
+        draw.text((padding_x, padding_y + offset_y), "Notes:", font=body_font, fill=(80, 80, 80))
+        offset_y += 2 * notes_line_height  # one line for the label
+        draw.text((padding_x + 5, padding_y + offset_y), review_notes_wrapped, font=body_font_small, fill="black")
+        offset_y += math.ceil(notes_line_height * review_notes_len * 1.2)  # actual height of the wrapped block
         offset_y += 15 + line_spacing
         # Rating of this session
         draw_tag_value(draw, padding_x, padding_y + offset_y, "Rating this session: ", f"{review.rating_letter}", body_font, body_font)
@@ -911,9 +917,11 @@ class ReportService:
                         ratings.append(r.rating)
 
 
-            bins = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.25, 4.5, 4.75, 5]
-            # shift bins to left slightly so that the center of the bar is at the rating value
+            bins = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4, 4.25, 4.5, 4.75, 5, 5.25]
+            # shift bins left by half the step so the center of each bar aligns with the rating value
+            # (rightmost edge after shifting is 5.125, covering ratings up to 5.0)
             bins = [b - 0.125 for b in bins]
+            # The rightmost edge after shifting is 5.125, covering ratings up to 5.0
             hist, edges = np.histogram(ratings, bins=bins)
             centers = [(edges[i] + edges[i+1]) / 2 for i in range(len(hist))]
             #hist_scaled = hist / hist.max() * 90 # Don't scale to 100% height, we want it to be more like 90% so that it doesn't overpower the main graph
