@@ -32,7 +32,7 @@ app:
 # See https://teadb.org for API details.
 teadb:
   api_base_url: "https://my.teadb.org/api/user"
-  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjI0OCwiaXNzdWVkQXQiOjE3NzU2ODI0MjI0NTQsImlhdCI6MTc3NTY4MjQyMiwiZXhwIjoxNzc2OTc4NDIyfQ.12FoOUGX9DlwU-NOXIPAZb-9sO5Pfm9ByaiuKC-k2GQ"
+  token: "YOUR_TOKEN_HERE"
   enabled: true                   # Set to false to disable TeaDB entirely
   mapping_file: "teadb_mapping.json"      # Relative to src/connectors/teadb/
   raw_data_file: "teadb_raw_data.json"    # Relative to src/connectors/teadb/
