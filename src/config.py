@@ -28,6 +28,24 @@ def _load_yaml() -> dict[str, Any]:
 
 _raw = _load_yaml()
 
+def load_env_as_dict(filepath=".env"):
+    config = {}
+    # Check .env exists before trying to read it
+    if not os.path.isfile(filepath):
+        print(f"Warning: {filepath} not found. Environment variables will not be loaded. Create a .env to continue!")
+        return config
+    with open(filepath, "r") as file:
+        for line in file:
+            # Clean up spacing and ignore comments/empty lines
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            
+            # Split at the first '=' sign only
+            key, value = line.split("=", 1)
+            config[key.strip()] = value.strip().strip('"').strip("'")
+    return config
+_env_config = load_env_as_dict(os.path.join(_SRC_DIR, "./.env"))
 
 # ---------------------------------------------------------------------------
 # Config class — provides typed attribute access matching the old API
@@ -69,7 +87,7 @@ class Config:
 
     # -- TeaDB Integration (Experimental) ------------------------------------
     TEADB_API_BASE_URL: str = _raw["teadb"]["api_base_url"]
-    TEADB_TOKEN: str = _raw["teadb"]["token"]
+    TEADB_TOKEN: str = _env_config.get("TEADB_API_KEY", "")
     TEADB_INTEGRATION_ENABLED: bool = _raw["teadb"]["enabled"]
     TEADB_MAPPING_FILE_PATH: str = os.path.join(
         _SRC_DIR, "connectors", "teadb", _raw["teadb"]["mapping_file"]
