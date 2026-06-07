@@ -25,10 +25,10 @@ class DataManager:
         self.dropdownTeaVendors = set()  # To be populated based on stash data
 
         self.filter_flags = {
-            "hide_finished": False,
-            "hide_unreviewed": False,
-            "hide_reviewed": False,
-            "hide_finished_reviews": False,
+            "hide_finished": Config.SEARCH_DEFAULTS_HIDE_FINISHED,
+            "hide_unreviewed": Config.SEARCH_DEFAULTS_HIDE_UNREVIEWED,
+            "hide_reviewed": Config.SEARCH_DEFAULTS_HIDE_REVIEWED,
+            "hide_finished_reviews": Config.SEARCH_DEFAULTS_HIDE_FINISHED_REVIEWS
         }
 
         self.check_yaml_file_exists()
@@ -401,6 +401,7 @@ class DataManager:
         col = mapping.get(ui_column_name)
         if col:
             self._type_vendor_stats_cache.sort_values(by=col, ascending=ascending, inplace=True)
+
 
 
 

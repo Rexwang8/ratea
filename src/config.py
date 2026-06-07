@@ -59,6 +59,12 @@ class Config:
     backwards compatibility.
     """
 
+
+    SEARCH_DEFAULTS_HIDE_REVIEWED: bool = _raw["search_defaults"]["hide_reviewed"]
+    SEARCH_DEFAULTS_HIDE_FINISHED: bool = _raw["search_defaults"]["hide_finished"]
+    SEARCH_DEFAULTS_HIDE_UNREVIEWED: bool = _raw["search_defaults"]["hide_unreviewed"]
+    SEARCH_DEFAULTS_HIDE_FINISHED_REVIEWS: bool = _raw["search_defaults"]["hide_finished_reviews"]
+
     # -- Computed Paths (not from YAML) --------------------------------------
     BASE_DIR: str = _BASE_DIR
     SRC_DIR: str = _SRC_DIR

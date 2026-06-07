@@ -37,10 +37,10 @@ class TeaApp:
     selected_text_display_reviews = None
     current_query = ""
     current_query_reviews = ""
-    hide_finished = False
-    hide_unreviewed = False
-    hide_reviewed = False
-    hide_finished_reviews = False
+    hide_finished = Config.SEARCH_DEFAULTS_HIDE_FINISHED
+    hide_unreviewed = Config.SEARCH_DEFAULTS_HIDE_UNREVIEWED
+    hide_reviewed = Config.SEARCH_DEFAULTS_HIDE_REVIEWED
+    hide_finished_reviews = Config.SEARCH_DEFAULTS_HIDE_FINISHED_REVIEWS
 
     def __init__(self):
         self.primary_window_tag = "Primary Window"
@@ -673,9 +673,9 @@ class TeaApp:
                         dpg.add_button(label="Round Amounts/Costs", callback=self.data_manager.round_amounts_and_costs)
 
                     with dpg.collapsing_header(label="Filters", default_open=True):
-                        dpg.add_checkbox(label="Hide finished teas", callback=self._on_hide_finished_change)
-                        dpg.add_checkbox(label="Hide Unreviewed teas", callback=self._on_hide_unreviewed_change)
-                        dpg.add_checkbox(label="Hide Reviewed teas", callback=self._on_hide_reviewed_change)
+                        dpg.add_checkbox(label="Hide finished teas", callback=self._on_hide_finished_change, default_value=self.hide_finished)
+                        dpg.add_checkbox(label="Hide Unreviewed teas", callback=self._on_hide_unreviewed_change, default_value=self.hide_unreviewed)
+                        dpg.add_checkbox(label="Hide Reviewed teas", callback=self._on_hide_reviewed_change, default_value=self.hide_reviewed)
 
                     with dpg.collapsing_header(label="Sort Options", default_open=False):
                         dpg.add_radio_button(items=["Name", "Vendor", "Type", "Amount", "Avg Score", "Reviews", "Cost"], label="Sort by:", horizontal=True, callback=self._on_filter_col_change)

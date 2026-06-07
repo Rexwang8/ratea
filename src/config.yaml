@@ -5,6 +5,15 @@
 # for valid options and defaults.
 # =============================================================================
 
+
+# --- Search Defaults --------------------------------------------------------
+search_defaults:
+  hide_reviewed: false            # Hide teas that have already been reviewed
+  hide_finished: false            # Hide teas that are marked as finished
+  hide_unreviewed: false          # Hide teas that have not been reviewed at all (contradicts hide_reviewed, so both cannot be true)
+  hide_finished_reviews: false    # Hide reviews of teas that are marked as finished (but still show the tea if hide_finished is false)
+
+
 # --- Review Defaults --------------------------------------------------------
 # Default values pre-filled when adding a new review.
 review_defaults:
