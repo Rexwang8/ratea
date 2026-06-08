@@ -14,6 +14,33 @@ import os as os
 from services.logger import Logger
 import matplotlib.patheffects as pe
 
+
+TEA_TYPE_COLOR_MAP = {
+            "Sheng": "#1f77b4",
+            "Shou": "#4e342e",
+            "Hong": "#b71c1c",
+            "Yancha": "#546e7a",
+            "White": "#f8bbd0",
+            "Dancong": "#eb7855",
+            "Taiwanese Oolong": "#A92D48",
+            "Ryokucha": "#388e3c",
+            "Matcha": "#1c591f",
+            "Fuzhuan": "#8d6e63",
+            "Raw Liubao": "#78c2a4",
+            "Ripe Liubao": "#5a3d38",
+            "Green": "#3F8542",
+            "Yellow": "#fbc02d",
+            "Hua Juan": "#7b1fa2",
+            "San Jian": "#074d45",
+            "Futsucha": "#ff6200",
+            "Anxi Oolong": "#17c1b0",
+            "Green Oolong": "#85b759",
+            "Heicha": "#5d4037",
+            "Herbal": "#AB1CA8",
+            "Other": "#9e9e9e",
+            "Unknown": "#6b6b6b",
+        }
+
 class StatsService:
     @staticmethod
     def get_consumption_plot_data(teas):
@@ -1428,22 +1455,6 @@ class ReportService:
         # -------------------------
         fig, ax1 = plt.subplots(figsize=(18, 10))
 
-        # If you have your own types you should define them here with colors, otherwise it will default to gray
-        # Just ask chatgpt or some other llm to suggest a color palette for the tea types you have in your stash and put them here
-        COLOR_MAP = {
-            "Sheng": "#1f77b4",             # blue (fresh, lively)
-            "Shou": "#4e342e",              # dark earthy brown
-            "Hong": "#b71c1c",              # deep red
-            "Yancha": "#546e7a",            # slate blue-gray (FIXED, distinct)
-            "White": "#f8bbd0",             # soft pink
-            "Dancong": "#ff7043",           # bright orange (aromatic)
-            "Taiwanese Oolong": "#ff9800",  # golden orange
-            "Gyokuro": "#2e7d32",           # deep green (umami)
-            "Matcha": "#66bb6a",            # bright green
-            "Fuzhuan": "#8d6e63",           # fermented brown
-            "Other": "#9e9e9e"              # neutral gray
-        }
-
         # Move other to end if it exists
         cols = list(pivot.columns)
         if "Other" in cols:
@@ -1457,7 +1468,7 @@ class ReportService:
             pivot.index,
             pivot.values.T,
             labels=pivot.columns,
-            colors=[COLOR_MAP.get(x, "#9E9E9E") for x in pivot.columns],
+            colors=[TEA_TYPE_COLOR_MAP.get(x, "#9E9E9E") for x in pivot.columns],
             linewidth=0.5
         )
     
@@ -1530,6 +1541,159 @@ class ReportService:
     
         return final_path
     
+    @staticmethod
+    def generate_cu_stashed_by_type_report(data_manager):
+        """Generate a stacked area chart showing absolute grams of each tea type
+        remaining in the stash over time, factoring in purchases, consumption,
+        and adjustments.
+
+        Returns: path to the saved PNG image, or None if no data.
+        """
+        Logger.info("Generating cumulative stash-by-type report.")
+
+        teas: list[Tea] = data_manager.stash.teas
+
+        # ------------------------------------------------------------------
+        # 1. Build a timeline of events (purchase, review consumption,
+        #    adjustment) for every tea, keyed by date.
+        # ------------------------------------------------------------------
+        events = []  # list of (date, type, delta_grams)
+
+        for tea in teas:
+            inv = round(tea.quantity, 2)
+            ttype = tea.tea_type if tea.tea_type else "Unknown"
+
+            if tea.quantity > 0:
+                events.append((pd.to_datetime(tea.purchaseDate), ttype, round(tea.quantity, 2)))
+
+            for rev in tea.reviews:
+                events.append((pd.to_datetime(rev.date), ttype, -rev.amount_drunk))
+                inv -= round(rev.amount_drunk, 2)
+
+            for adj in tea.adjustments:
+                if hasattr(adj, 'date') and adj.date:
+                    events.append((pd.to_datetime(adj.date), ttype, round(adj.amount, 2)))
+                else:
+                    # Place the adjustment 1 week after the most recent review or purchase to ensure it appears in the timeline, since we don't have an exact date for it. This is a bit of a hack but allows us to include adjustments without losing them.
+                    if tea.reviews:
+                        latest_review_date = max(pd.to_datetime(rev.date) for rev in tea.reviews)
+                        adj_date = latest_review_date + pd.Timedelta(days=7)
+                    else:
+                        adj_date = pd.to_datetime(tea.purchaseDate) + pd.Timedelta(days=7)
+                    events.append((adj_date, ttype, -round(adj.amount, 2)))  # Assuming adj.amount is positive for additions and negative for removals, we negate it here to reflect the actual change in inventory
+                    inv -= round(adj.amount, 2)  # Adjust inventory for the sake of any subsequent adjustments
+
+            # Print quantity sanity check for this tea
+            #if inv != tea.remaining:
+            #    print(f"Tea: {tea.name}, Final Inventory after reviews and adjustments: {inv}g (Initial: {tea.quantity}g). Tea info remaining: {tea.remaining}g")
+
+            
+
+        if not events:
+            Logger.warning("No stash events found — nothing to plot.")
+            return None
+        
+        print(f"[CHART] Number of events: {len(events)}, Sum of all deltas: {sum(delta for _, _, delta in events):.2f}g")
+        print(f"[CHART] Event types and counts: {pd.Series([etype for _, etype, _ in events]).value_counts().to_dict()}")
+        print(f"[CHART] Date range: {min(date for date, _, _ in events).date()} to {max(date for date, _, _ in events).date()}")
+        lastMonth = pd.Timestamp.now() - pd.Timedelta(days=30)
+        last6Months = pd.Timestamp.now() - pd.Timedelta(days=182)
+        lastYear = pd.Timestamp.now() - pd.Timedelta(days=365)
+        print(f"[CHART] Delta of last month: {sum(delta for date, _, delta in events if date >= lastMonth):.2f}g")
+        print(f"[CHART] Delta of last 6 months: {sum(delta for date, _, delta in events if date >= last6Months):.2f}g")
+        print(f"[CHART] Delta of last year: {sum(delta for date, _, delta in events if date >= lastYear):.2f}g")
+
+        df_events = pd.DataFrame(events, columns=["date", "type", "delta"])
+        df_events = df_events.sort_values("date").reset_index(drop=True)
+
+        # ------------------------------------------------------------------
+        # 2. Build daily running total per tea type.
+        # ------------------------------------------------------------------
+        start_date = df_events["date"].min().floor("D")
+        end_date = df_events["date"].max().floor("D")
+
+        all_types = sorted(df_events["type"].unique())
+        daily_idx = pd.date_range(start_date, end_date, freq="D")
+        
+        # Collapse all events occurring on the same day
+        daily_changes = (
+           df_events.assign(date=df_events["date"].dt.floor("D"))
+           .pivot_table(
+               index="date",
+               columns="type",
+               values="delta",
+               aggfunc="sum",
+               fill_value=0.0,
+           )
+           .reindex(columns=all_types, fill_value=0.0)
+
+        )
+        # Ensure every day exists
+        daily_changes = daily_changes.reindex(daily_idx, fill_value=0.0)
+        
+        # Running stash total
+        zero_df = daily_changes.cumsum()
+        
+        # Remove types that never have any inventory
+        final_amounts = zero_df.iloc[-1]
+
+        active_types = (
+            final_amounts.sort_values(ascending=False)
+            .index
+            .tolist()
+        )
+
+        zero_df = zero_df[active_types]
+
+        # ------------------------------------------------------------------
+        # 3. Stable colour palette per tea type.
+        # ------------------------------------------------------------------
+        colors = [TEA_TYPE_COLOR_MAP.get(t, "#9E9E9E") for t in active_types]
+
+        # ------------------------------------------------------------------
+        # 4. Stacked area chart (absolute grams, not %).
+        # ------------------------------------------------------------------
+        fig, ax = plt.subplots(figsize=(30, 15))
+
+        ax.stackplot(
+            zero_df.index,
+            zero_df.values.T,
+            labels=active_types,
+            colors=colors,
+            linewidth=0.5,
+        )
+
+        ax.set_ylabel("Grams Remaining")
+        ax.set_title("Cumulative Stash by Tea Type Over Time")
+
+
+        handles, labels = ax.get_legend_handles_labels()
+
+        ax.legend(
+            handles[::-1],
+            labels[::-1],
+            loc="center left",
+            bbox_to_anchor=(1.02, 0.5),
+            frameon=False,
+        )
+
+        ax.grid(True, alpha=0.3)
+        ax.set_xlim(zero_df.index.min(), zero_df.index.max())
+        ax.margins(x=0)
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{int(x):,}g"))
+
+        # ------------------------------------------------------------------
+        # 5. Save and return.
+        # ------------------------------------------------------------------
+        current_dt_str = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
+        save_path = f"stash_by_type_{current_dt_str}.png"
+
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=100)
+        plt.close(fig)
+
+        Logger.info(f"Saved stash-by-type report to {save_path}")
+        return save_path
 
 
 def draw_tag_value(draw, x, y, tag, value, tag_font, value_font, tag_color=(80, 80, 80), value_color="black"):
