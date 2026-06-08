@@ -1370,7 +1370,7 @@ class ReportService:
     def generate_cost_per_gram_over_time_reviews_report(datamanager, width=800, height=600):
         Logger.info("Generating cost per gram over time report.")
     
-        report_shorthand = "cpg_over_time_type"
+        report_shorthand = "cpg_over_time_type_drank"
         tmp_dir = f"{Config.DATA_DIR}/tmp"
         os.makedirs(tmp_dir, exist_ok=True)
     
@@ -1415,14 +1415,22 @@ class ReportService:
             "Other"
         )
         # debug print all sums
-        Logger.info("Total spend by tea type:")
+        Logger.info("[Chart] Total spend drank by tea type:")
         for tea_type, total in type_totals.items():
-            Logger.info(f"  {tea_type}: ${total:.2f}")
-        Logger.info(f"  Other: ${type_totals[~type_totals.index.isin(top_types)].sum():.2f}")
-        Logger.info(f"  Total: ${type_totals.sum():.2f}")
+            Logger.info(f"[Chart]   {tea_type}: ${total:.2f}")
+        Logger.info(f"[Chart]   Other: ${type_totals[~type_totals.index.isin(top_types)].sum():.2f}")
+        Logger.info(f"[Chart]   Total: ${type_totals.sum():.2f}")
+
+        # Debug print only top 5 teas over last 90 days
+        recent_threshold = pd.Timestamp.now() - pd.Timedelta(days=90)
+        recent_df = df[df["date"] >= recent_threshold]
+        recent_type_totals = recent_df.groupby("tea_type")["session_cost"].sum().sort_values(ascending=False)
+        Logger.info("[Chart] Top tea types by spend in last 90 days:")
+        for tea_type, total in recent_type_totals.head(5).items():
+            Logger.info(f"[Chart]   {tea_type}: ${total:.2f}")
     
         # -------------------------
-        # Monthly % spend by tea type
+        # Monthly % spend by tea type (Drank)
         # -------------------------
         df["month"] = df["date"].dt.to_period("M").dt.to_timestamp()
     
@@ -1456,7 +1464,7 @@ class ReportService:
         # -------------------------
         # Plot
         # -------------------------
-        fig, ax1 = plt.subplots(figsize=(18, 10))
+        fig, ax1 = plt.subplots(figsize=(22, 12))
 
         # Move other to end if it exists
         cols = list(pivot.columns)
@@ -1536,12 +1544,301 @@ class ReportService:
         draw.text((xoffset, yoffset), "Tea Spend Analysis", font=tag_font, fill=tag_color)
         yoffset += 30
 
-        draw.text((xoffset, yoffset), "This chart shows the composition of your tea spending over time by tea type, along with a rolling average of cost per gram.", font=tag_font_body, fill=tag_color)
+        draw.text((xoffset, yoffset), "This chart shows the composition of your tea spending over time by tea type, from drinking only, along with a rolling average of cost per gram.", font=tag_font_body, fill=tag_color)
         yoffset += 20
 
         img.paste(placeholder_img, (xoffset-10, yoffset))
         img.save(final_path)
     
+        return final_path
+    
+
+    @staticmethod
+    def generate_consumption_by_type_report(datamanager, width=800, height=600):
+        Logger.info("Generating tea consumption composition report.")
+
+        report_shorthand = "consumption_over_time_type"
+        tmp_dir = f"{Config.DATA_DIR}/tmp"
+        os.makedirs(tmp_dir, exist_ok=True)
+
+        placeholder_path = f"{tmp_dir}/report_placeholder_{report_shorthand}.png"
+        final_path = (
+            f"./report_{report_shorthand}_"
+            f"{pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
+        )
+
+        # --------------------------------------------------
+        # Flatten review consumption data
+        # --------------------------------------------------
+        rows = []
+
+        for tea in datamanager.teas:
+            tea_type = tea.tea_type or "Unknown"
+
+            for review in tea.reviews:
+                if review.amount_drunk <= 0:
+                    continue
+
+                rows.append(
+                    {
+                        "date": pd.to_datetime(review.date),
+                        "tea_type": tea_type,
+                        "amount": review.amount_drunk,
+                    }
+                )
+
+        df = pd.DataFrame(rows)
+
+        if df.empty:
+            raise ValueError("No valid review consumption data to plot.")
+
+        df = df.sort_values("date")
+
+        # --------------------------------------------------
+        # Determine major tea types
+        # --------------------------------------------------
+        type_totals = df.groupby("tea_type")["amount"].sum()
+
+        top_types = type_totals[
+            type_totals > type_totals.sum() * 0.02
+        ].index
+
+        df["tea_type_grouped"] = df["tea_type"].where(
+            df["tea_type"].isin(top_types),
+            "Other"
+        )
+
+        Logger.info("[Chart] Total grams consumed by tea type:")
+
+        for tea_type, total in type_totals.items():
+            Logger.info(f"[Chart]   {tea_type}: {total:.1f}g")
+
+        other_total = (
+            type_totals[
+                ~type_totals.index.isin(top_types)
+            ].sum()
+        )
+
+        Logger.info(f"[Chart]   Other: {other_total:.1f}g")
+        Logger.info(f"[Chart]   Total: {type_totals.sum():.1f}g")
+
+        # --------------------------------------------------
+        # Recent consumption debug
+        # --------------------------------------------------
+        recent_threshold = pd.Timestamp.now() - pd.Timedelta(days=90)
+
+        recent_df = df[df["date"] >= recent_threshold]
+
+        recent_totals = (
+            recent_df.groupby("tea_type")["amount"]
+            .sum()
+            .sort_values(ascending=False)
+        )
+
+        Logger.info("[Chart] Top tea types consumed in last 90 days:")
+
+        for tea_type, total in recent_totals.head(5).items():
+            Logger.info(f"[Chart]   {tea_type}: {total:.1f}g")
+
+        # --------------------------------------------------
+        # Monthly composition (% of grams consumed)
+        # --------------------------------------------------
+        df["month"] = (
+            df["date"]
+            .dt.to_period("M")
+            .dt.to_timestamp()
+        )
+
+        monthly = (
+            df.groupby(["month", "tea_type_grouped"])["amount"]
+            .sum()
+            .reset_index()
+        )
+
+        total_monthly = (
+            monthly.groupby("month")["amount"]
+            .sum()
+            .reset_index()
+            .rename(columns={"amount": "total"})
+        )
+
+        monthly = monthly.merge(total_monthly, on="month")
+
+        monthly["pct"] = (
+            100 * monthly["amount"] / monthly["total"]
+        )
+
+        pivot = (
+            monthly.pivot(
+                index="month",
+                columns="tea_type_grouped",
+                values="pct"
+            )
+            .fillna(0)
+        )
+
+        pivot.index = pivot.index + pd.offsets.Day(15)
+
+        pivot = pivot[
+            pivot.mean()
+            .sort_values(ascending=False)
+            .index
+        ]
+
+        pivot = pivot.rolling(2).mean()
+
+        # Move Other to end
+        cols = list(pivot.columns)
+
+        if "Other" in cols:
+            cols.remove("Other")
+            cols.append("Other")
+
+        pivot = pivot[cols]
+
+        # --------------------------------------------------
+        # Rolling 30-day consumption (grams)
+        # --------------------------------------------------
+        df_daily = df.set_index("date").sort_index()
+
+        rolling_consumption = (
+            df_daily["amount"]
+            .rolling("30D", min_periods=5)
+            .sum()
+            .dropna()
+        )
+
+        # --------------------------------------------------
+        # Plot
+        # --------------------------------------------------
+        fig, ax1 = plt.subplots(figsize=(22, 12))
+
+        ax1.stackplot(
+            pivot.index,
+            pivot.values.T,
+            labels=pivot.columns,
+            colors=[
+                TEA_TYPE_COLOR_MAP.get(x, "#9E9E9E")
+                for x in pivot.columns
+            ],
+            linewidth=0.5,
+        )
+
+        ax1.set_ylim(0, 100)
+
+        start = pivot.index.min()
+        end = pivot.index.max() + pd.offsets.MonthEnd(1)
+
+        ax1.set_xlim(start, end)
+        ax1.margins(x=0)
+
+        ax1.set_ylabel("Percent of Consumption (%)")
+        ax1.set_title("Tea Consumption Composition by Tea Type")
+
+        ax1.legend(
+            labels=[trim_label(l) for l in pivot.columns],
+            loc="center left",
+            bbox_to_anchor=(1.08, 0.5),
+            borderaxespad=0,
+            frameon=False,
+        )
+
+        # --------------------------------------------------
+        # Secondary axis:
+        # 30-day rolling grams consumed
+        # --------------------------------------------------
+        ax2 = ax1.twinx()
+
+        line = ax2.plot(
+            rolling_consumption.index,
+            rolling_consumption.values,
+            linewidth=2.5,
+            color="black",
+        )[0]
+
+        line.set_path_effects(
+            [
+                pe.Stroke(
+                    linewidth=5,
+                    foreground="white",
+                ),
+                pe.Normal(),
+            ]
+        )
+
+        ax2.set_ylabel("30-Day Consumption (g)")
+
+        ax2.yaxis.set_major_formatter(
+            FuncFormatter(
+                lambda x, pos: f"{x:.0f}g"
+            )
+        )
+
+        width, height = fig.get_size_inches() * fig.dpi
+
+        width = int(width)
+        height = int(height)
+
+        plt.subplots_adjust(
+            top=0.95,
+            left=0.05,
+            bottom=0.1,
+            right=0.82,
+        )
+
+        plt.savefig(placeholder_path, dpi=100)
+        plt.close(fig)
+
+        # --------------------------------------------------
+        # Composite image
+        # --------------------------------------------------
+        img = Image.new(
+            "RGB",
+            (width, height + 20),
+            color="white",
+        )
+
+        placeholder_img = Image.open(placeholder_path)
+
+        xoffset = 15
+        yoffset = 15
+
+        draw = ImageDraw.Draw(img)
+
+        tag_font = ImageFont.truetype("arial.ttf", 24)
+        tag_font_body = ImageFont.truetype("arial.ttf", 18)
+
+        tag_color = (0, 0, 0)
+
+        draw.text(
+            (xoffset, yoffset),
+            "Tea Consumption Analysis",
+            font=tag_font,
+            fill=tag_color,
+        )
+
+        yoffset += 30
+
+        draw.text(
+            (xoffset, yoffset),
+            (
+                "This chart shows the composition of tea "
+                "consumption over time by tea type, based "
+                "on grams consumed in reviews."
+            ),
+            font=tag_font_body,
+            fill=tag_color,
+        )
+
+        yoffset += 20
+
+        img.paste(
+            placeholder_img,
+            (xoffset - 10, yoffset),
+        )
+
+        img.save(final_path)
+
         return final_path
     
     @staticmethod
