@@ -1,5 +1,8 @@
 import math
-from matplotlib import pyplot as plt
+import matplotlib
+matplotlib.use("Agg") # Force non-gpu backend to prevent warnings when generating chart
+
+import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 import numpy as np
 import pandas as pd
