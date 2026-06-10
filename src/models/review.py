@@ -111,9 +111,7 @@ class Review:
     @property
     def steeps(self):
         return self.steep_count
-    @property
-    def vessel_size(self):
-        return self.vessel_size
+
     @property
     def amount(self):
         return self.amount_drunk

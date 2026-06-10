@@ -154,7 +154,7 @@ class StatsService:
         if not per_tea_data:
             return 0, pd.DataFrame(), pd.DataFrame()
         
-        df = pd.DataFrame(per_tea_data)._sort_values(by="TotalWater", ascending=False)
+        df = pd.DataFrame(per_tea_data).sort_values(by="TotalWater", ascending=False)
         df_review = pd.DataFrame(per_review_data)
         return overall_total, df, df_review
     
@@ -228,7 +228,7 @@ class StatsService:
             "top_type_amt": type_df["Quantity"].max() if not type_df.empty else 0
         }
 
-        cleaned_df._sort_values(by="Quantity", ascending=False, inplace=True)
+        cleaned_df.sort_values(by="Quantity", ascending=False, inplace=True)
 
         return cleaned_df, stats
     
@@ -239,7 +239,7 @@ class StatsService:
             return [], [], [], []
         plot_df = df[df["Dimension"] == dimension_shown]
         # Sort by quantity so the chart looks professional
-        plot_df = plot_df._sort_values("Quantity", ascending=False)
+        plot_df = plot_df.sort_values("Quantity", ascending=False)
         labels = plot_df["Label"].tolist()
         values = plot_df["Quantity"].tolist()
     
@@ -335,7 +335,7 @@ class StatsService:
         df["Date"] = pd.to_datetime(df["Date"])
         df["Date"] = df["Date"].dt.date
 
-        history_df = df._sort_values("Date")
+        history_df = df.sort_values("Date")
         
         stats = {
             "total_spent": df["Spend"].sum(),
@@ -1402,7 +1402,7 @@ class ReportService:
         if df.empty:
             raise ValueError("No valid review data to plot.")
     
-        df = df._sort_values("date")
+        df = df.sort_values("date")
 
         # total spend per tea type
         type_totals = df.groupby("tea_type")["session_cost"].sum()
@@ -1424,7 +1424,7 @@ class ReportService:
         # Debug print only top 5 teas over last 90 days
         recent_threshold = pd.Timestamp.now() - pd.Timedelta(days=90)
         recent_df = df[df["date"] >= recent_threshold]
-        recent_type_totals = recent_df.groupby("tea_type")["session_cost"].sum()._sort_values(ascending=False)
+        recent_type_totals = recent_df.groupby("tea_type")["session_cost"].sum().sort_values(ascending=False)
         Logger.info("[Chart] Top tea types by spend in last 90 days:")
         for tea_type, total in recent_type_totals.head(5).items():
             Logger.info(f"[Chart]   {tea_type}: ${total:.2f}")
@@ -1444,7 +1444,7 @@ class ReportService:
     
         pivot = monthly.pivot(index="month", columns="tea_type_grouped", values="pct").fillna(0)
         pivot.index = pivot.index + pd.offsets.Day(15)
-        pivot = pivot[pivot.mean()._sort_values(ascending=False).index]
+        pivot = pivot[pivot.mean().sort_values(ascending=False).index]
         pivot = pivot.rolling(2).mean()
     
         # -------------------------
@@ -1592,7 +1592,7 @@ class ReportService:
         if df.empty:
             raise ValueError("No valid review consumption data to plot.")
 
-        df = df._sort_values("date")
+        df = df.sort_values("date")
 
         # --------------------------------------------------
         # Determine major tea types
@@ -1632,7 +1632,7 @@ class ReportService:
         recent_totals = (
             recent_df.groupby("tea_type")["amount"]
             .sum()
-            ._sort_values(ascending=False)
+            .sort_values(ascending=False)
         )
 
         Logger.info("[Chart] Top tea types consumed in last 90 days:")
@@ -1681,7 +1681,7 @@ class ReportService:
 
         pivot = pivot[
             pivot.mean()
-            ._sort_values(ascending=False)
+            .sort_values(ascending=False)
             .index
         ]
 
@@ -1904,7 +1904,7 @@ class ReportService:
         print(f"[CHART] Delta of last year: {sum(delta for date, _, delta in events if date >= last_year):.2f}g")
 
         df_events = pd.DataFrame(events, columns=["date", "type", "delta"])
-        df_events = df_events._sort_values("date").reset_index(drop=True)
+        df_events = df_events.sort_values("date").reset_index(drop=True)
 
         # ------------------------------------------------------------------
         # 2. Build daily running total per tea type.
@@ -1938,7 +1938,7 @@ class ReportService:
         final_amounts = zero_df.iloc[-1]
 
         active_types = (
-            final_amounts._sort_values(ascending=False)
+            final_amounts.sort_values(ascending=False)
             .index
             .tolist()
         )

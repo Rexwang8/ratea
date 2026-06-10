@@ -253,7 +253,7 @@ class DataManager:
             return s_clean
 
         # Perform the sort
-        self.filtered_df._sort_values(
+        self.filtered_df.sort_values(
             by=column_name,
             ascending=ascending,
             inplace=True,
@@ -315,7 +315,7 @@ class DataManager:
             return s_clean
         
         # Perform the sort
-        self.filtered_reviews_df._sort_values(
+        self.filtered_reviews_df.sort_values(
             by=column_name,
             ascending=ascending,
             inplace=True,
@@ -400,7 +400,7 @@ class DataManager:
         }
         col = mapping.get(ui_column_name)
         if col:
-            self.type_vendor_stats_cache._sort_values(by=col, ascending=ascending, inplace=True)
+            self.type_vendor_stats_cache.sort_values(by=col, ascending=ascending, inplace=True)
 
 
 

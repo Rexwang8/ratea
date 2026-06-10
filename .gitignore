@@ -11,3 +11,4 @@ data/*
 .env
 
 data_saved.yaml
+data/data_saved.yaml
