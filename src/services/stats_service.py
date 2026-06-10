@@ -46,7 +46,7 @@ TEA_TYPE_COLOR_MAP = {
 
 class StatsService:
     @staticmethod
-    def get_consumption_plot_data(teas):
+    def _get_consumption_plot_data(teas):
         """Processes tea reviews into DPG-ready plot lists."""
         reviews_data = []
         for tea in teas:
@@ -133,7 +133,7 @@ class StatsService:
         for tea in teas:
             # Sum up water from all reviews for this specific tea
             # Assuming 'water_amount' exists in your Review model
-            sum_water = sum(rev.steep_count * rev.vesselSize for rev in tea.reviews)
+            sum_water = sum(rev.steep_count * rev.vessel_size for rev in tea.reviews)
             
             per_tea_data.append({
                 "UUID": tea.id,
@@ -148,13 +148,13 @@ class StatsService:
                 per_review_data.append({
                     "TeaName": tea.name,
                     "Date": rev.date,
-                    "WaterAmount": rev.steep_count * rev.vesselSize,
+                    "WaterAmount": rev.steep_count * rev.vessel_size,
                 })
 
         if not per_tea_data:
             return 0, pd.DataFrame(), pd.DataFrame()
         
-        df = pd.DataFrame(per_tea_data).sort_values(by="TotalWater", ascending=False)
+        df = pd.DataFrame(per_tea_data)._sort_values(by="TotalWater", ascending=False)
         df_review = pd.DataFrame(per_review_data)
         return overall_total, df, df_review
     
@@ -228,7 +228,7 @@ class StatsService:
             "top_type_amt": type_df["Quantity"].max() if not type_df.empty else 0
         }
 
-        cleaned_df.sort_values(by="Quantity", ascending=False, inplace=True)
+        cleaned_df._sort_values(by="Quantity", ascending=False, inplace=True)
 
         return cleaned_df, stats
     
@@ -239,7 +239,7 @@ class StatsService:
             return [], [], [], []
         plot_df = df[df["Dimension"] == dimension_shown]
         # Sort by quantity so the chart looks professional
-        plot_df = plot_df.sort_values("Quantity", ascending=False)
+        plot_df = plot_df._sort_values("Quantity", ascending=False)
         labels = plot_df["Label"].tolist()
         values = plot_df["Quantity"].tolist()
     
@@ -313,7 +313,7 @@ class StatsService:
         for t in teas:
             # Base purchase
             data.append({
-                "Date": t.purchaseDate,
+                "Date": t.purchase_date,
                 "Type": t.tea_type,
                 "Vendor": t.vendor,
                 "Amount": t.quantity,
@@ -335,7 +335,7 @@ class StatsService:
         df["Date"] = pd.to_datetime(df["Date"])
         df["Date"] = df["Date"].dt.date
 
-        history_df = df.sort_values("Date")
+        history_df = df._sort_values("Date")
         
         stats = {
             "total_spent": df["Spend"].sum(),
@@ -383,10 +383,10 @@ class StatsService:
     # Gets the data for the first report image relating to tea rating vs price percentile bubble chart
     # Items are returned as datapoints of (x, y, size) where x is rating, y is price percentile, size is count of teas at that point
     @staticmethod
-    def get_report_image_comparison_1_data(teas, thisReview: Review=None, thisTea: Tea=None, by="All", exp=1.1, scale=4.0):
+    def get_report_image_comparison_1_data(teas, this_review: Review=None, this_tea: Tea=None, by="All", exp=1.1, scale=4.0):
         if by not in ["All", "Type", "Vendor", "All_Under_20"]:
             raise ValueError("Invalid 'by' argument. Must be one of: 'All', 'Type', 'Vendor', 'All_Under_20'")
-        teas_same_type = [t for t in teas if thisTea and t.tea_type == thisTea.tea_type] if thisTea else []
+        teas_same_type = [t for t in teas if this_tea and t.tea_type == this_tea.tea_type] if this_tea else []
         if by == "All_Under_20":
             if len(teas_same_type) > 20:
                 by = "Type"
@@ -396,9 +396,9 @@ class StatsService:
         data = []
         for t in teas:
             t: Tea
-            if by == "Type" and thisTea and t.tea_type != thisTea.tea_type:
+            if by == "Type" and this_tea and t.tea_type != this_tea.tea_type:
                 continue
-            if by == "Vendor" and thisTea and t.vendor != thisTea.vendor:
+            if by == "Vendor" and this_tea and t.vendor != this_tea.vendor:
                 continue
             data.append({
                 "Type": t.tea_type,
@@ -422,9 +422,9 @@ class StatsService:
 
         # Remove based on by argument
         if by == "Type":
-            df = df[df["Type"] == thisTea.tea_type]
+            df = df[df["Type"] == this_tea.tea_type]
         elif by == "Vendor":
-            df = df[df["Vendor"] == thisTea.vendor]
+            df = df[df["Vendor"] == this_tea.vendor]
 
         # Group by rating and price percentile to get counts
         grouped = df.groupby(["AvgRating", "PricePercentile"]).size().reset_index(name='Count')
@@ -435,31 +435,31 @@ class StatsService:
 
         # Cluster amount
         clusterRange = 2 # 2% range for clustering in terms of price percentile
-        clusterRangeRating = 0.25 # 0.25 rating range for clustering in terms of rating
+        cluster_range_rating = 0.25 # 0.25 rating range for clustering in terms of rating
         clustered_datapoints = {}
         max_cluster_size = 0
 
         for x, y, size in datapoints:
             # Find the cluster key
-            cluster_key = (round(x / clusterRangeRating) * clusterRangeRating, round(y / clusterRange) * clusterRange)
+            cluster_key = (round(x / cluster_range_rating) * cluster_range_rating, round(y / clusterRange) * clusterRange)
             if cluster_key not in clustered_datapoints:
                 clustered_datapoints[cluster_key] = 0
             clustered_datapoints[cluster_key] += size
             max_cluster_size = max(max_cluster_size, clustered_datapoints[cluster_key])
 
         # We need this to add the current review's tea point if provided, it will be unclustered
-        thisReview_point = None
-        if thisReview and thisTea:
+        this_review_point = None
+        if this_review and this_tea:
             price = None # We want the greater of normal price or actual price
-            if thisTea.catalog_price_per_gram is not None and thisTea.catalog_price_per_gram > 0:
-                price = thisTea.catalog_price_per_gram
-            elif thisTea.price_per_gram is not None and thisTea.price_per_gram > 0:
-                price = thisTea.price_per_gram
+            if this_tea.catalog_price_per_gram is not None and this_tea.catalog_price_per_gram > 0:
+                price = this_tea.catalog_price_per_gram
+            elif this_tea.price_per_gram is not None and this_tea.price_per_gram > 0:
+                price = this_tea.price_per_gram
 
-            if thisReview and thisReview.rating is not None and price is not None:
+            if this_review and this_review.rating is not None and price is not None:
                 # Rating percentile
                 rating_pct = (
-                    (df["AvgRating"] < thisReview.rating).mean() * 100
+                    (df["AvgRating"] < this_review.rating).mean() * 100
                 )
             
                 # Price percentile
@@ -467,8 +467,8 @@ class StatsService:
                     (df["PricePerGram"] < price).mean() * 100
                 )
 
-                thisReview_point = (
-                    round(thisReview.rating, 1),
+                this_review_point = (
+                    round(this_review.rating, 1),
                     round(price_pct, 1),
                     round(rating_pct, 1)
                 )
@@ -481,28 +481,28 @@ class StatsService:
                 continue
             final_clustered_datapoints.append( (x, y, size * scale * (size ** (exp - 1))) )
 
-        return final_clustered_datapoints, max_cluster_size, thisReview_point
+        return final_clustered_datapoints, max_cluster_size, this_review_point
     
     @staticmethod
-    def get_report_image_1_percentile_data(teas, thisReview=None, thisTea=None, by="All"):
+    def get_report_image_1_percentile_data(teas, this_review=None, this_tea=None, by="All"):
         # Helper that gets the 0-100 percentile of the price percentile pct[0-100] and assigns an exact price to it in a tuple list
         # for example pct[0] might be $0.01/g, pct[25] might be $0.10/g, pct[50] might be $0.50/g, pct[75] might be $1.00/g, pct[100] might be $5.00/g
         data = []
         for pct in range(0, 101, 25):
-            price = StatsService.get_price_percentile(teas, pct, by=by, thisTea=thisTea)
+            price = StatsService.get_price_percentile(teas, pct, by=by, this_tea=this_tea)
             data.append((pct, price))
         return data
 
     @staticmethod
-    def get_price_percentile(teas, percentile, by="All", thisTea=None):
+    def get_price_percentile(teas, percentile, by="All", this_tea=None):
         # Helper that gets the price at a given percentile for the report image
         prices = []
         for t in teas:
             t: Tea
-            if by == "Type" and thisTea and t.tea_type != thisTea.tea_type:
+            if by == "Type" and this_tea and t.tea_type != this_tea.tea_type:
                 continue
-            if t.catalogPrice is not None and t.quantity is not None and t.quantity > 0:
-                price = t.catalogPrice / t.quantity
+            if t.catalog_price is not None and t.quantity is not None and t.quantity > 0:
+                price = t.catalog_price / t.quantity
                 prices.append(price)
         if not prices:
             return 0.0
@@ -565,7 +565,7 @@ class ReportService:
             cost_per_gram_str = f"${cost_per_gram:.2f}/g"
         if cost_per_gram_normal != cost_per_gram:
             cost_per_gram_str += f" (Catalog: ${cost_per_gram_normal:.2f}/g)"
-        vessel_size = review.vesselSize
+        vessel_size = review.vessel_size
         method = review.method
         review_notes = review.notes if review.notes else "No notes provided."
         review_notes_wrapped, review_notes_len = wrap_text_no_break_words(review_notes, width=85)
@@ -624,15 +624,15 @@ class ReportService:
         if len(title) > 40:
             title, titleLines = wrap_text_no_break_words(title, width=40)
         
-        draw_tag_value(draw, padding_x, padding_y + offset_y, "", title, font_bold if use_title_larger else font_bold_larger, font_bold if use_title_larger else font_bold_larger, "black", "black")
+        _draw_tag_value(draw, padding_x, padding_y + offset_y, "", title, font_bold if use_title_larger else font_bold_larger, font_bold if use_title_larger else font_bold_larger, "black", "black")
         offset_y += (10 + ((12 + line_spacing) * titleLines)) # Adjust offset based on title height
         draw.line((padding_x, padding_y + offset_y, base_width - padding_x, padding_y + offset_y), fill="black", width=2)
         offset_y += 15 + line_spacing
-        draw_tag_value(draw, padding_x, padding_y + offset_y, "Review Date: ", f"{date_of_review}", body_font, body_font)
+        _draw_tag_value(draw, padding_x, padding_y + offset_y, "Review Date: ", f"{date_of_review}", body_font, body_font)
         offset_y += 15 + line_spacing
-        draw_tag_value(draw, padding_x, padding_y + offset_y, "Amount Drunk: ", f"{amount_of_review}g using {vessel_size}ml via {method}", body_font, body_font)
+        _draw_tag_value(draw, padding_x, padding_y + offset_y, "Amount Drunk: ", f"{amount_of_review}g using {vessel_size}ml via {method}", body_font, body_font)
         offset_y += 15 + line_spacing
-        draw_tag_value(draw, padding_x, padding_y + offset_y, "Cost per Gram: ", f"{cost_per_gram_str}, Session cost: ${amount_of_review * cost_per_gram_normal:.2f}", body_font, body_font)
+        _draw_tag_value(draw, padding_x, padding_y + offset_y, "Cost per Gram: ", f"{cost_per_gram_str}, Session cost: ${amount_of_review * cost_per_gram_normal:.2f}", body_font, body_font)
         offset_y += 15 + line_spacing
         # Draw notes as a label + multi-line block so each wrapped line
         # starts at the left margin, not indented by the tag width.
@@ -642,7 +642,7 @@ class ReportService:
         offset_y += math.ceil(notes_line_height * review_notes_len * 1.2)  # actual height of the wrapped block
         offset_y += 15 + line_spacing
         # Rating of this session
-        draw_tag_value(draw, padding_x, padding_y + offset_y, "Rating this session: ", f"{review.rating_letter}", body_font, body_font)
+        _draw_tag_value(draw, padding_x, padding_y + offset_y, "Rating this session: ", f"{review.rating_letter}", body_font, body_font)
         
         # Tea cross-review comparison section
         if len(reviews) > 1 and False: # Hiding for now since it's not fully implemented and can be confusing without context, will add back in future
@@ -663,7 +663,7 @@ class ReportService:
         # Write subtitle to explain what a percentile is since apparently people don't understand it even with the axis labels, unfortunately
         draw.text((padding_x + 5, padding_y + offset_y), f"If the point is at 80% percentile for price, that means this tea is more expensive than 80% of all teas", font=body_font_small, fill=col_dark_gray)
 
-        placeholder_1_path = ReportService.generate_report_image_comparison_1(data_manager, thisReview=review, thisTea=tea)
+        placeholder_1_path = ReportService.generate_report_image_comparison_1(data_manager, this_review=review, this_tea=tea)
         placeholder_1_img = Image.open(placeholder_1_path)
         # resize
         width = base_width - (4 * padding_x)
@@ -716,7 +716,7 @@ class ReportService:
     # X axis = rating
     # Y axis = log10(price per gram)
     # Bubble size = clustered count of teas at that rating/price point
-    def experimental_generate_report_image_comparison_log_price(data_manager, thisReview=None, thisTea=None):
+    def experimental_generate_report_image_comparison_log_price(data_manager, this_review=None, this_tea=None):
         Logger.info("Report image comparison LOG PRICE generation called.")
     
         teas = data_manager.stash.teas
@@ -740,8 +740,8 @@ class ReportService:
         # ---- CLUSTERING ----
         grouped = df.groupby(["AvgRating", "LogPrice"]).size().reset_index(name='Count')
     
-        clusterRangeRating = 0.25
-        clusterRangeLog = 0.05
+        cluster_range_rating = 0.25
+        cluster_range_log = 0.05
     
         clustered = {}
         max_cluster_size = 0
@@ -752,8 +752,8 @@ class ReportService:
             size = row["Count"]
     
             key = (
-                round(x / clusterRangeRating) * clusterRangeRating,
-                round(y / clusterRangeLog) * clusterRangeLog
+                round(x / cluster_range_rating) * cluster_range_rating,
+                round(y / cluster_range_log) * cluster_range_log
             )
     
             clustered[key] = clustered.get(key, 0) + size
@@ -762,22 +762,22 @@ class ReportService:
         clustered_datapoints = [(x, y, s*4.0) for (x,y), s in clustered.items() if x != 0]
     
         # ---- TYPE FILTERED DATA ----
-        def get_filtered(by):
-            if by == "Type" and thisTea:
-                return df[df["Type"] == thisTea.tea_type]
-            if by == "Vendor" and thisTea:
-                return df[df["Vendor"] == thisTea.vendor]
+        def _get_filtered(by):
+            if by == "Type" and this_tea:
+                return df[df["Type"] == this_tea.tea_type]
+            if by == "Vendor" and this_tea:
+                return df[df["Vendor"] == this_tea.vendor]
             return df
     
-        df_type = get_filtered("Type")
+        df_type = _get_filtered("Type")
     
         grouped_type = df_type.groupby(["AvgRating", "LogPrice"]).size().reset_index(name='Count')
         clustered_type = {}
     
         for _, row in grouped_type.iterrows():
             key = (
-                round(row["AvgRating"]/clusterRangeRating)*clusterRangeRating,
-                round(row["LogPrice"]/clusterRangeLog)*clusterRangeLog
+                round(row["AvgRating"]/cluster_range_rating)*cluster_range_rating,
+                round(row["LogPrice"]/cluster_range_log)*cluster_range_log
             )
             clustered_type[key] = clustered_type.get(key, 0) + row["Count"]
     
@@ -785,10 +785,10 @@ class ReportService:
     
         # ---- CURRENT TEA POINT ----
         this_point = None
-        if thisReview and thisTea and thisReview.rating is not None:
-            price = thisTea.price_per_gram or thisTea.catalog_price_per_gram
+        if this_review and this_tea and this_review.rating is not None:
+            price = this_tea.price_per_gram or this_tea.catalog_price_per_gram
             if price and price > 0:
-                this_point = (thisReview.rating, np.log10(price))
+                this_point = (this_review.rating, np.log10(price))
     
         # ---- PLOT ----
         fig, ax = plt.subplots(figsize=(8,6))
@@ -897,7 +897,7 @@ class ReportService:
     @staticmethod
     # Generates a comparison between the ratings of this tea vs all other teas in the stash as a bubble chart
     # The X axis is the rating, the Y axis is the percentile of price per gram. Bubble size is the clustered count of teas at that rating/price point
-    def generate_report_image_comparison_1(data_manager, thisReview=None, thisTea=None, by="All_Under_20"):
+    def generate_report_image_comparison_1(data_manager, this_review=None, this_tea=None, by="All_Under_20"):
         Logger.info("Report image comparison 1 generation called.")
 
         # For scaling of the size of bubbles.
@@ -908,18 +908,18 @@ class ReportService:
         #by = "All"
         INCLUDE_BACKGROUND_DISTRIBUTION = True
         # 4 works well for my screen with max size of ~60. You may need to adjust on your end.
-        legendSizeMultiplier = 4 # Multiplier for the size of the legend bubbles, can adjust based on how it looks visually
+        legend_size_multiplier = 4 # Multiplier for the size of the legend bubbles, can adjust based on how it looks visually
         color_type = 'darkorange'
 
 
-        clustered_datapoints, max_size, this_review_point = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, by=by, thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
-        clustered_datapoints_type, _, _ = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, by="Type", thisReview=thisReview, thisTea=thisTea, exp=expFactor, scale=scaleFactor)
+        clustered_datapoints, max_size, this_review_point = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, by=by, this_review=this_review, this_tea=this_tea, exp=expFactor, scale=scaleFactor)
+        clustered_datapoints_type, _, _ = StatsService.get_report_image_comparison_1_data(teas=data_manager.stash.teas, by="Type", this_review=this_review, this_tea=this_tea, exp=expFactor, scale=scaleFactor)
 
         num_all_teas = sum([size for x, y, size in clustered_datapoints])
         num_type_teas = sum([size for x, y, size in clustered_datapoints_type])
         Logger.info(f"Total teas in comparison (ALL): {num_all_teas}, (Type): {num_type_teas}")
 
-        num_teas_same_type = len([t for t in data_manager.stash.teas if t.tea_type == thisTea.tea_type])
+        num_teas_same_type = len([t for t in data_manager.stash.teas if t.tea_type == this_tea.tea_type])
         if num_teas_same_type > 20 and by == "All_Under_20":
             by = "Type"
             Logger.info(f"Switching to Type filter for comparison since there are {num_teas_same_type} teas of the same type as this tea, which is above the threshold of 20.")
@@ -940,7 +940,7 @@ class ReportService:
             # make subplot
 
             for tea in data_manager.stash.teas:
-                if by == "Type" and thisTea and tea.tea_type != thisTea.tea_type:
+                if by == "Type" and this_tea and tea.tea_type != this_tea.tea_type:
                     continue
                 for r in tea.reviews:
                     if r.rating is not None:
@@ -1088,9 +1088,9 @@ class ReportService:
 
         by_text = f"ALL"
         if by == "Type":
-            by_text = f"{thisTea.tea_type}"
+            by_text = f"{this_tea.tea_type}"
         elif by == "Vendor":
-            by_text = f"{thisTea.vendor}"
+            by_text = f"{this_tea.vendor}"
         ylabel = "Price Percentile" if by in ["All", "All_Under_20"] else f"Price Percentile ({by_text})"
         ax.set_ylabel(ylabel, fontsize=14)
         ax.set_title("")
@@ -1109,7 +1109,7 @@ class ReportService:
         legend_handles = [
             ax.scatter(
                 [], [],
-                s=size * legendSizeMultiplier,  # Scale legend bubble size
+                s=size * legend_size_multiplier,  # Scale legend bubble size
                 edgecolors="black",
                 facecolors="none"
             )
@@ -1136,7 +1136,7 @@ class ReportService:
         
         # Custom Y axis ticks, 0, 25, 50, 75, 100 with labels
         # Get data for these percentiles to show as horizontal lines
-        percentile_data = StatsService.get_report_image_1_percentile_data(data_manager.stash.teas, by=by, thisTea=thisTea)
+        percentile_data = StatsService.get_report_image_1_percentile_data(data_manager.stash.teas, by=by, this_tea=this_tea)
         yticklabels = []
         for pct, price in percentile_data:
             yticklabels.append(f"{int(pct)}%\n${price:.2f}/g")
@@ -1159,18 +1159,18 @@ class ReportService:
         return temp_path
 
     @staticmethod
-    def generate_tierlist_for_vendor(data_manager, thisVendor, highlight_recent_review=True):
+    def generate_tierlist_for_vendor(data_manager, this_vendor, highlight_recent_review=True):
 
 
-        Logger.info(f"Generating tier list for vendor: {thisVendor}")
+        Logger.info(f"Generating tier list for vendor: {this_vendor}")
         # We can use a similar approach to the bubble chart but categorize teas into tiers (S, A, B, C, D, F) based on rating and price percentile
         # Then we can create a visual tier list with teas placed in their respective tiers along with their names and prices.
-        teas_only_this_vendor = [t for t in data_manager.stash.teas if t.vendor == thisVendor and t.average_rating is not None and t.catalog_price_per_gram is not None]
+        teas_only_this_vendor = [t for t in data_manager.stash.teas if t.vendor == this_vendor and t.average_rating is not None and t.catalog_price_per_gram is not None]
         
         # Exclude teas without reviews.
         teas_only_this_vendor = [t for t in teas_only_this_vendor if t.reviews]
         if not teas_only_this_vendor:
-            Logger.warning(f"No teas found for vendor {thisVendor} with complete data for tier list.")
+            Logger.warning(f"No teas found for vendor {this_vendor} with complete data for tier list.")
             return None
         
         # Sort in-place by rating (highest first) and then by price (lowest first)
@@ -1193,10 +1193,10 @@ class ReportService:
         # Each tea should have the name, price per gram and rating displayed. Do not use percentile
 
         # Strip acronyms from vendor name for cleaner display
-        thisVendorDisplay = thisVendor
-        strippedAcronyms = []
-        if "Jesse" in thisVendorDisplay:
-            strippedAcronyms.append("JTH")
+        this_vendor_display = this_vendor
+        stripped_acronyms = []
+        if "Jesse" in this_vendor_display:
+            stripped_acronyms.append("JTH")
 
         # Fast tally all tiered teas to know how many we have in each tier for spacing purposes
         tiers_base_flat = ["S", "A", "B", "C", "D", "F"]
@@ -1228,8 +1228,8 @@ class ReportService:
         num_rows = len(tiers) + 1  # Number of tiers (S, A, B, C, D, F) + 1 for vendor header
         base_height = base_height_per_tier * num_rows  # Base height based on number of tiers plus extra for vendor header
 
-        Logger.info(f"Max tier size for vendor {thisVendor}: {max_tier_size}, tier distribution: {num_per_tier_spacing}")
-        print(f"Using {'expanded' if use_expanded_tiers else 'flat'} tiers for vendor {thisVendor} based on max tier size.")
+        Logger.info(f"Max tier size for vendor {this_vendor}: {max_tier_size}, tier distribution: {num_per_tier_spacing}")
+        print(f"Using {'expanded' if use_expanded_tiers else 'flat'} tiers for vendor {this_vendor} based on max tier size.")
 
         # Create blank image
         xpadding = 100
@@ -1247,7 +1247,7 @@ class ReportService:
         num_per_tier = {tier: 0 for tier in tiers}
         # Draw the first row for the vendor name
         draw.rectangle([0, 0, base_width, base_height_per_tier], outline="black", fill="lightgray", width=2)
-        draw.text((30, 30), f"Vendor: {thisVendorDisplay}", fill="black", font=font_larger)
+        draw.text((30, 30), f"Vendor: {this_vendor_display}", fill="black", font=font_larger)
         draw.text((30, 70), f"Total teas: {len(teas_only_this_vendor)}", fill="black", font=font2)
         draw.text((30, 95), f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d')}", fill="black", font=font2)
 
@@ -1259,7 +1259,7 @@ class ReportService:
             # Draw red star example
             cx = base_width - 80
             cy = 55
-            star_points = create_star(cx, cy, outer_radius=16, inner_radius=6)
+            star_points = _create_star(cx, cy, outer_radius=16, inner_radius=6)
             draw.polygon(star_points, fill="firebrick", outline="black", width=1)
             draw.text((base_width - 140, 80), f"ex: Most recent", fill="black", font=font2)
         
@@ -1288,8 +1288,8 @@ class ReportService:
             # Draw tea information
             teaname = tea.name_no_year
             teayear = tea.year
-            teaname = teaname.replace(thisVendor, "").strip()  # Remove vendor name from tea name for cleaner display
-            for acronym in strippedAcronyms:
+            teaname = teaname.replace(this_vendor, "").strip()  # Remove vendor name from tea name for cleaner display
+            for acronym in stripped_acronyms:
                 teaname = teaname.replace(acronym, "").strip()  # Remove any other common acronyms
             # Strip out name of type of tea if it's in the name since we already have a separate line for tea type and it can be redundant
             if tea.tea_type and tea.tea_type in teaname:
@@ -1319,7 +1319,7 @@ class ReportService:
                 cx = x + box_dim - 22   # center near right side of box
                 cy = y + box_dim - 22   # center near bottom of box
 
-                star_points = create_star(cx, cy, outer_radius=16, inner_radius=6)
+                star_points = _create_star(cx, cy, outer_radius=16, inner_radius=6)
                 draw.polygon(star_points, fill="firebrick", outline="black", width=1)
 
         # Draw vertical line to separate tea boxes from tier labels
@@ -1327,7 +1327,7 @@ class ReportService:
 
         # Save image to path
         current_dt_str = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
-        save_path = f"tierlist_{thisVendor.replace(' ', '_')}_{current_dt_str}.png"
+        save_path = f"tierlist_{this_vendor.replace(' ', '_')}_{current_dt_str}.png"
         img.save(save_path)
 
     @staticmethod
@@ -1402,7 +1402,7 @@ class ReportService:
         if df.empty:
             raise ValueError("No valid review data to plot.")
     
-        df = df.sort_values("date")
+        df = df._sort_values("date")
 
         # total spend per tea type
         type_totals = df.groupby("tea_type")["session_cost"].sum()
@@ -1424,7 +1424,7 @@ class ReportService:
         # Debug print only top 5 teas over last 90 days
         recent_threshold = pd.Timestamp.now() - pd.Timedelta(days=90)
         recent_df = df[df["date"] >= recent_threshold]
-        recent_type_totals = recent_df.groupby("tea_type")["session_cost"].sum().sort_values(ascending=False)
+        recent_type_totals = recent_df.groupby("tea_type")["session_cost"].sum()._sort_values(ascending=False)
         Logger.info("[Chart] Top tea types by spend in last 90 days:")
         for tea_type, total in recent_type_totals.head(5).items():
             Logger.info(f"[Chart]   {tea_type}: ${total:.2f}")
@@ -1444,7 +1444,7 @@ class ReportService:
     
         pivot = monthly.pivot(index="month", columns="tea_type_grouped", values="pct").fillna(0)
         pivot.index = pivot.index + pd.offsets.Day(15)
-        pivot = pivot[pivot.mean().sort_values(ascending=False).index]
+        pivot = pivot[pivot.mean()._sort_values(ascending=False).index]
         pivot = pivot.rolling(2).mean()
     
         # -------------------------
@@ -1493,7 +1493,7 @@ class ReportService:
         ax1.set_title("Tea Spend Composition + Rolling Cost")
 
         ax1.legend(
-        labels=[trim_label(l) for l in pivot.columns],
+        labels=[_trim_label(l) for l in pivot.columns],
         loc="center left",
         bbox_to_anchor=(1.08, 0.5),
         borderaxespad=0,
@@ -1592,7 +1592,7 @@ class ReportService:
         if df.empty:
             raise ValueError("No valid review consumption data to plot.")
 
-        df = df.sort_values("date")
+        df = df._sort_values("date")
 
         # --------------------------------------------------
         # Determine major tea types
@@ -1632,7 +1632,7 @@ class ReportService:
         recent_totals = (
             recent_df.groupby("tea_type")["amount"]
             .sum()
-            .sort_values(ascending=False)
+            ._sort_values(ascending=False)
         )
 
         Logger.info("[Chart] Top tea types consumed in last 90 days:")
@@ -1681,7 +1681,7 @@ class ReportService:
 
         pivot = pivot[
             pivot.mean()
-            .sort_values(ascending=False)
+            ._sort_values(ascending=False)
             .index
         ]
 
@@ -1736,7 +1736,7 @@ class ReportService:
         ax1.set_title("Tea Consumption Composition by Tea Type")
 
         ax1.legend(
-            labels=[trim_label(l) for l in pivot.columns],
+            labels=[_trim_label(l) for l in pivot.columns],
             loc="center left",
             bbox_to_anchor=(1.08, 0.5),
             borderaxespad=0,
@@ -1864,7 +1864,7 @@ class ReportService:
             ttype = tea.tea_type if tea.tea_type else "Unknown"
 
             if tea.quantity > 0:
-                events.append((pd.to_datetime(tea.purchaseDate), ttype, round(tea.quantity, 2)))
+                events.append((pd.to_datetime(tea.purchase_date), ttype, round(tea.quantity, 2)))
 
             for rev in tea.reviews:
                 events.append((pd.to_datetime(rev.date), ttype, -rev.amount_drunk))
@@ -1879,7 +1879,7 @@ class ReportService:
                         latest_review_date = max(pd.to_datetime(rev.date) for rev in tea.reviews)
                         adj_date = latest_review_date + pd.Timedelta(days=7)
                     else:
-                        adj_date = pd.to_datetime(tea.purchaseDate) + pd.Timedelta(days=7)
+                        adj_date = pd.to_datetime(tea.purchase_date) + pd.Timedelta(days=7)
                     events.append((adj_date, ttype, -round(adj.amount, 2)))  # Assuming adj.amount is positive for additions and negative for removals, we negate it here to reflect the actual change in inventory
                     inv -= round(adj.amount, 2)  # Adjust inventory for the sake of any subsequent adjustments
 
@@ -1896,15 +1896,15 @@ class ReportService:
         print(f"[CHART] Number of events: {len(events)}, Sum of all deltas: {sum(delta for _, _, delta in events):.2f}g")
         print(f"[CHART] Event types and counts: {pd.Series([etype for _, etype, _ in events]).value_counts().to_dict()}")
         print(f"[CHART] Date range: {min(date for date, _, _ in events).date()} to {max(date for date, _, _ in events).date()}")
-        lastMonth = pd.Timestamp.now() - pd.Timedelta(days=30)
-        last6Months = pd.Timestamp.now() - pd.Timedelta(days=182)
-        lastYear = pd.Timestamp.now() - pd.Timedelta(days=365)
-        print(f"[CHART] Delta of last month: {sum(delta for date, _, delta in events if date >= lastMonth):.2f}g")
-        print(f"[CHART] Delta of last 6 months: {sum(delta for date, _, delta in events if date >= last6Months):.2f}g")
-        print(f"[CHART] Delta of last year: {sum(delta for date, _, delta in events if date >= lastYear):.2f}g")
+        last_month = pd.Timestamp.now() - pd.Timedelta(days=30)
+        last_6_months = pd.Timestamp.now() - pd.Timedelta(days=182)
+        last_year = pd.Timestamp.now() - pd.Timedelta(days=365)
+        print(f"[CHART] Delta of last month: {sum(delta for date, _, delta in events if date >= last_month):.2f}g")
+        print(f"[CHART] Delta of last 6 months: {sum(delta for date, _, delta in events if date >= last_6_months):.2f}g")
+        print(f"[CHART] Delta of last year: {sum(delta for date, _, delta in events if date >= last_year):.2f}g")
 
         df_events = pd.DataFrame(events, columns=["date", "type", "delta"])
-        df_events = df_events.sort_values("date").reset_index(drop=True)
+        df_events = df_events._sort_values("date").reset_index(drop=True)
 
         # ------------------------------------------------------------------
         # 2. Build daily running total per tea type.
@@ -1938,7 +1938,7 @@ class ReportService:
         final_amounts = zero_df.iloc[-1]
 
         active_types = (
-            final_amounts.sort_values(ascending=False)
+            final_amounts._sort_values(ascending=False)
             .index
             .tolist()
         )
@@ -1996,7 +1996,7 @@ class ReportService:
         return save_path
 
 
-def draw_tag_value(draw, x, y, tag, value, tag_font, value_font, tag_color=(80, 80, 80), value_color="black"):
+def _draw_tag_value(draw, x, y, tag, value, tag_font, value_font, tag_color=(80, 80, 80), value_color="black"):
     """Helper to draw a tag and value pair on an image at specified coordinates."""
     # Draw tag
     draw.text((x, y), tag, font=tag_font, fill=tag_color)
@@ -2011,7 +2011,7 @@ def draw_tag_value(draw, x, y, tag, value, tag_font, value_font, tag_color=(80, 
 
 
 
-def create_star(cx, cy, outer_radius, inner_radius, points=5):
+def _create_star(cx, cy, outer_radius, inner_radius, points=5):
     star_points = []
     angle = math.pi / 2  # start at top
 
@@ -2031,5 +2031,5 @@ def create_star(cx, cy, outer_radius, inner_radius, points=5):
 
     return star_points
 
-def trim_label(label, max_len=14):
+def _trim_label(label, max_len=14):
     return label if len(label) <= max_len else label[:max_len-1] + "…"

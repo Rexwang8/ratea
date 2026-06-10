@@ -287,7 +287,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
             "rating": review.rating * 2,  # Convert 0-5 scale to 0-10
             "notes": notes,
             "grams": review.amount_drunk,
-            "vessel_ml": review.vesselSize,
+            "vessel_ml": review.vessel_size,
             "temp_f": 212,  # Default to boiling if not specified
             "steep_seconds": 15,  # Default to 15 seconds if not specified
             "method": review.method,

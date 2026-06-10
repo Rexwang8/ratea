@@ -13,9 +13,9 @@ from services.logger import Logger
 import dearpypixl as dp
 from services.stats_service import ReportService, StatsService
 from services.score_converter import ScoreConverter
-from ui.modals.tea_add_edit_modal import show_tea_modal
-from ui.modals.tea_review_modal import show_tea_review_modal
-from ui.modals.tea_view_modal import show_tea_view_modal
+from ui.modals.tea_add_edit_modal import _show_tea_modal
+from ui.modals.tea_review_modal import _show_tea_review_modal
+from ui.modals.tea_view_modal import _show_tea_view_modal
 import dearpygui.demo as demo
 from connectors.teadb.connect_teadb import dummy_funct, upload_ratea_review_to_teadb
 
@@ -29,8 +29,8 @@ class TeaApp:
     selected_review_idx = None
 
 
-    tableParent = None
-    reviewTableParent = None
+    table_parent = None
+    review_table_parent = None
     search_column = "Name"
     search_column_reviews = "Tea Name"
     selected_text_display = None
@@ -66,12 +66,12 @@ class TeaApp:
 
         self.review_lookup = {
             row["Review UUID"]: (row["IDX"], row["Tea Name"], row["Session Number"])
-            for _, row in self.data_manager.get_stash_reviews_dataframe().iterrows()
+            for _, row in self.data_manager._get_stash_reviews_dataframe().iterrows()
         }
 
     def _setup_fonts(self):
         """Private method to load fonts."""
-        self.fonts.bindLoadFonts()
+        self.fonts.bind_load_fonts()
         dpg.set_global_font_scale(2)
 
     def setup_dpg(self):
@@ -182,7 +182,7 @@ class TeaApp:
         # 2. Update the App state
         self.selected_review_id = user_data
         #tea, review = self.data_manager.stash.get_review_by_id(self.selected_review_id)
-        #df_reviews = self.data_manager.get_stash_reviews_dataframe()
+        #df_reviews = self.data_manager._get_stash_reviews_dataframe()
         #review_row = df_reviews[df_reviews["Review UUID"] == user_data]
         #self.selected_review_idx = review_row.iloc[0]["IDX"] if not review_row.empty else None
         review_data = self.review_lookup.get(self.selected_review_id)
@@ -213,7 +213,7 @@ class TeaApp:
         Logger.info(f"Opening editor for review: {self.selected_review_idx}")
         # Here you would call your modal window function:
         # Show the review modal
-        show_tea_review_modal(tea, review, self.data_manager, self.fonts)
+        _show_tea_review_modal(tea, review, self.data_manager, self.fonts)
 
     def _on_edit_click_tea(self):
         """Called when the 'Edit' button is pressed."""
@@ -222,8 +222,8 @@ class TeaApp:
             return
         
         Logger.info(f"Opening editor for tea: {self.selected_tea_idx}")
-        thisTea = self.data_manager.stash.get_tea_by_id(self.selected_tea_id)
-        show_tea_modal(thisTea, self.data_manager, self.fonts)
+        this_tea = self.data_manager.stash.get_tea_by_id(self.selected_tea_id)
+        _show_tea_modal(this_tea, self.data_manager, self.fonts)
 
     def _on_add_click_tea(self):
         """Called when the 'Add Tea' button is pressed."""
@@ -231,7 +231,7 @@ class TeaApp:
         # Here you would call your modal window function:
         # We want to get the last entry for tea in order to pre-populate the add form with the last used values (except name)
         last_tea = self.data_manager.stash.get_last_tea_entry()
-        show_tea_modal(None, self.data_manager, self.fonts, pre_populate=last_tea)
+        _show_tea_modal(None, self.data_manager, self.fonts, pre_populate=last_tea)
 
     def _on_duplicate_add_click_tea(self):
         """Called when the 'Duplicate Add Tea' button is pressed."""
@@ -242,7 +242,7 @@ class TeaApp:
             return
         
         current_tea = self.data_manager.stash.get_tea_by_id(self.selected_tea_id)
-        show_tea_modal(None, self.data_manager, self.fonts, pre_populate=current_tea)
+        _show_tea_modal(None, self.data_manager, self.fonts, pre_populate=current_tea)
 
     def _on_save_click(self):
         """Called when the 'Save' menu item is clicked."""
@@ -271,10 +271,10 @@ class TeaApp:
         """Public method to refresh data and re-render tables."""
         Logger.info("Refreshing data and re-rendering tables...")
         self.data_manager.refresh_all()
-        self.data_manager.filter_data()
-        self.data_manager.filter_reviews_data()
-        self.render_table_rows(parent=self.tableParent)
-        self.render_reviews_table_rows(parent=self.reviewTableParent)
+        self.data_manager._filter_data()
+        self.data_manager._filter_reviews_data()
+        self.render_table_rows(parent=self.table_parent)
+        self._render_reviews_table_rows(parent=self.review_table_parent)
         self._on_search_change(None, None)
         self._on_search_change_reviews()
 
@@ -285,7 +285,7 @@ class TeaApp:
 
         self.review_lookup = {
             row["Review UUID"]: (row["IDX"], row["Tea Name"], row["Session Number"])
-            for _, row in self.data_manager.get_stash_reviews_dataframe().iterrows()
+            for _, row in self.data_manager._get_stash_reviews_dataframe().iterrows()
         }
 
     def render_table_rows(self, parent=None):
@@ -293,7 +293,7 @@ class TeaApp:
         # 1. Clear existing rows (we target the children of the table)
         # slot 1 in a table contains the rows
         if parent is None:
-            parent = self.tableParent
+            parent = self.table_parent
         for child in dpg.get_item_children(parent, slot=1):
             dpg.delete_item(child)
 
@@ -367,12 +367,12 @@ class TeaApp:
                             dpg.highlight_table_row(parent, color=color, row=i)
 
     
-    def render_reviews_table_rows(self, parent=None):
+    def _render_reviews_table_rows(self, parent=None):
         """Renders the reviews table rows based on the current DataFrame."""
         # 1. Clear existing rows (we target the children of the table)
         # slot 1 in a table contains the rows
         if parent is None:
-            parent = self.reviewTableParent
+            parent = self.review_table_parent
         for child in dpg.get_item_children(parent, slot=1):
             dpg.delete_item(child)
 
@@ -385,7 +385,7 @@ class TeaApp:
 
         self.review_lookup = {
             row["Review UUID"]: (row["IDX"], row["Tea Name"], row["Session Number"])
-            for _, row in self.data_manager.get_stash_reviews_dataframe().iterrows()
+            for _, row in self.data_manager._get_stash_reviews_dataframe().iterrows()
         }
 
         # 3. Build the rows
@@ -442,7 +442,7 @@ class TeaApp:
             Logger.info(f"Deleting review: {self.selected_review_idx} (UUID: {self.selected_review_id})")
             self.data_manager.delete_review_by_id(self.selected_review_id)
             # Then refresh the table
-            self.render_reviews_table_rows()
+            self._render_reviews_table_rows()
 
 
     def _review_selected_tea(self, sender, app_data, user_data):
@@ -461,7 +461,7 @@ class TeaApp:
             return
 
         # Show the review modal
-        show_tea_review_modal(tea, None, self.data_manager, self.fonts)
+        _show_tea_review_modal(tea, None, self.data_manager, self.fonts)
 
     def _view_selected_tea(self, sender, app_data, user_data):
         """View details of the selected tea."""
@@ -478,7 +478,7 @@ class TeaApp:
             Logger.error("Selected tea not found in stash!")
             return
         
-        show_tea_view_modal(tea, self.fonts, self.data_manager)
+        _show_tea_view_modal(tea, self.fonts, self.data_manager)
 
     def _on_clear_selection(self):
         """Clears the current selection."""
@@ -533,7 +533,7 @@ class TeaApp:
         if filter_string is None:
             filter_string = self.current_query  # Use existing query if not provided (e.g., when changing filter column)
         self.current_query = filter_string
-        self.data_manager.filter_data(filter_string, self.search_column)
+        self.data_manager._filter_data(filter_string, self.search_column)
 
         # 2. Refresh the UI
         self.render_table_rows()
@@ -544,10 +544,10 @@ class TeaApp:
         if filter_string is None:
             filter_string = self.current_query_reviews  # Use existing query if not provided (e.g., when changing filter column)
         self.current_query_reviews = filter_string
-        self.data_manager.filter_reviews_data(filter_string, self.search_column_reviews)
+        self.data_manager._filter_reviews_data(filter_string, self.search_column_reviews)
 
         # 2. Refresh the UI
-        self.render_reviews_table_rows()
+        self._render_reviews_table_rows()
 
     def _on_sort_click(self, sender, sort_spec):
         if not sort_spec: return
@@ -556,7 +556,7 @@ class TeaApp:
         column_name = dpg.get_item_label(column_id)
 
         # Sort the already filtered data
-        self.data_manager.sort_data(column_name, direction < 0)
+        self.data_manager._sort_data(column_name, direction < 0)
 
         # Refresh the UI
         self.render_table_rows()
@@ -568,10 +568,10 @@ class TeaApp:
         column_name = dpg.get_item_label(column_id)
 
         # Sort the already filtered data
-        self.data_manager.sort_reviews_data(column_name, direction < 0)
+        self.data_manager._sort_reviews_data(column_name, direction < 0)
 
         # Refresh the UI
-        self.render_reviews_table_rows()
+        self._render_reviews_table_rows()
 
 
     def _on_filter_col_change(self, sender, app_data):
@@ -634,8 +634,8 @@ class TeaApp:
 
     def build_ui(self):
         """Constructs the actual widgets."""
-        df = self.data_manager.get_stash_dataframe()  # Example of getting data for UI display
-        df_reviews = self.data_manager.get_stash_reviews_dataframe()
+        df = self.data_manager._get_stash_dataframe()  # Example of getting data for UI display
+        df_reviews = self.data_manager._get_stash_reviews_dataframe()
         with dpg.window(tag=self.primary_window_tag) as main_window:
             
             # 1. The Menu Bar
@@ -666,11 +666,11 @@ class TeaApp:
                     with dpg.collapsing_header(label="Actions", default_open=False):
                         # Actions that perform an operation across the entire stash.
                         # Zero negative tea amounts and cost
-                        dpg.add_button(label="Zero Negative Amounts", callback=self.data_manager.zero_negative_amounts)
-                        dpg.add_button(label="Zero Negative Costs", callback=self.data_manager.zero_negative_costs)
+                        dpg.add_button(label="Zero Negative Amounts", callback=self.data_manager._zero_negative_amounts)
+                        dpg.add_button(label="Zero Negative Costs", callback=self.data_manager._zero_negative_costs)
                         
                         # Round to nearest 2 decimal places for amounts and costs
-                        dpg.add_button(label="Round Amounts/Costs", callback=self.data_manager.round_amounts_and_costs)
+                        dpg.add_button(label="Round Amounts/Costs", callback=self.data_manager._round_amounts_and_costs)
 
                     with dpg.collapsing_header(label="Filters", default_open=True):
                         dpg.add_checkbox(label="Hide finished teas", callback=self._on_hide_finished_change, default_value=self.hide_finished)
@@ -695,39 +695,39 @@ class TeaApp:
                     # Stash operations (edit)
                     with dpg.group(horizontal=True):
                         dpg.add_button(label="Add Tea", callback=self._on_add_click_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Duplicate Add Selected", callback=self._on_duplicate_add_click_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Edit Selected", callback=self._on_edit_click_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="tea")
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Clear Selected", callback=self._on_clear_selection)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="View Selected", callback=self._view_selected_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Copy UUID", callback=self._copy_selected_tea_uuid)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Review Selected", callback=self._review_selected_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Refresh Data", callback=self._refresh_data)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
 
 
                     # Selected ID and name display
                     self.selected_text_display = dpg.add_text("No tea selected")
-                    dpg.bind_item_font(self.selected_text_display, self.fonts.getFontName(size=2, bold=True))
+                    dpg.bind_item_font(self.selected_text_display, self.fonts.get_font_name(size=2, bold=True))
 
 
                     # Create Table
-                    _filter_table_id = dpg.generate_uuid()
+                    filter_table_id = dpg.generate_uuid()
                     with dpg.child_window(width=-1, height=-1):
-                        teaTable = dp.Table(header_row=True, resizable=True, policy=dpg.mvTable_SizingFixedFit,
+                        tea_table = dp.Table(header_row=True, resizable=True, policy=dpg.mvTable_SizingFixedFit,
                                        row_background=True, borders_innerV=True, borders_outerV=True, 
-                                       borders_innerH=True, borders_outerH=True, sortable=True, delay_search=True, callback=self._on_sort_click, tag=_filter_table_id)
-                        self.tableParent = teaTable
+                                       borders_innerH=True, borders_outerH=True, sortable=True, delay_search=True, callback=self._on_sort_click, tag=filter_table_id)
+                        self.table_parent = tea_table
 
-                        with teaTable:
+                        with tea_table:
                             # Create Headers based on DataFrame columns
                             for col in df.columns:
                                 # pass uuid column
@@ -738,9 +738,9 @@ class TeaApp:
 
 
                             # Fill Rows
-                            self.data_manager.filter_data()
+                            self.data_manager._filter_data()
                             self.selectable_tags.clear() # Reset list before rebuilding table
-                            self.render_table_rows(parent=teaTable)
+                            self.render_table_rows(parent=tea_table)
 
                 with dpg.tab(label="Reviews"):
                     dpg.add_text("Review list goes here")
@@ -764,31 +764,31 @@ class TeaApp:
                     # Stash operations (edit)
                     with dpg.group(horizontal=True):
                         dpg.add_button(label="Edit Selected", callback=self._on_edit_click_reviews)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="review")
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Clear Selected", callback=self._on_clear_selection_reviews)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="View Selected", callback=self._view_selected_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Chart Selected", callback=self._generate_chart_for_selected_review)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
                         dpg.add_button(label="Refresh Data", callback=self._refresh_data)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=True))
+                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
 
                     # Selected ID and name display
                     self.selected_text_display_reviews = dp.Text("No review selected")
-                    dpg.bind_item_font(self.selected_text_display_reviews, self.fonts.getFontName(size=2, bold=True))
+                    dpg.bind_item_font(self.selected_text_display_reviews, self.fonts.get_font_name(size=2, bold=True))
 
                     # Create Table
-                    _filter_table_id_reviews = dpg.generate_uuid()
+                    filter_table_id_reviews = dpg.generate_uuid()
                     with dpg.child_window(width=-1, height=-1):
-                        teaReviewsTable = dp.Table(header_row=True, resizable=True, policy=dpg.mvTable_SizingFixedFit,
+                        tea_reviews_table = dp.Table(header_row=True, resizable=True, policy=dpg.mvTable_SizingFixedFit,
                                        row_background=True, borders_innerV=True, borders_outerV=True, 
-                                       borders_innerH=True, borders_outerH=True, sortable=True, delay_search=True, callback=self._on_sort_click_reviews, tag=_filter_table_id_reviews)
-                        self.reviewTableParent = teaReviewsTable
+                                       borders_innerH=True, borders_outerH=True, sortable=True, delay_search=True, callback=self._on_sort_click_reviews, tag=filter_table_id_reviews)
+                        self.review_table_parent = tea_reviews_table
 
-                        with teaReviewsTable:
+                        with tea_reviews_table:
                             # Create Headers based on DataFrame columns
                             for col in df_reviews.columns:
                                 # pass uuid column
@@ -800,9 +800,9 @@ class TeaApp:
                                     dpg.add_table_column(label=col)
 
                             # Fill Rows
-                            self.data_manager.filter_reviews_data()
+                            self.data_manager._filter_reviews_data()
                             self.selectable_tags.clear() # Reset list before rebuilding table
-                            self.render_reviews_table_rows(parent=teaReviewsTable)
+                            self._render_reviews_table_rows(parent=tea_reviews_table)
 
                 with dpg.tab(label="Dashboard"):
                     from ui.dashboard_tab import draw_dashboard_tab

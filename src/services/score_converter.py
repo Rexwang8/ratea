@@ -42,7 +42,7 @@ class ScoreConverter:
         ["F",  0.0]
     ]
 
-    gradeMeaningsAlternate = {
+    grade_meanings_alternate = {
         "S+": "S (+) Outstanding (High). -> Must try. Strongly consider dedicated order, rebuy.",
         "S":  "S (X) Outstanding (Mid).  -> Must try. Strongly consider dedicated order, rebuy.",
         "S-": "S (-) Outstanding (Low).  -> Must try. Strongly consider dedicated order, rebuy.",
@@ -88,7 +88,7 @@ class ScoreConverter:
     @classmethod
     def get_grade_meaning(cls, letter: str) -> str:
         """Get the meaning/description of a letter grade."""
-        return cls.gradeMeaningsAlternate.get(letter.upper(), "Unknown Grade")
+        return cls.grade_meanings_alternate.get(letter.upper(), "Unknown Grade")
     
     @classmethod
     def get_grade_meaning_numeric(cls, score: float) -> str:

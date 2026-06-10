@@ -48,9 +48,9 @@ class TeaStash:
     def get_start_date(self):
         earliest_date = None
         for tea in self.teas:
-            if tea.purchaseDate:
-                if earliest_date is None or tea.purchaseDate < earliest_date:
-                    earliest_date = tea.purchaseDate
+            if tea.purchase_date:
+                if earliest_date is None or tea.purchase_date < earliest_date:
+                    earliest_date = tea.purchase_date
         return earliest_date
     
     def get_last_review_entry(self):
@@ -63,9 +63,9 @@ class TeaStash:
                     last_review_tea = tea
         return last_review_tea, last_review
     
-    def returnTeas(self):
+    def return_teas(self):
         # get teas and sort by purchase date, oldest first, then by vendor, then by name
-        self.teas.sort(key=lambda t: (t.purchaseDate or pd.Timestamp.min, t.vendor.lower(), t.name.lower()), reverse=False)
+        self.teas.sort(key=lambda t: (t.purchase_date or pd.Timestamp.min, t.vendor.lower(), t.name.lower()), reverse=False)
         return self.teas
 
     def returnFlatReviews(self):
@@ -118,11 +118,11 @@ class TeaStash:
             top_n = len(sorted_vendors)
         return sorted_vendors[:top_n] if not returnAll else sorted_vendors
     
-    def operation_reorder_teas_by_purchase_date(self, newest_first=True, dry=True):
+    def _operation_reorder_teas_by_purchase_date(self, newest_first=True, dry=True):
         if dry:
             Logger.info(f"Dry run: would reorder teas by purchase date. (num teas: {len(self.teas)})")
             return
-        self.teas.sort(key=lambda t: t.purchaseDate or pd.Timestamp.min, reverse=newest_first)
+        self.teas.sort(key=lambda t: t.purchase_date or pd.Timestamp.min, reverse=newest_first)
 
         # Resave after reordering to ensure the new order is reflected in the YAML file and UI
         Logger.info(f"Reordered teas by purchase date. (num teas: {len(self.teas)})")
@@ -142,11 +142,11 @@ class TeaStash:
                     "Vendor": tea.vendor,
                     "Type": tea.tea_type,
                     "Cost (USD)": tea.cost,
-                    "Catalog Price (USD)": tea.catalogPrice,
+                    "Catalog Price (USD)": tea.catalog_price,
                     "Quantity (g)": tea.quantity,
-                    "Purchase Date": tea.purchaseDate.strftime("%Y-%m-%d") if tea.purchaseDate else None,
+                    "Purchase Date": tea.purchase_date.strftime("%Y-%m-%d") if tea.purchase_date else None,
                     "Year": tea.year,
-                    "Purchase Note": tea.purchaseNote,
+                    "Purchase Note": tea.purchase_note,
                 }
                 data.append(tea_data)
                 continue
@@ -161,11 +161,11 @@ class TeaStash:
                 "Last Drank": tea.last_drank,
                 "Total Amount Drunk (g)": tea.total_amount_drunk,
                 "Cost (USD)": tea.cost,
-                "Catalog Price (USD)": tea.catalogPrice,
+                "Catalog Price (USD)": tea.catalog_price,
                 "Quantity (g)": tea.quantity,
-                "Purchase Date": tea.purchaseDate.strftime("%Y-%m-%d") if tea.purchaseDate else None,
+                "Purchase Date": tea.purchase_date.strftime("%Y-%m-%d") if tea.purchase_date else None,
                 "Year": tea.year,
-                "Purchase Note": tea.purchaseNote,
+                "Purchase Note": tea.purchase_note,
                 "Total Adjustments (g)": tea.sum_adjustments_grams,
                 "Total Adjustments Cost (USD)": tea.sum_adjustments_cost
             }
@@ -188,8 +188,8 @@ class TeaStash:
                     "Rating": review.rating,
                     "Notes": review.text,
                     "Amount Drunk (g)": review.amount_drunk,
-                    "Vessel Size (ml)": review.vesselSize,
+                    "Vessel Size (ml)": review.vessel_size,
                     "Method": review.method,
-                    "Is Free Sample": review.isFreeSample
+                    "Is Free Sample": review.is_free_sample
                 })
         return pd.DataFrame(data)

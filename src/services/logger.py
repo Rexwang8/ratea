@@ -9,7 +9,7 @@ class Logger:
     debug_level = 0  # 0=ALL, 1=INFO, 2=WARNING, 3=ERROR, 4=CRITICAL
 
     @staticmethod
-    def RichPrint(message: str, logType: str = "info"):
+    def _rich_print(message: str, logType: str = "info"):
         """Print messages to console with rich formatting."""
 
         msg_level = {
@@ -39,19 +39,19 @@ class Logger:
 
     @staticmethod
     def info(message: str):
-        Logger.RichPrint(message, "info")
+        Logger._rich_print(message, "info")
 
     @staticmethod
     def warning(message: str):
-        Logger.RichPrint(message, "warning")
+        Logger._rich_print(message, "warning")
 
     @staticmethod
     def error(message: str):
-        Logger.RichPrint(message, "error")
+        Logger._rich_print(message, "error")
 
     @staticmethod
     def critical(message: str):
-        Logger.RichPrint(message, "critical")
+        Logger._rich_print(message, "critical")
 
     @staticmethod
     def get_history():

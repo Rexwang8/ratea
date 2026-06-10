@@ -4,23 +4,23 @@ from services.date_helper import parse_flexible_date
 from services.score_converter import ScoreConverter
 
 class Review:
-    def __init__(self, id: str, tea_id: str, rating: float, notes: str, date: dt.datetime = None, amount_drunk: float = 0.0, steeps: int = 0, vesselSize: float = 0.0, method: str = "gongfu", isFreeSample: bool = False):
+    def __init__(self, id: str, tea_id: str, rating: float, notes: str, date: dt.datetime = None, amount_drunk: float = 0.0, steeps: int = 0, vessel_size: float = 0.0, method: str = "gongfu", is_free_sample: bool = False):
         self.id = id if id else str(uuid.uuid4())
         self.tea_id = tea_id # Link back to the parent tea
         self.rating = rating # Rating of the tea out of 5 points, corresponding to either stars or letter grades
         self.notes = notes # Textual review of the tea
         self.date = date if date else dt.datetime.now() # Date of the review
         self.amount_drunk = round(amount_drunk, 2)  # Amount drunk in grams, rounded to 2 decimal places
-        self.vesselSize = round(vesselSize, 1)  # Size of the vessel used in milliliters, rounded to 1 decimal place
+        self.vessel_size = round(vessel_size, 1)  # Size of the vessel used in milliliters, rounded to 1 decimal place
         self.method = method  # Brewing method used
-        self.isFreeSample = isFreeSample  # Whether this review is for a free sample
+        self.is_free_sample = is_free_sample  # Whether this review is for a free sample
         self.steep_count = int(steeps)  # Number of steeps for this review, stored as an integer
 
 
     @property
     def water_used_ml(self):
         """Calculate total water used in milliliters."""
-        return self.vesselSize * self.steep_count
+        return self.vessel_size * self.steep_count
     
     @classmethod
     def from_dict_or_yaml(cls, data: dict):
@@ -48,9 +48,9 @@ class Review:
             notes=_get_value_with_flexible_key(data, ["notes"], ""),
             date=review_dt,
             amount_drunk=_get_value_with_flexible_key(data, ["amount_drunk", "amountDrunk"], 0.0),
-            vesselSize=_get_value_with_flexible_key(data, ["vesselSize", "vessel_size"], 0.0),
+            vessel_size=_get_value_with_flexible_key(data, ["vessel_size", "vessel_size"], 0.0),
             method=_get_value_with_flexible_key(data, ["method"], "gongfu"),
-            isFreeSample=_get_value_with_flexible_key(data, ["isFreeSample", "is_free_sample"], False),
+            is_free_sample=_get_value_with_flexible_key(data, ["is_free_sample", "is_free_sample"], False),
             steeps=_get_value_with_flexible_key(data, ["steeps"], 0)
         )
         return instance
@@ -83,10 +83,10 @@ class Review:
             notes=attributes.get("Notes (Long)", ""),
             date=purchase_dt,
             amount_drunk=attributes.get("Amount", 0.0),
-            vesselSize=attributes.get("Vessel size", 0.0),
+            vessel_size=attributes.get("Vessel size", 0.0),
             steeps=attributes.get("Steeps", 0),
             method=attributes.get("Method", "gongfu"),
-            isFreeSample=attributes.get("Is Free Sample", False)
+            is_free_sample=attributes.get("Is Free Sample", False)
         )
         return instance
 
@@ -99,10 +99,10 @@ class Review:
             "rating": self.rating,
             "date": self.date if isinstance(self.date, str) else self.date.strftime("%Y-%m-%d"),
             "amount_drunk": self.amount_drunk,
-            "vessel_size": self.vesselSize,
+            "vessel_size": self.vessel_size,
             "method": self.method,
             "steeps": self.steep_count,
-            "is_free_sample": self.isFreeSample,
+            "is_free_sample": self.is_free_sample,
             
             "notes": self.notes,
         }
@@ -113,7 +113,7 @@ class Review:
         return self.steep_count
     @property
     def vessel_size(self):
-        return self.vesselSize
+        return self.vessel_size
     @property
     def amount(self):
         return self.amount_drunk

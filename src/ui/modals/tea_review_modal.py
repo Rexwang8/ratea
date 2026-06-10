@@ -10,7 +10,7 @@ import datetime as dt
 from ui.widgets.dropdown_autocomplete import add_autocomplete_input
 
 # Modal for viewing tea details
-def show_tea_review_modal(tea, review, data_manager, fonts=None):
+def _show_tea_review_modal(tea, review, data_manager, fonts=None):
     modal = TeaReviewModal(tea=tea, review=review, data_manager=data_manager, fonts=fonts)
     modal.show()
 
@@ -33,66 +33,66 @@ class TeaReviewModal:
             dpg.add_text("Tea Details")
             # The action is to either add a new review or edit an existing review.
             action = "Edit Review" if self.review else "Add Review"
-            dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=3, bold=True) if self.fonts else 0)
+            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=3, bold=True) if self.fonts else 0)
             dpg.add_separator()
             dpg.add_text(f"Tea: {self.tea.name}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=3, bold=False) if self.fonts else 0)
+            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=3, bold=False) if self.fonts else 0)
             dpg.add_text(f"Vendor: {self.tea.vendor}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
+            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
             dpg.add_text(f"Type: {self.tea.tea_type}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
+            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
 
             # If review exists, show details, otherwise show form to add new review
-            newDataFields = {}
+            new_data_fields = {}
             is_editing = self.review is not None
             review = self.review
 
             dpg.add_text("Edit Review" if is_editing else "Add Review")
 
             with dpg.child_window(width=-1, height=450 * Config.UI_SCALE, border=True):
-                validRatings = ScoreConverter.LETTER_GRADE_MAP
-                itemsSequence = list(validRatings.keys())
+                valid_ratings = ScoreConverter.LETTER_GRADE_MAP
+                items_sequence = list(valid_ratings.keys())
 
-                rating_default = itemsSequence[8]  # Default to the 8th item if not editing (B-)
+                rating_default = items_sequence[8]  # Default to the 8th item if not editing (B-)
                 # If config has a default rating, use that instead
-                if hasattr(Config, "DEFAULT_RATING") and Config.DEFAULT_RATING in validRatings:
+                if hasattr(Config, "DEFAULT_RATING") and Config.DEFAULT_RATING in valid_ratings:
                     rating_default = Config.DEFAULT_RATING
 
                 if is_editing:
                     # Find the letter grade corresponding to the numeric rating
-                    for letter, score in validRatings.items():
+                    for letter, score in valid_ratings.items():
                         if score == review.rating:
                             rating_default = letter
                             break
 
 
-                newDataFields['rating'] = dp.Combo(label="Rating", items=itemsSequence, default_value=rating_default)
+                new_data_fields['rating'] = dp.Combo(label="Rating", items=items_sequence, default_value=rating_default)
 
                 date_default = datetime_to_dearpygui_dt(review.date) if is_editing else datetime_to_dearpygui_dt(dt.datetime.now())
                 dateField = dp.DatePicker(label="Review Date", default_value=date_default)
-                dpg.bind_item_font(dateField, self.fonts.getFontName(size=2, bold=False) if self.fonts else 0)
-                newDataFields['date'] = dateField
+                dpg.bind_item_font(dateField, self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                new_data_fields['date'] = dateField
 
-                defaultAmount = review.amount_drunk if is_editing else Config.DEFAULT_AMOUNT_DRUNK if hasattr(Config, "DEFAULT_AMOUNT_DRUNK") else 5.0
-                newDataFields['amount'] = dp.InputFloat(label="Amount Drunk (g)", width=150 * Config.UI_SCALE, default_value=defaultAmount, format="%.2f")
+                default_amount = review.amount_drunk if is_editing else Config.DEFAULT_AMOUNT_DRUNK if hasattr(Config, "DEFAULT_AMOUNT_DRUNK") else 5.0
+                new_data_fields['amount'] = dp.InputFloat(label="Amount Drunk (g)", width=150 * Config.UI_SCALE, default_value=default_amount, format="%.2f")
                 
-                defaultVessel = review.vesselSize if is_editing else Config.DEFAULT_VESSEL_SIZE if hasattr(Config, "DEFAULT_VESSEL_SIZE") else 100.0
-                newDataFields['vessel'] = dp.InputFloat(label="Vessel Size (ml)", width=150 * Config.UI_SCALE, default_value=defaultVessel, format="%.1f")
+                defaultVessel = review.vessel_size if is_editing else Config.DEFAULT_VESSEL_SIZE if hasattr(Config, "DEFAULT_VESSEL_SIZE") else 100.0
+                new_data_fields['vessel'] = dp.InputFloat(label="Vessel Size (ml)", width=150 * Config.UI_SCALE, default_value=defaultVessel, format="%.1f")
 
-                methodOptions = ["Gongfu", "Western", "Cold Brew", "Japanese Western", "Thermos", "Boiled", "Mugged", "Usucha", "Koicha", "Other"]
-                newDataFields['method'] = add_autocomplete_input(
+                method_options = ["Gongfu", "Western", "Cold Brew", "Japanese Western", "Thermos", "Boiled", "Mugged", "Usucha", "Koicha", "Other"]
+                new_data_fields['method'] = add_autocomplete_input(
                     tag="method",
                     label="Brew Method",
-                    items=methodOptions,
-                    default_value=review.method if is_editing else methodOptions[0],
+                    items=method_options,
+                    default_value=review.method if is_editing else method_options[0],
                     width=250 * Config.UI_SCALE
                 )
                 
-                #newDataFields['method'] = dp.Combo(label="Brew Method", items=methodOptions, default_value=review.method if is_editing else methodOptions[0])
+                #new_data_fields['method'] = dp.Combo(label="Brew Method", items=method_options, default_value=review.method if is_editing else method_options[0])
 
-                defaultSteeps = review.steep_count if is_editing else Config.DEFAULT_STEEPS if hasattr(Config, "DEFAULT_STEEPS") else 5
-                newDataFields['steeps'] = dp.InputInt(label="Steep Count", width=150 * Config.UI_SCALE, default_value=defaultSteeps)
-                newDataFields['notes'] = dp.InputText(label="Notes", multiline=True, width=-1, height=150 * Config.UI_SCALE, default_value=review.notes if is_editing else "")
+                default_steeps = review.steep_count if is_editing else Config.DEFAULT_STEEPS if hasattr(Config, "DEFAULT_STEEPS") else 5
+                new_data_fields['steeps'] = dp.InputInt(label="Steep Count", width=150 * Config.UI_SCALE, default_value=default_steeps)
+                new_data_fields['notes'] = dp.InputText(label="Notes", multiline=True, width=-1, height=150 * Config.UI_SCALE, default_value=review.notes if is_editing else "")
 
                 # padding
                 dpg.add_spacer(height=10 * Config.UI_SCALE)
@@ -102,39 +102,39 @@ class TeaReviewModal:
             with dpg.group(horizontal=True):
                 bwidth = 120 * Config.UI_SCALE
                 bheight = 40 * Config.UI_SCALE
-                dpg.add_button(label=action, callback=self.execute_action, user_data=(newDataFields, action), width=bwidth, height=bheight)
+                dpg.add_button(label=action, callback=self._execute_action, user_data=(new_data_fields, action), width=bwidth, height=bheight)
                 dpg.add_button(label="Cancel", callback=self.close, width=bwidth, height=bheight)
 
 
-    def execute_action(self, sender=None, app_data=None, user_data=None):
+    def _execute_action(self, sender=None, app_data=None, user_data=None):
         action = user_data[1]  # "Add Review" or "Edit Review"
-        newDataFields = user_data[0]  # The data fields for the review
+        new_data_fields = user_data[0]  # The data fields for the review
         # Here you would implement the logic to either add a new review or edit the existing review based on the action.
-        # You would gather the data from newDataFields, validate it, and then update your data model accordingly.
+        # You would gather the data from new_data_fields, validate it, and then update your data model accordingly.
         Logger.info(f"Executing action: {action}")
         if action == "Add Review":
-            self.add_new_review(newDataFields)
+            self._add_new_review(new_data_fields)
         elif action == "Edit Review":
-            self.edit_review(newDataFields)
+            self._edit_review(new_data_fields)
         else:
             Logger.error(f"Unknown action: {action}")
         # After processing, close the modal
         self.close()
 
-    def add_new_review(self, newDataFields):
+    def _add_new_review(self, new_data_fields):
         Logger.info("Adding new review with data:")
         # Convert dearpygui to datetime
-        rating = ScoreConverter.letter_to_score(dpg.get_value(newDataFields['rating']))
+        rating = ScoreConverter.letter_to_score(dpg.get_value(new_data_fields['rating']))
         new_review = Review(
             id=str(uuid.uuid4()),
             tea_id=self.tea.id,
             rating=rating,
-            notes=dpg.get_value(newDataFields['notes']),
-            date=dearpygui_dt_to_datetime(dpg.get_value(newDataFields['date'])),
-            amount_drunk=round(dpg.get_value(newDataFields['amount']), 2),
-            vesselSize=round(dpg.get_value(newDataFields['vessel']), 1),
-            method=dpg.get_value(newDataFields['method']),
-            steeps=dpg.get_value(newDataFields['steeps'])
+            notes=dpg.get_value(new_data_fields['notes']),
+            date=dearpygui_dt_to_datetime(dpg.get_value(new_data_fields['date'])),
+            amount_drunk=round(dpg.get_value(new_data_fields['amount']), 2),
+            vessel_size=round(dpg.get_value(new_data_fields['vessel']), 1),
+            method=dpg.get_value(new_data_fields['method']),
+            steeps=dpg.get_value(new_data_fields['steeps'])
         )
         Logger.info(f"New review created: {new_review}")
 
@@ -143,18 +143,18 @@ class TeaReviewModal:
         self.data_manager.export_to_yaml(self.data_manager.data_save_path)  # Save changes immediately
         #self.data_manager.refresh_all(save_after_refresh=True) Don't refresh, allow manual refresh to avoid unnecessary reloads and potential modal conflicts
 
-    def edit_review(self, newDataFields):
+    def _edit_review(self, new_data_fields):
         Logger.info(f"Editing review {self.review.id}")
-        datetimeobj = dearpygui_dt_to_datetime(dpg.get_value(newDataFields['date']))
-        print(f"Converted date: {datetimeobj} from dearpygui value: {dpg.get_value(newDataFields['date'])}")
+        datetimeobj = dearpygui_dt_to_datetime(dpg.get_value(new_data_fields['date']))
+        print(f"Converted date: {datetimeobj} from dearpygui value: {dpg.get_value(new_data_fields['date'])}")
 
-        self.review.rating = ScoreConverter.letter_to_score(dpg.get_value(newDataFields['rating']))
-        self.review.notes = dpg.get_value(newDataFields['notes'])
+        self.review.rating = ScoreConverter.letter_to_score(dpg.get_value(new_data_fields['rating']))
+        self.review.notes = dpg.get_value(new_data_fields['notes'])
         self.review.date = datetimeobj
-        self.review.amount_drunk = round(dpg.get_value(newDataFields['amount']), 2)
-        self.review.vesselSize = round(dpg.get_value(newDataFields['vessel']), 1)
-        self.review.method = dpg.get_value(newDataFields['method'])
-        self.review.steep_count = dpg.get_value(newDataFields['steeps'])
+        self.review.amount_drunk = round(dpg.get_value(new_data_fields['amount']), 2)
+        self.review.vessel_size = round(dpg.get_value(new_data_fields['vessel']), 1)
+        self.review.method = dpg.get_value(new_data_fields['method'])
+        self.review.steep_count = dpg.get_value(new_data_fields['steeps'])
 
         Logger.info(f"Review updated: {self.review}")
         self.data_manager.export_to_yaml(self.data_manager.data_save_path)  # Save changes immediately

@@ -8,7 +8,7 @@ from services.logger import Logger
 
 def draw_dashboard_tab(data_manager):
     with dpg.collapsing_header(label="Stash by Type/Vendor", default_open=False):
-        dash2 = Dashboard_Stash_TypeVendor(data_manager)
+        dash2 = DashboardStashTypeVendor(data_manager)
         dash2.render()
 
     with dpg.collapsing_header(label="Dashboard Charts", default_open=False):
@@ -24,7 +24,7 @@ def draw_charts_1(data_manager):
         num_charts_x = 2
         chart_width = total_width // num_charts_x
         chart_height = total_height // 2
-        x_data, y_data, x_labels, y_labels = StatsService.get_consumption_plot_data(data_manager.stash.returnTeas())
+        x_data, y_data, x_labels, y_labels = StatsService._get_consumption_plot_data(data_manager.stash.return_teas())
         with dpg.plot(label="Grams Consumed Over Time", height=chart_height, width=chart_width):
             # Legend
             dpg.add_plot_legend()
@@ -52,7 +52,7 @@ def draw_charts_2_price_vs_ratings(data_manager):
         num_charts_x = 2
         chart_width = total_width // num_charts_x
         chart_height = total_height // 2
-        x_data, y_data, sizes = StatsService.get_rating_distribution_data(data_manager.stash.returnTeas())
+        x_data, y_data, sizes = StatsService.get_rating_distribution_data(data_manager.stash.return_teas())
         chart_tag_uuid = dpg.generate_uuid()
 
         with dpg.plot(label="Prices vs Letter Grade", height=chart_height, width=chart_width):
@@ -70,7 +70,7 @@ def draw_charts_2_price_vs_ratings(data_manager):
             
             # Y-Axis (Price)
             y_axis = dpg.add_plot_axis(dpg.mvYAxis, label="Price ($/g)", tag=f"y_axis_{chart_tag_uuid}")
-            #dpg.set_axis_limits(y_axis, 0, 100)
+
 
             # Add the actual data (Scatter Series with variable point sizes)
             dpg.add_scatter_series(x_data, y_data, label="Teas", parent=y_axis, weight=-1, size=sizes)
@@ -85,7 +85,7 @@ def draw_charts_3_price_percentile_vs_ratings(data_manager):
         num_charts_x = 2
         chart_width = total_width // num_charts_x
         chart_height = total_height // 2
-        x_data, y_data, sizes = StatsService.get_price_percentile_distribution_data(data_manager.stash.returnTeas())
+        x_data, y_data, sizes = StatsService.get_price_percentile_distribution_data(data_manager.stash.return_teas())
         chart_tag_uuid = dpg.generate_uuid()
 
         with dpg.plot(label="Price Percentile vs Letter Grade", height=chart_height, width=chart_width):
@@ -114,7 +114,7 @@ def draw_charts_3_price_percentile_vs_ratings(data_manager):
 
         
     
-class Dashboard_Stash_TypeVendor:
+class DashboardStashTypeVendor:
     def __init__(self, data_manager):
         self.data_manager = data_manager
         # Specific tags to allow targeted refreshing
@@ -165,12 +165,12 @@ class Dashboard_Stash_TypeVendor:
 
             dpg.add_separator()
             # Logger
-            Logger.info("Dashboard_Stash_TypeVendor rendered.")
+            Logger.info("DashboardStashTypeVendor rendered.")
 
     def _draw_chart(self, dimension, width, height):
         """Helper to draw the two charts."""
         x_data, y_data, x_labels, _ = StatsService.get_bar_chart_grams_data(
-            self.data_manager.stash.returnTeas(), 
+            self.data_manager.stash.return_teas(), 
             dimension_shown=dimension
         )
 
@@ -201,7 +201,7 @@ class Dashboard_Stash_TypeVendor:
 
     def _render_stats_text(self):
         """Renders the summary text area."""
-        sum_stats = self.data_manager._type_vendor_stats_cache_summary
+        sum_stats = self.data_manager.type_vendor_stats_cache_summary
         total_grams = sum_stats.get("total_grams", 0)
         total_reviews = sum_stats.get("total_reviews", 0)
         top_vendor = sum_stats.get("top_vendor", "N/A")
@@ -218,7 +218,7 @@ class Dashboard_Stash_TypeVendor:
 
     def _render_table_rows(self):
         """Clears and re-fills table rows based on the current DataFrame state."""
-        df_summary = self.data_manager._type_vendor_stats_cache
+        df_summary = self.data_manager.type_vendor_stats_cache
         
         for index, row in df_summary.iterrows():
             with dpg.table_row(parent=self.table_tag):
@@ -237,7 +237,7 @@ class Dashboard_Stash_TypeVendor:
         column_name = dpg.get_item_label(column_id)
 
         # 1. Update the Data (Pandas sorting)
-        # Assuming your data_manager.sort_data maps "Total Grams" -> "Quantity", etc.
+        # Assuming your data_manager._sort_data maps "Total Grams" -> "Quantity", etc.
         self.data_manager.sort_summary_data(column_name, direction > 0)
 
         # 2. Refresh the UI rows

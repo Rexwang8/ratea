@@ -8,20 +8,20 @@ from services.date_helper import parse_flexible_date
 
 
 class Tea:
-    def __init__(self, name: str, vendor: str, tea_type: str, cost: float = 0.0, catalogPrice: float = 0.0, 
-                 quantity: float = 0.0, purchaseDate: 'dt.datetime' = None, year: int = 0,
-                   purchaseNote: str = "", reviews: list[Review] = [], adjustments: list[Adjustment] = [], id: str = None):
+    def __init__(self, name: str, vendor: str, tea_type: str, cost: float = 0.0, catalog_price: float = 0.0, 
+                 quantity: float = 0.0, purchase_date: 'dt.datetime' = None, year: int = 0,
+                   purchase_note: str = "", reviews: list[Review] = [], adjustments: list[Adjustment] = [], id: str = None):
         self.id = id if id else str(uuid.uuid4())
         self.name = name
         self.vendor = vendor
         self.tea_type = tea_type # Green, Black, Oolong, etc.
         self.reviews: list[Review] = reviews
         self.cost = cost  # Cost in USD
-        self.catalogPrice = catalogPrice  # Cata cost in USD (before discounts/freebies)
+        self.catalog_price = catalog_price  # Cata cost in USD (before discounts/freebies)
         self.quantity = quantity  # Quantity in grams
-        self.purchaseDate = purchaseDate if purchaseDate else dt.datetime.now() # Date of the purchase
+        self.purchase_date = purchase_date if purchase_date else dt.datetime.now() # Date of the purchase
         self.year = year
-        self.purchaseNote = purchaseNote
+        self.purchase_note = purchase_note
         self.adjustments: list[Adjustment] = adjustments
 
         # Assign review session_num to reviews, sort reviews by oldest first
@@ -65,7 +65,7 @@ class Tea:
             )
             adjustments.append(adj)
 
-        purchase_dt = _get_value_with_flexible_key(data, ["purchaseDate", "purchase_date", "date"], None)
+        purchase_dt = _get_value_with_flexible_key(data, ["purchase_date", "purchase_date", "date"], None)
         if isinstance(purchase_dt, str):
             purchase_dt = parse_flexible_date(purchase_dt)
 
@@ -74,11 +74,11 @@ class Tea:
             vendor=_get_value_with_flexible_key(data, ["vendor", "Vendor"], ""),
             tea_type=_get_value_with_flexible_key(data, ["tea_type", "Type"], ""),
             cost=_get_value_with_flexible_key(data, ["cost", "Cost"], 0.0),
-            catalogPrice=_get_value_with_flexible_key(data, ["catalogPrice", "catalog_price"], 0.0),
+            catalog_price=_get_value_with_flexible_key(data, ["catalog_price", "catalog_price"], 0.0),
             quantity=_get_value_with_flexible_key(data, ["quantity", "Quantity"], 0.0),
-            purchaseDate=purchase_dt,
+            purchase_date=purchase_dt,
             year=_get_value_with_flexible_key(data, ["year", "Year"], 0),
-            purchaseNote=_get_value_with_flexible_key(data, ["purchaseNote", "Purchase Note", "Notes (Long)", "purchase_note"], ""),
+            purchase_note=_get_value_with_flexible_key(data, ["purchase_note", "Purchase Note", "Notes (Long)", "purchase_note"], ""),
             reviews=reviews,
             adjustments=adjustments,
             id=id if "id" not in data else data["id"]
@@ -140,11 +140,11 @@ class Tea:
             vendor=attributes.get("Vendor", ""),
             tea_type=attributes.get("Type", ""),
             cost=attributes.get("Cost", 0.0),
-            catalogPrice=attributes.get("Cost", 0.0),
+            catalog_price=attributes.get("Cost", 0.0),
             quantity=attributes.get("Amount", 0.0),
-            purchaseDate=purchase_dt,
+            purchase_date=purchase_dt,
             year=attributes.get("Year", 0),
-            purchaseNote=attributes.get("Notes (Long)", ""),
+            purchase_note=attributes.get("Notes (Long)", ""),
             reviews=reviews,
             adjustments=adjustments,
             id=id
@@ -163,7 +163,7 @@ class Tea:
     
     @property
     def date(self):
-        return self.purchaseDate
+        return self.purchase_date
     
     @property
     def name_no_year(self):
@@ -235,9 +235,9 @@ class Tea:
     @property
     def catalog_price_per_gram(self):
         """Normal price per gram of the tea."""
-        if not self.catalogPrice or self.catalogPrice <= 0.01:
+        if not self.catalog_price or self.catalog_price <= 0.01:
             return self.price_per_gram  # Fallback to actual price if catalog price is not set
-        return self.catalogPrice / self.quantity if self.quantity > 0 else 0
+        return self.catalog_price / self.quantity if self.quantity > 0 else 0
     
     @property
     def total_real_price_and_amt_including_adjustments(self):
@@ -259,12 +259,12 @@ class Tea:
             "vendor": self.vendor,
             "tea_type": self.tea_type,
             "cost": self.cost,
-            "catalog_price": self.catalogPrice,
+            "catalog_price": self.catalog_price,
             "quantity": self.quantity,
             "adjustments": [adjustment.to_dict() for adjustment in self.adjustments],
-            "purchase_date": self.purchaseDate if isinstance(self.purchaseDate, str) else self.purchaseDate.strftime("%Y-%m-%d"),
+            "purchase_date": self.purchase_date if isinstance(self.purchase_date, str) else self.purchase_date.strftime("%Y-%m-%d"),
             "year": self.year,
-            "purchase_note": self.purchaseNote,
+            "purchase_note": self.purchase_note,
             "reviews": [review.to_dict() for review in self.reviews],
         }
     

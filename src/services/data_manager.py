@@ -17,12 +17,12 @@ class DataManager:
         self.filtered_df = pd.DataFrame() # What the UI sees
         self.reviews_df = pd.DataFrame() # Reviews DataFrame
         self.filtered_reviews_df = pd.DataFrame() # Filtered Reviews DataFrame
-        self._water_stats_cache = None
-        self._type_vendor_stats_cache = None
-        self._type_vendor_stats_cache_summary = None
+        self.water_stats_cache = None
+        self.type_vendor_stats_cache = None
+        self.type_vendor_stats_cache_summary = None
         self.data_save_path = f"{Config.DATA_DIR}/data_saved.yaml" # Default save path for YAML data
-        self.dropdownTeaTypes = set()  # To be populated based on stash data
-        self.dropdownTeaVendors = set()  # To be populated based on stash data
+        self.dropdown_tea_types = set()  # To be populated based on stash data
+        self.dropdown_tea_vendors = set()  # To be populated based on stash data
 
         self.filter_flags = {
             "hide_finished": Config.SEARCH_DEFAULTS_HIDE_FINISHED,
@@ -68,32 +68,32 @@ class DataManager:
         else:
             Logger.warning(f"Review with ID {review_id} not found for deletion.")
 
-    def operation_reorder_teas_by_purchase_date(self, newest_first=True):
+    def _operation_reorder_teas_by_purchase_date(self, newest_first=True):
         """Reorders the teas in the stash by their purchase date."""
-        self.stash.operation_reorder_teas_by_purchase_date(newest_first=newest_first)
+        self.stash._operation_reorder_teas_by_purchase_date(newest_first=newest_first)
         self.refresh_all(save_after_refresh=True)  # Refresh data and save after reordering
 
         
 
-    def refresh_dropdown_data(self):
+    def _refresh_dropdown_data(self):
         """Refreshes any dropdown options based on current stash data."""
-        self.dropdownTeaTypes = self.stash.get_most_common_tea_types(top_n=-1)
-        self.dropdownTeaVendors = self.stash.get_most_common_tea_vendors(top_n=-1)
+        self.dropdown_tea_types = self.stash.get_most_common_tea_types(top_n=-1)
+        self.dropdown_tea_vendors = self.stash.get_most_common_tea_vendors(top_n=-1)
 
-        Logger.info(f"Dropdown tea types refreshed: {len(self.dropdownTeaTypes)} types available.")
-        if len(self.dropdownTeaTypes) > 5:
-            Logger.info(f"Top tea types: {[t[0] for t in self.dropdownTeaTypes[:5]]}...")
-        Logger.info(f"Dropdown tea vendors refreshed: {len(self.dropdownTeaVendors)} vendors available.")
-        if len(self.dropdownTeaVendors) > 5:
-            Logger.info(f"Top tea vendors: {[v[0] for v in self.dropdownTeaVendors[:5]]}...")
+        Logger.info(f"Dropdown tea types refreshed: {len(self.dropdown_tea_types)} types available.")
+        if len(self.dropdown_tea_types) > 5:
+            Logger.info(f"Top tea types: {[t[0] for t in self.dropdown_tea_types[:5]]}...")
+        Logger.info(f"Dropdown tea vendors refreshed: {len(self.dropdown_tea_vendors)} vendors available.")
+        if len(self.dropdown_tea_vendors) > 5:
+            Logger.info(f"Top tea vendors: {[v[0] for v in self.dropdown_tea_vendors[:5]]}...")
 
-    def refresh_stats(self):
+    def _refresh_stats(self):
         """Manually trigger a recalculation only when needed."""
-        self._water_stats_cache = StatsService.get_water_stats(self.teas)
-        self._type_vendor_stats_cache, self._type_vendor_stats_cache_summary = StatsService.get_df_summary_by_type_vendor(self.teas)
+        self.water_stats_cache = StatsService.get_water_stats(self.teas)
+        self.type_vendor_stats_cache, self.type_vendor_stats_cache_summary = StatsService.get_df_summary_by_type_vendor(self.teas)
         Logger.info("Refreshed statistics caches.")
 
-    def refresh_stash_dfs(self, refresh_teas=True, refresh_reviews=True):
+    def _refresh_stash_dfs(self, refresh_teas=True, refresh_reviews=True):
         """Manually trigger a refresh of the stash DataFrames."""
         if refresh_teas:
             self.df = self._build_stash_dataframe()
@@ -107,9 +107,9 @@ class DataManager:
     def refresh_all(self, save_after_refresh=False):
         """Convenience method to refresh both stats and stash DataFrames."""
         
-        self.refresh_stats()
-        self.refresh_stash_dfs()
-        self.refresh_dropdown_data()
+        self._refresh_stats()
+        self._refresh_stash_dfs()
+        self._refresh_dropdown_data()
         if save_after_refresh:
             self.export_to_yaml()  # Save the current state to YAML after refreshing
         Logger.info("Refreshed all data and statistics.")
@@ -131,7 +131,7 @@ class DataManager:
         Logger.info(f"Loaded {len(self.teas)} teas from {filepath}")
 
     # Stash df is a simplified view for UI display
-    def get_stash_dataframe(self):
+    def _get_stash_dataframe(self):
         Logger.info("Building stash dataframe...")
         if self.df.empty:
             Logger.info("Creating new stash dataframe...")
@@ -139,7 +139,7 @@ class DataManager:
             Logger.info("Stash dataframe created with length: " + str(len(self.df)))
         return self.df
     
-    def get_stash_reviews_dataframe(self):
+    def _get_stash_reviews_dataframe(self):
         Logger.info("Building stash reviews dataframe...")
         if self.reviews_df.empty:
             Logger.info("Creating new stash reviews dataframe...")
@@ -150,7 +150,7 @@ class DataManager:
     def _build_stash_dataframe(self):
         data = []
         i = 0
-        for tea in self.stash.returnTeas():
+        for tea in self.stash.return_teas():
             # Filter flags
             if self.filter_flags["hide_finished"] and tea.finished:
                 continue
@@ -168,13 +168,13 @@ class DataManager:
                 "Vendor": tea.vendor,
                 "Type": tea.tea_type,
                 "Amount": f"{remaining_amt:.1f}g / {purchase_amt:.1f}g",
-                "Catalog Price (USD)": f"${tea.catalogPrice:.2f}",
-                "Remaining Value (USD)": f"${remaining_amt * (tea.catalogPrice / tea.quantity):.2f}" if tea.quantity > 0 else "$0.00",
+                "Catalog Price (USD)": f"${tea.catalog_price:.2f}",
+                "Remaining Value (USD)": f"${remaining_amt * (tea.catalog_price / tea.quantity):.2f}" if tea.quantity > 0 else "$0.00",
                 "Actual Cost (USD)": f"${tea.cost:.2f}",
-                "Catalog $/g": round(tea.catalogPrice / tea.quantity, 2) if tea.quantity > 0 else 0,
-                "Date Purchased": tea.purchaseDate if isinstance(tea.purchaseDate, str) else tea.purchaseDate.strftime("%Y-%m-%d"),
+                "Catalog $/g": round(tea.catalog_price / tea.quantity, 2) if tea.quantity > 0 else 0,
+                "Date Purchased": tea.purchase_date if isinstance(tea.purchase_date, str) else tea.purchase_date.strftime("%Y-%m-%d"),
                 "Avg Rating": tea.average_rating,
-                "Purchase Note": tea.purchaseNote,
+                "Purchase Note": tea.purchase_note,
                 "Last Drank": tea.last_drank,
                 "Reviews": len(tea.reviews),
                 "Adjustments (g)": tea.sum_adjustments_grams,
@@ -194,7 +194,7 @@ class DataManager:
         df['Catalog $/g'] = df['Catalog $/g'].apply(lambda x: f"${x:.2f}")
         return df
 
-    def filter_data(self, query: str = None, query_type: str = "Name"):
+    def _filter_data(self, query: str = None, query_type: str = "Name"):
         """Filters the dataframe based on a string query."""
         Logger.info(f"Filtering data with query: '{query}' on type: '{query_type}'")
         if not query:
@@ -206,7 +206,7 @@ class DataManager:
             )
             self.filtered_df = self.df[mask].copy()
 
-    def filter_reviews_data(self, query: str = None, query_type: str = "Tea Name"):
+    def _filter_reviews_data(self, query: str = None, query_type: str = "Tea Name"):
         """Filters the reviews dataframe based on a string query."""
         Logger.info(f"Filtering reviews data with query: '{query}' on type: '{query_type}'")
         if not query:
@@ -218,12 +218,12 @@ class DataManager:
             )
             self.filtered_reviews_df = self.reviews_df[mask].copy()
 
-    def sort_data(self, column_name, ascending):
+    def _sort_data(self, column_name, ascending):
         """Sorts the currently filtered view with data cleaning."""
         if self.filtered_df.empty:
             return
 
-        def clean_key(col_series):
+        def _clean_key(col_series):
             """Cleans the column data for sorting."""
             if column_name == "Amount":
             # 1. Split by '/' and take the first part
@@ -253,16 +253,16 @@ class DataManager:
             return s_clean
 
         # Perform the sort
-        self.filtered_df.sort_values(
+        self.filtered_df._sort_values(
             by=column_name,
             ascending=ascending,
             inplace=True,
-            key=clean_key
+            key=_clean_key
         )
 
-    def zero_negative_amounts(self):
+    def _zero_negative_amounts(self):
         """Sets any negative amounts in the stash to zero."""
-        for tea in self.stash.returnTeas():
+        for tea in self.stash.return_teas():
             if tea.quantity < 0:
                 Logger.info(f"Zeroing negative quantity for tea: {tea.name} (was {tea.quantity}g)")
                 tea.quantity = 0
@@ -271,17 +271,17 @@ class DataManager:
                 tea.remaining = 0
         self.refresh_all(save_after_refresh=True)
 
-    def zero_negative_costs(self):
+    def _zero_negative_costs(self):
         """Sets any negative costs in the stash to zero."""
-        for tea in self.stash.returnTeas():
+        for tea in self.stash.return_teas():
             if tea.cost < 0:
                 Logger.info(f"Zeroing negative cost for tea: {tea.name} (was ${tea.cost:.2f})")
                 tea.cost = 0
         self.refresh_all(save_after_refresh=True)
 
-    def round_amounts_and_costs(self):
+    def _round_amounts_and_costs(self):
         """Rounds all amounts and costs to 2 decimal places."""
-        for tea in self.stash.returnTeas():
+        for tea in self.stash.return_teas():
             if tea.quantity is not None:
                 rounded_quantity = round(tea.quantity, 2)
                 if rounded_quantity != tea.quantity:
@@ -292,19 +292,19 @@ class DataManager:
                 if rounded_cost != tea.cost:
                     Logger.info(f"Rounding cost for tea: {tea.name} from ${tea.cost:.2f} to ${rounded_cost:.2f}")
                     tea.cost = rounded_cost
-            if tea.catalogPrice is not None:
-                rounded_catalog_price = round(tea.catalogPrice, 2)
-                if rounded_catalog_price != tea.catalogPrice:
-                    Logger.info(f"Rounding catalog price for tea: {tea.name} from ${tea.catalogPrice:.2f} to ${rounded_catalog_price:.2f}")
-                    tea.catalogPrice = rounded_catalog_price
+            if tea.catalog_price is not None:
+                rounded_catalog_price = round(tea.catalog_price, 2)
+                if rounded_catalog_price != tea.catalog_price:
+                    Logger.info(f"Rounding catalog price for tea: {tea.name} from ${tea.catalog_price:.2f} to ${rounded_catalog_price:.2f}")
+                    tea.catalog_price = rounded_catalog_price
         self.refresh_all(save_after_refresh=True)
 
-    def sort_reviews_data(self, column_name, ascending):
+    def _sort_reviews_data(self, column_name, ascending):
         """Sorts the reviews dataframe."""
         if self.filtered_reviews_df is None or self.filtered_reviews_df.empty:
             return
         
-        def clean_key(col_series):
+        def _clean_key(col_series):
             """Cleans the column data for sorting."""
             s_clean = col_series.astype(str).str.lower()
             s_clean = s_clean.str.replace(r'[^a-z0-9.]', '', regex=True)
@@ -315,11 +315,11 @@ class DataManager:
             return s_clean
         
         # Perform the sort
-        self.filtered_reviews_df.sort_values(
+        self.filtered_reviews_df._sort_values(
             by=column_name,
             ascending=ascending,
             inplace=True,
-            key=clean_key
+            key=_clean_key
         )
 
 
@@ -343,7 +343,7 @@ class DataManager:
                 "Avg Rating": review.rating,
                 "Notes": review.notes,
                 "Amount Drunk": review.amount_drunk,
-                "Vessel Size": review.vesselSize,
+                "Vessel Size": review.vessel_size,
                 "Method": review.method,
                 "Steeps": review.steeps,
                 "Session Number": review.session_num,
@@ -385,9 +385,9 @@ class DataManager:
 
     @property
     def water_stats(self):
-        if self._water_stats_cache is None:
-            self.refresh_stats()
-        return self._water_stats_cache
+        if self.water_stats_cache is None:
+            self._refresh_stats()
+        return self.water_stats_cache
 
     def sort_summary_data(self, ui_column_name, ascending):
         mapping = {
@@ -400,7 +400,7 @@ class DataManager:
         }
         col = mapping.get(ui_column_name)
         if col:
-            self._type_vendor_stats_cache.sort_values(by=col, ascending=ascending, inplace=True)
+            self.type_vendor_stats_cache._sort_values(by=col, ascending=ascending, inplace=True)
 
 
 

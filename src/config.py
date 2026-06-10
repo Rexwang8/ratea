@@ -8,21 +8,21 @@ import yaml
 # ---------------------------------------------------------------------------
 # Paths to configuration file and derived directories
 # ---------------------------------------------------------------------------
-_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml")
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml")
 
 # Base directories computed once from the script location — not in YAML
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_SRC_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "src"))
-_DATA_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "data"))
-_BACKUP_DIR = os.path.abspath(os.path.join(_BASE_DIR, "..", "backup"))
-_FONTS_DIR = os.path.join(_SRC_DIR, "fonts")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "src"))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "data"))
+BACKUP_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "backup"))
+FONTS_DIR = os.path.join(SRC_DIR, "fonts")
 
 # ---------------------------------------------------------------------------
 # Load raw data from YAML
 # ---------------------------------------------------------------------------
 def _load_yaml() -> dict[str, Any]:
     """Read config.yaml and return the parsed dictionary."""
-    with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -45,7 +45,7 @@ def load_env_as_dict(filepath=".env"):
             key, value = line.split("=", 1)
             config[key.strip()] = value.strip().strip('"').strip("'")
     return config
-_env_config = load_env_as_dict(os.path.join(_SRC_DIR, "./.env"))
+_env_config = load_env_as_dict(os.path.join(SRC_DIR, "./.env"))
 
 # ---------------------------------------------------------------------------
 # Config class — provides typed attribute access matching the old API
@@ -66,11 +66,11 @@ class Config:
     SEARCH_DEFAULTS_HIDE_FINISHED_REVIEWS: bool = _raw["search_defaults"]["hide_finished_reviews"]
 
     # -- Computed Paths (not from YAML) --------------------------------------
-    BASE_DIR: str = _BASE_DIR
-    SRC_DIR: str = _SRC_DIR
-    DATA_DIR: str = _DATA_DIR
-    BACKUP_DIR: str = _BACKUP_DIR
-    FONTS_DIR: str = _FONTS_DIR
+    BASE_DIR: str = BASE_DIR
+    SRC_DIR: str = SRC_DIR
+    DATA_DIR: str = DATA_DIR
+    BACKUP_DIR: str = BACKUP_DIR
+    FONTS_DIR: str = FONTS_DIR
 
     # -- Review Defaults -----------------------------------------------------
     DEFAULT_RATING: str = _raw["review_defaults"]["rating"]
@@ -96,10 +96,10 @@ class Config:
     TEADB_TOKEN: str = _env_config.get("TEADB_API_KEY", "")
     TEADB_INTEGRATION_ENABLED: bool = _raw["teadb"]["enabled"]
     TEADB_MAPPING_FILE_PATH: str = os.path.join(
-        _SRC_DIR, "connectors", "teadb", _raw["teadb"]["mapping_file"]
+        SRC_DIR, "connectors", "teadb", _raw["teadb"]["mapping_file"]
     )
     TEADB_RAW_DATA_FILE_PATH: str = os.path.join(
-        _SRC_DIR, "connectors", "teadb", _raw["teadb"]["raw_data_file"]
+        SRC_DIR, "connectors", "teadb", _raw["teadb"]["raw_data_file"]
     )
 
     # -- Colors (RGBA) -------------------------------------------------------

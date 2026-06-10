@@ -9,3 +9,5 @@ data/*
 !data/
 
 .env
+
+data_saved.yaml

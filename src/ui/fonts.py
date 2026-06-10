@@ -9,18 +9,18 @@ class FontManager:
         self.cfg = Config
 
 
-    def getFontName(self, size=1, bold=False, fontName=None):
+    def get_font_name(self, size=1, bold=False, font_name=None):
         # Get the current font name and size
-        if fontName is None:
-            fontName = self.cfg.DEFAULT_FONT
+        if font_name is None:
+            font_name = self.cfg.DEFAULT_FONT
         style = "Bold" if bold else "Regular"
         # Map your size indices (1, 2, 3) to the suffix used in tags
         suffix = "" if size == 1 else str(size)
 
-        return f"{fontName}{style}{suffix}"
+        return f"{font_name}{style}{suffix}"
 
 
-    def bindLoadFonts(self):
+    def bind_load_fonts(self):
         # Load fonts
         base_font_size = 16
         Logger.info(f"Loading fonts with base size: {base_font_size}")
