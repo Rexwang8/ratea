@@ -16,6 +16,7 @@ from services.score_converter import ScoreConverter
 from ui.modals.tea_add_edit_modal import _show_tea_modal
 from ui.modals.tea_review_modal import _show_tea_review_modal
 from ui.modals.tea_view_modal import _show_tea_view_modal
+from ui.modals.config_modal import show_config_modal
 import dearpygui.demo as demo
 from connectors.teadb.connect_teadb import dummy_funct, upload_ratea_review_to_teadb
 
@@ -643,6 +644,7 @@ class TeaApp:
                 with dpg.menu(label="File"):
                     dpg.add_menu_item(label="Save", callback=self._on_save_click)
                     dpg.add_menu_item(label="Save Backup", callback=self._on_save_backup_click)
+                    dpg.add_menu_item(label="Settings", callback=lambda: show_config_modal(fonts=self.fonts))
                     dpg.add_menu_item(label="Exit", callback=dpg.destroy_context)
                 
                 with dpg.menu(label="View"):
@@ -652,6 +654,8 @@ class TeaApp:
                     dpg.add_menu_item(label="Report: Sel. Tea Vendor Tierlist", callback=self._generate_tierlist_for_selected_vendor)
                     dpg.add_menu_item(label="Report: Generate Sel. Review Chart", callback=self._generate_chart_for_selected_review)
                     dpg.add_menu_item(label="Chart: $/g over time by type", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager))
+                    dpg.add_menu_item(label="Chart: gram over time by type", callback=lambda: ReportService.generate_consumption_by_type_report(self.data_manager))
+                    dpg.add_menu_item(label="Chart: Abs. grams cu. by type", callback=lambda: ReportService.generate_cu_stashed_by_type_report(self.data_manager))
                     #dpg.add_menu_item(label="Cost per Gram over time. By Type", callback=lambda: ReportService.generate_cost_per_gram_over_time_by_type_report(self.data_manager))
                 with dpg.menu(label="Connectors"):
                     # Teadb folder, for tea and review export and import
