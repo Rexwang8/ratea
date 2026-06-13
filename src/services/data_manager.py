@@ -21,7 +21,7 @@ class DataManager:
         self.water_stats_cache = None
         self.type_vendor_stats_cache = None
         self.type_vendor_stats_cache_summary = None
-        self.data_save_path = f"{Config.DATA_DIR}/data_saved.yaml" # Default save path for YAML data
+        self.data_save_path = f"{Config.DATA_DIR}/{Config.DATA_SAVE_FILE}" # Path to the YAML file for saving/loading tea data
         self.dropdown_tea_types = set()  # To be populated based on stash data
         self.dropdown_tea_vendors = set()  # To be populated based on stash data
 
