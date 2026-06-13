@@ -185,10 +185,11 @@ class Tea:
 
     @property
     def average_rating(self):
-        if not self.reviews:
-            return 0.0
-        total = sum(r.rating for r in self.reviews)
-        return round(total / len(self.reviews), 2)
+        rated_reviews = [r for r in self.reviews if r.rating is not None]
+        if not rated_reviews:
+            return None
+        total = sum(r.rating for r in rated_reviews)
+        return round(total / len(rated_reviews), 2)
     
     @property
     def tier_rating(self):
@@ -253,7 +254,7 @@ class Tea:
 
     def to_dict(self):
         """Helper for saving to JSON/YAML later"""
-        return {
+        teaDict = {
             "id": self.id,
             "name": self.name,
             "vendor": self.vendor,
@@ -267,6 +268,8 @@ class Tea:
             "purchase_note": self.purchase_note,
             "reviews": [review.to_dict() for review in self.reviews],
         }
+        return teaDict
+            
     
     def get(self, key, default=None):
         """Helper to allow dict-like access to attributes."""

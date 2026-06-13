@@ -717,6 +717,14 @@ class TeaApp:
                         dpg.add_button(label="Refresh Data", callback=self._refresh_data)
                         dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
 
+                    # Stats display for ui, could be fun
+                    with dpg.group(horizontal=True):
+                        stats = self.data_manager.get_stash_stats_summary()
+                        dpg.add_text(f"Total Teas: {stats['total_teas']} (Reviewed: {stats['total_reviewed']}, Unreviewed: {stats['total_unreviewed']})")
+                        dpg.add_text(f"Finished Teas: {stats['total_finished']}")
+                        dpg.add_text(f"Total Weight: {stats['total_remaining']:.1f}g/{stats['total_weight']:.1f}g")
+                        dpg.add_text(f"Average Rating: {stats['avg_rating']}")
+
 
                     # Selected ID and name display
                     self.selected_text_display = dpg.add_text("No tea selected")

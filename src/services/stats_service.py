@@ -88,7 +88,7 @@ class StatsService:
     def get_rating_distribution_data(teas):
         all_ratings = []
         for tea in teas:
-            if tea.average_rating > 0 and tea.catalog_price_per_gram is not None:
+            if tea.average_rating is not None and tea.catalog_price_per_gram is not None:
                 all_ratings.append((tea.average_rating, tea.catalog_price_per_gram))
         if not all_ratings:
             return [], [], []
@@ -106,7 +106,7 @@ class StatsService:
     def get_price_percentile_distribution_data(teas):
         all_ratings = []
         for tea in teas:
-            if tea.average_rating > 0 and tea.catalog_price_per_gram is not None:
+            if tea.average_rating is not None and tea.catalog_price_per_gram is not None:
                 all_ratings.append((tea.average_rating, tea.catalog_price_per_gram))
         if not all_ratings:
             return [], [], []

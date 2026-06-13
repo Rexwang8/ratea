@@ -6,6 +6,7 @@ from config import Config
 from models.tea import Tea
 from services.logger import Logger
 from models.stash import TeaStash
+from services.score_converter import ScoreConverter
 from services.stats_service import StatsService
 
 
@@ -113,6 +114,30 @@ class DataManager:
         if save_after_refresh:
             self.export_to_yaml()  # Save the current state to YAML after refreshing
         Logger.info("Refreshed all data and statistics.")
+
+    def get_stash_stats_summary(self):
+        """Returns a summary of the stash statistics for display in the UI."""
+        # This will just be number of teas, number of teas finished, total weight
+        # number reviewed/unreviewed, average rating, etc. We can expand this as needed.
+        total_teas = len(self.stash.return_teas())
+        total_finished = len([tea for tea in self.stash.return_teas() if tea.finished])
+        total_weight = sum(tea.quantity for tea in self.stash.return_teas())
+        total_reviewed = len([tea for tea in self.stash.return_teas() if len(tea.reviews) > 0]) 
+        total_unreviewed = total_teas - total_reviewed
+        # avg rating is only if rated with reviews, otherwise excluded. It is returned in letter string format
+        rated_teas = [tea for tea in self.stash.return_teas() if tea.average_rating is not None]
+        avg_rating = sum(tea.average_rating for tea in rated_teas) / len(rated_teas) if rated_teas else None
+        avg_rating_string = ScoreConverter.score_to_letter(avg_rating) if avg_rating is not None else "N/A"
+        total_remaining = sum(tea.remaining for tea in self.stash.return_teas())
+        return {
+            "total_teas": total_teas,
+            "total_finished": total_finished,
+            "total_weight": total_weight,
+            "total_reviewed": total_reviewed,
+            "total_unreviewed": total_unreviewed,
+            "avg_rating": avg_rating_string,
+            "total_remaining": total_remaining
+        }
 
     def load_from_yaml(self, filepath):
         with open(filepath, 'r') as f:

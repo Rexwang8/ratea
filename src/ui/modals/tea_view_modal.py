@@ -102,7 +102,10 @@ class Modal:
 
             dpg.add_text(f"Total Reviews: {r - 1}")
             dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
-            dpg.add_text(f"Average Rating: {self.tea.average_rating:.2f} ({ScoreConverter.score_to_letter(self.tea.average_rating)}| {ScoreConverter.get_grade_meaning_numeric(self.tea.average_rating)})")
+            if self.tea.average_rating is not None:
+                dpg.add_text(f"Average Rating: {self.tea.average_rating:.2f} ({ScoreConverter.score_to_letter(self.tea.average_rating)} | {ScoreConverter.get_grade_meaning_numeric(self.tea.average_rating)})")
+            else:
+                dpg.add_text(f"Average Rating: N/A")
             dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
             dpg.add_separator()
             # Total remaining
