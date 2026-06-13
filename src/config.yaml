@@ -36,6 +36,7 @@ ui:
 app:
   name: "Ratea Tea Reviewer"
   version: "2.0.0"
+  data_file: "data_saved.yaml"     # Relative to src/data/
 
 # --- TeaDB Integration (Experimental) --------------------------------------
 # See https://teadb.org for API details.

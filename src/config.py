@@ -9,6 +9,10 @@ import yaml
 # Paths to configuration file and derived directories
 # ---------------------------------------------------------------------------
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml")
+DEV_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config_dev.yaml")
+if os.path.isfile(DEV_CONFIG_FILE):
+    print("Loading development configuration from config_dev.yaml")
+    CONFIG_FILE = DEV_CONFIG_FILE
 
 # Base directories computed once from the script location — not in YAML
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -71,6 +75,7 @@ class Config:
     DATA_DIR: str = DATA_DIR
     BACKUP_DIR: str = BACKUP_DIR
     FONTS_DIR: str = FONTS_DIR
+    DATA_SAVE_FILE: str = _raw["app"]["data_file"]
 
     # -- Review Defaults -----------------------------------------------------
     DEFAULT_RATING: str = _raw["review_defaults"]["rating"]

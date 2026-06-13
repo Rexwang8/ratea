@@ -51,9 +51,9 @@ class TeaApp:
         ensure_folders_exist()
 
         self.data_manager = DataManager()
-        self.data_manager.load_from_yaml(f"{Config.DATA_DIR}/data_saved.yaml")  # Load initial data
+        self.data_manager.load_from_yaml(f"{Config.DATA_DIR}/{Config.DATA_SAVE_FILE}")  # Load initial data
 
-        dataSavePath = f"{Config.DATA_DIR}/data_saved.yaml"
+        dataSavePath = f"{Config.DATA_DIR}/{Config.DATA_SAVE_FILE}"
         self.data_manager.export_to_yaml(dataSavePath)
 
         self.fonts = FontManager()
@@ -247,7 +247,7 @@ class TeaApp:
 
     def _on_save_click(self):
         """Called when the 'Save' menu item is clicked."""
-        save_path = f"{Config.DATA_DIR}/data_saved.yaml"
+        save_path = f"{Config.DATA_DIR}/{Config.DATA_SAVE_FILE}"
         self.data_manager.export_to_yaml(save_path)
         Logger.info(f"Data saved to {save_path}")
 
