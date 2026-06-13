@@ -10,3 +10,5 @@ data/*
 
 .env
 
+# anything with "dev" in the name, like data_saved_dev.yaml or config_dev.yaml
+*dev*.yaml
