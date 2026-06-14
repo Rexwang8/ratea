@@ -122,7 +122,7 @@ class DataManager:
         total_teas = len(self.stash.return_teas())
         total_finished = len([tea for tea in self.stash.return_teas() if tea.finished])
         total_weight = sum(tea.quantity for tea in self.stash.return_teas())
-        total_reviewed = len([tea for tea in self.stash.return_teas() if len(tea.reviews) > 0]) 
+        total_reviewed = len([tea for tea in self.stash.return_teas() if len(tea.reviews) > 0 or tea.finished])
         total_unreviewed = total_teas - total_reviewed
         # avg rating is only if rated with reviews, otherwise excluded. It is returned in letter string format
         rated_teas = [tea for tea in self.stash.return_teas() if tea.average_rating is not None]
