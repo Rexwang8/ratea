@@ -1557,6 +1557,10 @@ class ReportService:
     def generate_consumption_by_type_report(datamanager, width=800, height=600):
         Logger.info("Generating tea consumption composition report.")
 
+        percent_threshold_for_major_types = 0.02  # Tea types that make up less than this percentage of total consumption will be grouped into "Other"
+        alt_percent_threshold_for_major_types = 0.03  # Alternative threshold to use if we end up with too many "major" tea types (more than 10)
+        addn_recent_90_day_threshold = 90  # We will also check the top tea types consumed in the last X days to ensure we capture any recent trends that might be obscured by the overall totals
+
         report_shorthand = "consumption_over_time_type"
         tmp_dir = f"{Config.DATA_DIR}/tmp"
         os.makedirs(tmp_dir, exist_ok=True)
@@ -1599,9 +1603,27 @@ class ReportService:
         # --------------------------------------------------
         type_totals = df.groupby("tea_type")["amount"].sum()
 
+        # check number of types that would be considered "major" with the initial threshold, if more than 10, use the alternative threshold
+        num_major_types = (type_totals > type_totals.sum() * percent_threshold_for_major_types).sum()
+        percent_threshold_used = percent_threshold_for_major_types
+        if num_major_types > 10:
+            Logger.info(f"More than 10 major tea types with initial threshold ({num_major_types}), using alternative threshold of {alt_percent_threshold_for_major_types:.1%}.")
+            percent_threshold_used = alt_percent_threshold_for_major_types
+        
+
         top_types = type_totals[
-            type_totals > type_totals.sum() * 0.02
+            type_totals > type_totals.sum() * percent_threshold_used # Threshold to determine which tea types are "major" vs grouped into "Other"
         ].index
+
+        # If the most recent 90 day consumption shows types that aren't already added in the top 3 major types, we should add those in as well to ensure the chart reflects recent trends
+        recent_threshold = pd.Timestamp.now() - pd.Timedelta(days=addn_recent_90_day_threshold)
+        recent_df = df[df["date"] >= recent_threshold]
+        recent_type_totals = recent_df.groupby("tea_type")["amount"].sum()
+        recent_top_types = recent_type_totals.sort_values(ascending=False).head(5).index
+        for tea_type in recent_top_types:
+            if tea_type not in top_types:
+                Logger.info(f"[Chart]Adding {tea_type} to major types because it is in the top {len(recent_top_types)} consumed tea types in the last {addn_recent_90_day_threshold} days.")
+                top_types = top_types.append(pd.Index([tea_type]))
 
         df["tea_type_grouped"] = df["tea_type"].where(
             df["tea_type"].isin(top_types),
