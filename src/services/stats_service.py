@@ -1,4 +1,5 @@
 import math
+from typing import Counter
 import matplotlib
 matplotlib.use("Agg") # Force non-gpu backend to prevent warnings when generating chart
 
@@ -894,6 +895,39 @@ class ReportService:
     
         return temp_path
     
+    
+    # app.py entrypoint for tierlist generation, feeds into the _generate_report wrapper which then calls the actual generation method and saves the image
+    @staticmethod
+    def generate_tierlist_vendor(data_manager, this_vendor=None):
+        # Generates a tier list report comparing vendors based on average rating and price, with tiers S, A, B, C, D based on rating thresholds and price percentiles. Saves as image.
+        if not this_vendor or this_vendor.strip() == "" or data_manager == None:
+            Logger.error("Vendor tier list generation called without a vendor specified.")
+            return None
+        name = f"vendor_tierlist_{this_vendor}_{pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
+        typeChart = ChartType.VENDOR_TIERLIST
+        ReportService._generate_report(name, data_manager, typeChart=typeChart, return_image=False, this_vendor=this_vendor, highlight_this_vendor=this_vendor)
+    
+    @staticmethod
+    # generate_report wrapper around the stats to help reduce clutter in the main report generation method and allow for easier adjustments and experimentation with the comparison graph
+    # Feeds in variables and name, etc, saves the image or report
+    def _generate_report(name, data_manager, typeChart=None, return_image=False, **kwargs):
+        Logger.info(f"[Chart] Generating report/chart with name: {name}")
+        chart = None
+        if typeChart == ChartType.VENDOR_TIERLIST:
+            chart = ReportService._generate_tierlist_for_vendor(data_manager, **kwargs)
+
+        # Save image
+        if chart:
+            if return_image:
+                return chart
+            else:
+                save_path = f"./{name}"
+                chart.save(save_path)
+                Logger.info(f"Report saved to {save_path}")
+                return save_path
+        return None
+
+    
     @staticmethod
     # Generates a comparison between the ratings of this tea vs all other teas in the stash as a bubble chart
     # The X axis is the rating, the Y axis is the percentile of price per gram. Bubble size is the clustered count of teas at that rating/price point
@@ -1159,16 +1193,24 @@ class ReportService:
         return temp_path
 
     @staticmethod
-    def generate_tierlist_for_vendor(data_manager, this_vendor, highlight_recent_review=True):
+    def _generate_tierlist_for_vendor(data_manager, **kwargs):
+        this_vendor = kwargs.get("this_vendor")
+        highlight_recent_review = kwargs.get("highlight_recent_review", True)
 
+        # Unreviewed teas go into unreviewed bucket at bottom with F rating. TODO
+        draw_unreviewed_teas = False  # Flag to control whether to include teas without reviews in the tier list, can adjust based on preference and data availability
+        
 
-        Logger.info(f"Generating tier list for vendor: {this_vendor}")
         # We can use a similar approach to the bubble chart but categorize teas into tiers (S, A, B, C, D, F) based on rating and price percentile
         # Then we can create a visual tier list with teas placed in their respective tiers along with their names and prices.
-        teas_only_this_vendor = [t for t in data_manager.stash.teas if t.vendor == this_vendor and t.average_rating is not None and t.catalog_price_per_gram is not None]
-        
-        # Exclude teas without reviews.
-        teas_only_this_vendor = [t for t in teas_only_this_vendor if t.reviews]
+        teas_only_this_vendor = [
+            t for t in data_manager.stash.teas 
+            if t.vendor == this_vendor 
+            and t.average_rating is not None 
+            and t.catalog_price_per_gram is not None
+            and t.reviews
+        ]
+
         if not teas_only_this_vendor:
             Logger.warning(f"No teas found for vendor {this_vendor} with complete data for tier list.")
             return None
@@ -1184,70 +1226,49 @@ class ReportService:
                 key=lambda r: pd.to_datetime(r.date),
                 default=None
             )
-            if most_recent_review:
-                Logger.info(f"Most recent review date: {most_recent_review.date}")
-            else:
-                Logger.info("No reviews found to highlight.")
+            Logger.info(f"Most recent review date: {most_recent_review.date}" if most_recent_review else "No reviews found to highlight.")
         
         # we want to create a blank image, then draw tier sections (S, A, B, C, D, F) and place teas in the appropriate section based on their rating and price percentile
         # Each tea should have the name, price per gram and rating displayed. Do not use percentile
-
         # Strip acronyms from vendor name for cleaner display
-        this_vendor_display = this_vendor
         stripped_acronyms = []
-        if "Jesse" in this_vendor_display:
+        if "Jesse" in this_vendor:
             stripped_acronyms.append("JTH")
 
         # Fast tally all tiered teas to know how many we have in each tier for spacing purposes
-        tiers_base_flat = ["S", "A", "B", "C", "D", "F"]
-        tiers_base_expanded = ScoreConverter.LETTER_GRADE_MAP.keys()
-        tiers = tiers_base_flat
+        num_per_tier_spacing = Counter(t.tier_rating_flat for t in teas_only_this_vendor)
+        max_tier_size = max(num_per_tier_spacing.values(), default=0)
+        tiers_base_expanded = list(ScoreConverter.LETTER_GRADE_MAP.keys())
+        tiers = tiers_base_expanded if max_tier_size > 14 else ["S", "A", "B", "C", "D", "F"]
         tierlist_colors = {
-            "S": "#cc6666",   # muted red
-            "A": "#d9a066",   # muted orange
-            "B": "#d9c266",   # muted gold
-            "C": "#d9d966",   # muted yellow
-            "D": "#99cc99",   # muted light green
-            "F": "#66a366"    # muted green
+        "S": "#cc6666", "A": "#d9a066", "B": "#d9c266",
+        "C": "#d9d966", "D": "#99cc99", "F": "#66a366"
         }
-        num_per_tier_spacing = {tier: 0 for tier in tiers_base_expanded}
-        for tea in teas_only_this_vendor:
-            tier_flat = tea.tier_rating_flat
-            if tier_flat in num_per_tier_spacing:
-                num_per_tier_spacing[tier_flat] += 1
-
-
-        max_tier_size = max(num_per_tier_spacing.values()) if num_per_tier_spacing else 0
-        use_expanded_tiers = False
-        if max_tier_size > 16:
-            use_expanded_tiers = True
-            tiers = tiers_base_expanded
-            num_per_tier_spacing = {tier: 0 for tier in tiers_base_expanded}
+        
 
         base_height_per_tier = 120  # Base height per tier, will multiply by number of tiers plus extra for vendor header
-        num_rows = len(tiers) + 1  # Number of tiers (S, A, B, C, D, F) + 1 for vendor header
-        base_height = base_height_per_tier * num_rows  # Base height based on number of tiers plus extra for vendor header
-
-        Logger.info(f"Max tier size for vendor {this_vendor}: {max_tier_size}, tier distribution: {num_per_tier_spacing}")
-        print(f"Using {'expanded' if use_expanded_tiers else 'flat'} tiers for vendor {this_vendor} based on max tier size.")
-
-        # Create blank image
+        base_height = base_height_per_tier * (len(tiers) + 1)  # Base height based on number of tiers plus extra for vendor header
         xpadding = 100
         base_width = max(800, (max_tier_size * base_height_per_tier) + (2 * xpadding))  # Base width or enough to fit all teas in the largest tier with padding
+
+        Logger.info(f"[CHART] Total teas for vendor {this_vendor}: {len(teas_only_this_vendor)}, tiers: {tiers}")
+        Logger.info(f"[CHART] Max tier size for vendor {this_vendor}: {max_tier_size}, tier distribution: {num_per_tier_spacing}")
+
+        # Create blank image
+        
         font = ImageFont.truetype("arial.ttf", 13)
         font2 = ImageFont.truetype("arial.ttf", 15)
         font_larger = ImageFont.truetype("arial.ttf", 28)
         font_large = ImageFont.truetype("arial.ttf", 40)
+
         img = Image.new("RGB", (base_width, base_height), color="white")
         draw = ImageDraw.Draw(img)
-
-        # Draw tier sections
         box_dim = base_height_per_tier  # Height of the box for each tea, with some padding
-        
         num_per_tier = {tier: 0 for tier in tiers}
+
         # Draw the first row for the vendor name
         draw.rectangle([0, 0, base_width, base_height_per_tier], outline="black", fill="lightgray", width=2)
-        draw.text((30, 30), f"Vendor: {this_vendor_display}", fill="black", font=font_larger)
+        draw.text((30, 30), f"Vendor: {this_vendor}", fill="black", font=font_larger)
         draw.text((30, 70), f"Total teas: {len(teas_only_this_vendor)}", fill="black", font=font2)
         draw.text((30, 95), f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d')}", fill="black", font=font2)
 
@@ -1273,10 +1294,10 @@ class ReportService:
         # Place teas in their respective tiers
         for tea in teas_only_this_vendor:
             tea: Tea
-            # Determine tier based on rating
-            tier, tier_flat = tea.tier_rating, tea.tier_rating_flat
-            if use_expanded_tiers:
-                tier_flat = tier
+                # Determine targeting tier index cleanly
+            tier_flat = tea.tier_rating if max_tier_size > 14 else tea.tier_rating_flat
+            if tier_flat not in num_per_tier:
+                continue  # Fallback protection if flat map breaks constraints
 
             # Get the tier's y-coordinate
             tier_idx = list(tiers).index(tier_flat)+1  # +1 to account for vendor row
@@ -1325,10 +1346,9 @@ class ReportService:
         # Draw vertical line to separate tea boxes from tier labels
         draw.line((xpadding, box_dim, xpadding, base_height), fill="black", width=2)
 
-        # Save image to path
-        current_dt_str = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
-        save_path = f"tierlist_{this_vendor.replace(' ', '_')}_{current_dt_str}.png"
-        img.save(save_path)
+        # return image
+        return img
+
 
     @staticmethod
     def template_generate_placeholder_chart(path: str):
@@ -2055,3 +2075,9 @@ def _create_star(cx, cy, outer_radius, inner_radius, points=5):
 
 def _trim_label(label, max_len=14):
     return label if len(label) <= max_len else label[:max_len-1] + "…"
+
+# Enums for chart types
+class ChartType:
+    VENDOR_TIERLIST = 1
+    CONSUMPTION_BY_TYPE_OVER_TIME = 2
+        

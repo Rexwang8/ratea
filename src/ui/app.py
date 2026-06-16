@@ -623,7 +623,7 @@ class TeaApp:
             return
         
         vendor_name = tea.vendor
-        report = ReportService.generate_tierlist_for_vendor(self.data_manager, vendor_name)
+        ReportService.generate_tierlist_vendor(self.data_manager, this_vendor=vendor_name)
 
     def _connect_teadb_review(self, sender, app_data, user_data):
         # Send teadb full tea and review data for import/export
