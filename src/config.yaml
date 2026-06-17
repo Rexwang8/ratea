@@ -21,6 +21,9 @@ review_defaults:
   amount_drunk_grams: 5.0         # Default amount drunk per session (g)
   steep_count: 5                  # Default number of steeps
   vessel_size_ml: 100.0           # Default vessel/cup size (ml)
+
+  # These statements are included in the generated report. You can customize them to reflect your brewing setup and any additional notes you want to include at the end of each report.
+  generate_report_on_review: false  # Automatically generate a report after adding a review
   tailing_statement: "70 tds water, RO+brita filtered tap. Boiling unless stated"
   footer_statement: "Made possible by Seš'qa's latest technology! | Work in progress! (End of Report)"
 

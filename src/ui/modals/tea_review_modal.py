@@ -6,6 +6,7 @@ from models.review import Review
 from services.date_helper import datetime_to_dearpygui_dt, dearpygui_dt_to_datetime
 from services.logger import Logger
 from services.score_converter import ScoreConverter
+from services.stats_service import ReportService
 import datetime as dt
 from ui.widgets.dropdown_autocomplete import add_autocomplete_input
 
@@ -142,6 +143,11 @@ class TeaReviewModal:
         self.data_manager.export_to_yaml(self.data_manager.data_save_path)  # Save changes immediately
         self.data_manager.export_to_yaml(self.data_manager.data_save_path)  # Save changes immediately
         #self.data_manager.refresh_all(save_after_refresh=True) Don't refresh, allow manual refresh to avoid unnecessary reloads and potential modal conflicts
+
+        if Config.GENERATE_REPORT_ON_REVIEW:
+            review_id = new_review.id
+            ReportService.generate_review_report(self.data_manager, review_id)
+            Logger.info(f"Report generated for review ID: {review_id} based on config GENERATE_REPORT_ON_REVIEW={Config.GENERATE_REPORT_ON_REVIEW}")
 
     def _edit_review(self, new_data_fields):
         Logger.info(f"Editing review {self.review.id}")

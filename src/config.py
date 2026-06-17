@@ -84,6 +84,7 @@ class Config:
     DEFAULT_VESSEL_SIZE: float = _raw["review_defaults"]["vessel_size_ml"]
     DEFAULT_TAILING_STATEMENT: str = _raw["review_defaults"]["tailing_statement"]
     DEFAULT_FOOTER_STATEMENT: str = _raw["review_defaults"]["footer_statement"]
+    GENERATE_REPORT_ON_REVIEW: bool = _raw["review_defaults"]["generate_report_on_review"]
 
     # -- UI Settings ---------------------------------------------------------
     THEME: str = _raw["ui"]["theme"]
