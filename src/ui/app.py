@@ -47,6 +47,10 @@ class TeaApp:
         self.primary_window_tag = "Primary Window"
         self.is_running = False
 
+        # Track sort state across refreshes
+        self.sort_column = None
+        self.sort_ascending = True
+
         # Double check that necessary folders exist
         ensure_folders_exist()
 
@@ -274,10 +278,14 @@ class TeaApp:
         self.data_manager.refresh_all()
         self.data_manager._filter_data()
         self.data_manager._filter_reviews_data()
-        self.render_table_rows(parent=self.table_parent)
-        self._render_reviews_table_rows(parent=self.review_table_parent)
         self._on_search_change(None, None)
         self._on_search_change_reviews()
+        # Re-apply the saved sort state after refresh (must be after _on_search_change
+        # since _filter_data resets filtered_df to an unsorted copy)
+        if self.sort_column is not None:
+            self.data_manager._sort_data(self.sort_column, self.sort_ascending)
+        self.render_table_rows(parent=self.table_parent)
+        self._render_reviews_table_rows(parent=self.review_table_parent)
 
         self.tea_lookup = {
             row["UUID"]: (row["IDX"], row["Name"])
@@ -556,8 +564,12 @@ class TeaApp:
         column_id, direction = sort_spec[0]
         column_name = dpg.get_item_label(column_id)
 
+        # Save sort state for re-application after refresh
+        self.sort_column = column_name
+        self.sort_ascending = direction < 0
+
         # Sort the already filtered data
-        self.data_manager._sort_data(column_name, direction < 0)
+        self.data_manager._sort_data(column_name, self.sort_ascending)
 
         # Refresh the UI
         self.render_table_rows()
