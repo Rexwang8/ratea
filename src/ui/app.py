@@ -635,7 +635,7 @@ class TeaApp:
             return
         
         vendor_name = tea.vendor
-        ReportService.generate_tierlist_vendor(self.data_manager, this_vendor=vendor_name)
+        ReportService.generate_tierlist_vendor(self.data_manager, this_vendor=vendor_name, user_data=user_data)
 
     def _connect_teadb_review(self, sender, app_data, user_data):
         # Send teadb full tea and review data for import/export
@@ -662,13 +662,17 @@ class TeaApp:
                 with dpg.menu(label="View"):
                     dpg.add_menu_item(label="Tea Stash")
                     dpg.add_menu_item(label="Reviews")
+                # Seperate each report into a different folder with multiple report buttons with different args prefilled for different report types, e.g. tierlist for selected vendor, chart of scores over time for selected tea, etc.
                 with dpg.menu(label="Reports"):
-                    dpg.add_menu_item(label="Report: Sel. Tea Vendor Tierlist", callback=self._generate_tierlist_for_selected_vendor)
-                    dpg.add_menu_item(label="Report: Generate Sel. Review Chart", callback=self._generate_chart_for_selected_review)
-                    dpg.add_menu_item(label="Chart: $/g over time by type", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager))
-                    dpg.add_menu_item(label="Chart: gram over time by type", callback=lambda: ReportService.generate_consumption_by_type_report(self.data_manager))
-                    dpg.add_menu_item(label="Chart: Abs. grams cu. by type", callback=lambda: ReportService.generate_cu_stashed_by_type_report(self.data_manager))
-                    #dpg.add_menu_item(label="Cost per Gram over time. By Type", callback=lambda: ReportService.generate_cost_per_gram_over_time_by_type_report(self.data_manager))
+                    # Folder
+                    with dpg.menu(label="Selected Tea:"):
+                        dpg.add_menu_item(label="Chart: Sel. Tea Vendor Tierlist", callback=self._generate_tierlist_for_selected_vendor, user_data={"adjust_size": "auto"})
+                    with dpg.menu(label="Selected Review:"):
+                        dpg.add_menu_item(label="Report: Generate Review Chart", callback=self._generate_chart_for_selected_review)
+                    with dpg.menu(label="By Type:"):
+                        dpg.add_menu_item(label="Chart: $/g over time by type", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager))
+                        dpg.add_menu_item(label="Chart: gram over time by type", callback=lambda: ReportService.generate_consumption_by_type_report(self.data_manager))
+                        dpg.add_menu_item(label="Chart: Abs. grams cu. by type", callback=lambda: ReportService.generate_cu_stashed_by_type_report(self.data_manager))
                 with dpg.menu(label="Connectors"):
                     # Teadb folder, for tea and review export and import
                     dpg.add_menu_item(label="Export Teadb Review", callback=self._connect_teadb_review)

@@ -898,14 +898,16 @@ class ReportService:
     
     # app.py entrypoint for tierlist generation, feeds into the _generate_report wrapper which then calls the actual generation method and saves the image
     @staticmethod
-    def generate_tierlist_vendor(data_manager, this_vendor=None):
+    def generate_tierlist_vendor(data_manager, this_vendor=None, user_data=None):
         # Generates a tier list report comparing vendors based on average rating and price, with tiers S, A, B, C, D based on rating thresholds and price percentiles. Saves as image.
         if not this_vendor or this_vendor.strip() == "" or data_manager == None:
             Logger.error("Vendor tier list generation called without a vendor specified.")
             return None
         name = f"vendor_tierlist_{this_vendor}_{pd.Timestamp.now().strftime('%Y-%m-%d_%H-%M-%S')}.png"
+        adjust_size = user_data.get("adjust_size", 1.0) if user_data else 1.0
         typeChart = ChartType.VENDOR_TIERLIST
-        ReportService._generate_report(name, data_manager, typeChart=typeChart, return_image=False, this_vendor=this_vendor, highlight_this_vendor=this_vendor)
+        ReportService._generate_report(name, data_manager, typeChart=typeChart, return_image=False,
+                                        this_vendor=this_vendor, highlight_this_vendor=this_vendor, adjust_size=adjust_size)
     
     @staticmethod
     # generate_report wrapper around the stats to help reduce clutter in the main report generation method and allow for easier adjustments and experimentation with the comparison graph
@@ -1196,6 +1198,8 @@ class ReportService:
     def _generate_tierlist_for_vendor(data_manager, **kwargs):
         this_vendor = kwargs.get("this_vendor")
         highlight_recent_review = kwargs.get("highlight_recent_review", True)
+
+        adjust_size = kwargs.get("adjust_size", "auto")
 
         # Unreviewed teas go into unreviewed bucket at bottom with F rating. TODO
         draw_unreviewed_teas = False  # Flag to control whether to include teas without reviews in the tier list, can adjust based on preference and data availability
