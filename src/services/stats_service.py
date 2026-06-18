@@ -1324,9 +1324,9 @@ class ReportService:
             draw.text((x+10, y+10), f"{teaname}", fill="black", font=font)
             
             draw.text((x+10, y+10 + box_dim - 80), f"{teayear}", fill="black", font=font2)
-            draw.text((x+10, y+10 + box_dim - 60), f"{tier}   ${tea.catalog_price_per_gram:.2f}/g", fill="black", font=font2)
+            draw.text((x+10, y+10 + box_dim - 60), f"{tier_flat}   ${tea.catalog_price_per_gram:.2f}/g", fill="black", font=font2)
             draw.text((x+10, y+10 + box_dim - 40), f"{tea.tea_type}", fill="black", font=font)
-            
+            Logger.info(f"Placing tea '{tea.name}' in tier '{tier_flat}' at position x={x}, y={y} with rating {tea.average_rating} and price ${tea.catalog_price_per_gram:.2f}/g, number of reviews: {len(tea.reviews)}")
             
             # draw a small grey bubble in the box on a corner for number of reviews
             draw.ellipse([x + box_dim - 40, y + 40, x + box_dim - 20, y + 60], outline="black", fill="lightblue")
