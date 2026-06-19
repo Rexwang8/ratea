@@ -258,6 +258,10 @@ class DataManager:
                     col_series.str.split('/').str[0].str.replace('g', '', case=False).str.strip(),
                     errors='coerce'
                 )
+            elif "Rating" in column_name:
+                # presence of nan string means 0
+                if col_series.isna().any():
+                    col_series = col_series.fillna("0")
             
             # 1. Convert to string and lowercase
             s_clean = col_series.astype(str).str.lower()
