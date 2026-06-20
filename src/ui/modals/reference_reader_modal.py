@@ -123,7 +123,12 @@ class ReferenceReaderModal:
             dpg.add_spacer(height=5)
 
             # Body — rendered inline so the window handles scrolling naturally
-            self._render_content()
+            with dpg.group(horizontal=True):
+                # Add a vertical spacer to the left for padding
+                dpg.add_spacer(width=10)
+                # We must put it in its own group because the content is multi-object.
+                with dpg.group(horizontal=False):
+                        self._render_content()
 
             # Footer — always visible at the bottom of the scroll
             dpg.add_separator()
@@ -167,6 +172,7 @@ class ReferenceReaderModal:
                     dpg.last_item(),
                     size=size_map.get(level, 2),
                     bold=bold_map.get(level, False),
+                    font_name="Huninn",
                 )
                 dpg.add_spacer(height=3)
                 i += 1
@@ -175,6 +181,12 @@ class ReferenceReaderModal:
             # --- Empty line ---
             if not line.strip():
                 dpg.add_spacer(height=5)
+                i += 1
+                continue
+
+            # --- Three "---" for a horizontal separator ---
+            if re.match(r"^---+\s*$", line):
+                dpg.add_separator()
                 i += 1
                 continue
 
@@ -189,10 +201,10 @@ class ReferenceReaderModal:
                         self._render_image(inline_img.group(1))
                     elif part.strip():
                         dpg.add_text(part)
-                        self._bind_font(dpg.last_item(), size=2, bold=False)
+                        self._bind_font(dpg.last_item(), size=2, bold=False, font_name="Huninn")
             else:
                 dpg.add_text(line)
-                self._bind_font(dpg.last_item(), size=2, bold=False)
+                self._bind_font(dpg.last_item(), size=2, bold=False, font_name="Huninn")
 
             i += 1
 
@@ -204,13 +216,13 @@ class ReferenceReaderModal:
 
         if not os.path.exists(abs_path):
             dpg.add_text(f"[Image not found: {rel_path}]")
-            self._bind_font(dpg.last_item(), size=1, bold=False)
+            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="Huninn")
             return
 
         ext = os.path.splitext(abs_path)[1].lower()
         if ext not in (".png", ".jpg", ".jpeg"):
             dpg.add_text(f"[Unsupported image format: {ext}]")
-            self._bind_font(dpg.last_item(), size=1, bold=False)
+            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="Huninn")
             return
 
         try:
@@ -252,7 +264,7 @@ class ReferenceReaderModal:
         except Exception as e:
             Logger.error(f"Reference reader: failed to load image {abs_path}: {e}")
             dpg.add_text(f"[Failed to load image: {rel_path}]")
-            self._bind_font(dpg.last_item(), size=1, bold=False)
+            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="Huninn")
 
     # ── Close / cleanup ────────────────────────────────────────────────
 
@@ -273,7 +285,7 @@ class ReferenceReaderModal:
 
     # ── Helpers ────────────────────────────────────────────────────────
 
-    def _bind_font(self, item, size=2, bold=False):
+    def _bind_font(self, item, size=2, bold=False, font_name=None):
         """Bind a font to the last created item, if fonts are available."""
         if self.fonts:
-            self.fonts.dpg_preload_then_bind(item, size=size, bold=bold)
+            self.fonts.dpg_preload_then_bind(item, size=size, bold=bold, font_name=font_name)

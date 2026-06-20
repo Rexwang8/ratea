@@ -908,6 +908,14 @@ class TeaApp:
                         with dpg.tab(label="Drinking & Brewing"):
                         
                             with dpg.tab_bar():
+
+                                with dpg.tab(label="General"):
+                                
+                                    _make_ref_button(
+                                        self,
+                                        "[External] Experience Huigan",
+                                        "references\\external\\orientalleaf\\experience_huigan\\experience_huigan.md",
+                                    )
                             
                                 with dpg.tab(label="Puerh"):
                                 

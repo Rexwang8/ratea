@@ -25,7 +25,10 @@ class FontManager:
             "Roboto": f"Roboto-{style}.ttf",
             "Merriweather": f"Merriweather_24pt-{style}.ttf",
             "Montserrat": f"Montserrat-{style}.ttf",
-            "OpenSans": f"OpenSans-{style}.ttf"
+            "OpenSans": f"OpenSans-{style}.ttf",
+             # Huninn doesn't have bold/italic variants, so we ignore style for this font. It is a CJK Compatible font that we use for the reference reader, 
+             # so it needs to be able to render Chinese characters and accented marks properly.
+            "Huninn": f"Huninn-Regular.ttf",
         }
         
         filename = file_mapping.get(font_name, f"OpenSans-{style}.ttf")
@@ -33,8 +36,17 @@ class FontManager:
         pixel_size = self.base_font_size + self.size_offsets.get(size_idx, 0)
         
         try:
-            # FIX: Use add_font with the explicit parent target instead of context manager
             dpg.add_font(font_path, pixel_size, tag=tag, parent=self.registry_tag)
+            # Add CJK range hint so Chinese characters and accented marks render.
+            # This must be called before build_fonts() to include the glyphs.
+            dpg.add_font_range_hint(
+                dpg.mvFontRangeHint_Chinese_Simplified_Common,
+                parent=tag,
+            )
+            dpg.add_font_range_hint(
+                dpg.mvFontRangeHint_Default,
+                parent=tag,
+            )
             self._loaded_fonts.add(tag)
             Logger.info(f"Dynamically generated font asset: {tag}")
         except Exception as e:

@@ -2,6 +2,8 @@ https://teadb.org/puerh-for-beginners/
 
 # Pu'erh for Beginners
 
+---
+
 Written by
 James
 
@@ -89,13 +91,6 @@ Pick one to start and buy 2-3 samples from each category above. Buy from one of 
 3. Bana Tea (if US is preferred)
 4. Crimson Lotus Tea (if US is preferred)
 
-### ---RaTea Dev update, 2026---
-
-Bana has been bought out in 2026 and some of their selection has been trimmed. CLT is not preferred anymore. W2T is an ok spot for ripe or young sheng. YS is an ok spot for ripe. 
-QuicheTeas and TeasWeLike are good for all types of puerh. 
-ListeningToLeaves is a good spot for the very pricy boutique style puerh. 
-BYH is the best spot to start with boutique offerings imo, though this commits at least $100ish in tea.
-
 ## How Much Should I Spend?
 
 You should be able to pickup a crash course of samples for around $40-50 minimum. This $ amount provides a good variety of samples that will take a couple weeks to go through. 
@@ -113,7 +108,12 @@ https://www.instagram.com/p/BI7tKBmgs-v/?taken-by=teadborg
 
 
 
+### ---RaTea Dev update, 2026---
 
+Bana has been bought out in 2026 and some of their selection has been trimmed. CLT is not preferred anymore. W2T is an ok spot for ripe or young sheng. YS is an ok spot for ripe. 
+QuicheTeas and TeasWeLike are good for all types of puerh. 
+ListeningToLeaves is a good spot for the very pricy boutique style puerh. 
+BYH is the best spot to start with boutique offerings imo, though this commits at least $100ish in tea.
 
 
 
