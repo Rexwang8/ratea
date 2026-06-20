@@ -24,6 +24,10 @@ class TeaModal:
         self.win = None
         self.pre_populate = pre_populate
 
+    def _bind_font(self, item, size=2, bold=False):
+        if self.fonts:
+            dpg.bind_item_font(item, self.fonts.get_font_name(size=size, bold=bold))
+
 
     def show(self):
         width = 550 * Config.UI_SCALE
@@ -34,7 +38,7 @@ class TeaModal:
         self.win = dp.Window(label=action, modal=True, no_close=False, width=width, height=height)
         with self.win:
             dpg.add_text(action)
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=3, bold=True) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=3, bold=True)
             dpg.add_separator()
 
             fields = {}

@@ -22,6 +22,10 @@ class ConfigModal:
     def __init__(self, fonts=None):
         self.fonts = fonts
         self.win = None
+    
+    def _bind_font(self, item, size=2, bold=False):
+        if self.fonts:
+            dpg.bind_item_font(item, self.fonts.get_font_name(size=size, bold=bold))
 
     def _show(self):
         width = int(500 * Config.UI_SCALE)
@@ -33,18 +37,12 @@ class ConfigModal:
         )
         with self.win:
             dpg.add_text("Application Settings")
-            dpg.bind_item_font(
-                dpg.last_item(),
-                self.fonts.get_font_name(size=3, bold=True) if self.fonts else 0,
-            )
+            self._bind_font(dpg.last_item(), size=3, bold=True)
             dpg.add_separator()
             dpg.add_spacer(height=20)
 
             dpg.add_text("Work in progress — settings editing coming soon.")
-            dpg.bind_item_font(
-                dpg.last_item(),
-                self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0,
-            )
+            self._bind_font(dpg.last_item(), size=2, bold=False)
 
             dpg.add_spacer(height=40)
 
@@ -57,20 +55,14 @@ class ConfigModal:
                     width=bw,
                     height=bh,
                 )
-                dpg.bind_item_font(
-                    dpg.last_item(),
-                    self.fonts.get_font_name(size=2, bold=True) if self.fonts else 0,
-                )
+                self._bind_font(dpg.last_item(), size=2, bold=True)
                 dpg.add_button(
                     label="Close",
                     callback=self._close,
                     width=bw,
                     height=bh,
                 )
-                dpg.bind_item_font(
-                    dpg.last_item(),
-                    self.fonts.get_font_name(size=2, bold=True) if self.fonts else 0,
-                )
+                self._bind_font(dpg.last_item(), size=2, bold=True)
 
     def _on_dummy_save(self):
         """Placeholder save — does nothing yet."""

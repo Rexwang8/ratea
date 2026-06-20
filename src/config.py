@@ -17,8 +17,11 @@ if os.path.isfile(DEV_CONFIG_FILE):
 # Base directories computed once from the script location — not in YAML
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "src"))
+REF_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "references"))
 DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "data"))
 BACKUP_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "backup"))
+# Should be 1 level above src
+PROJECT_ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
 FONTS_DIR = os.path.join(SRC_DIR, "fonts")
 
 # ---------------------------------------------------------------------------

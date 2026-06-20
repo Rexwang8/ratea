@@ -47,6 +47,11 @@ class TemplateModal:
         self.data_manager = data_manager
         self.win = None
 
+    def _bind_font(self, item, size=2, bold=False):
+        """Bind a font to the last created item, if fonts are available."""
+        if self.fonts:
+            dpg.bind_item_font(item, self.fonts.get_font_name(size=size, bold=bold))
+
     # ── UI building ────────────────────────────────────────────────────
 
     def _show(self):
@@ -113,8 +118,3 @@ class TemplateModal:
             self.win = None
 
     # ── Helpers ────────────────────────────────────────────────────────
-
-    def _bind_font(self, item, size=2, bold=False):
-        """Bind a font to the last created item, if fonts are available."""
-        if self.fonts:
-            dpg.bind_item_font(item, self.fonts.get_font_name(size=size, bold=bold))

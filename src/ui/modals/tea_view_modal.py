@@ -20,6 +20,10 @@ class Modal:
         self.win = None
         self.data_manager: DataManager = data_manager
 
+    def _bind_font(self, item, size=2, bold=False):
+        if self.fonts:
+            dpg.bind_item_font(item, self.fonts.get_font_name(size=size, bold=bold))
+
 
     def show(self):
         width = 550 * Config.UI_SCALE
@@ -27,31 +31,31 @@ class Modal:
         self.win = dp.Window(label=self.tea.name, modal=True, no_close=False, width=width, height=height)
         with self.win:
             dpg.add_text("Tea Details")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=3, bold=True) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=3, bold=True)
             dpg.add_separator()
             dpg.add_text(f"Name: {self.tea.name}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=3, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=3, bold=False)
 
             dpg.add_text(f"Vendor: {self.tea.vendor}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Type: {self.tea.tea_type}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Cost (USD): ${self.tea.cost:.2f}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Quantity (g): {self.tea.quantity:.1f}g")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Purchase Date: {self.tea.purchase_date.strftime('%Y-%m-%d') if self.tea.purchase_date else 'N/A'}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Year: {self.tea.year}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Purchase Note: {self.tea.purchase_note}")
             dpg.add_separator()
             # Adjustments
             dpg.add_text(f"Total Adjustments (g): {self.tea.sum_adjustments_grams:.1f}g")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             for adj in self.tea.adjustments:
                 dpg.add_text(f"{adj.adjustment_type}: {adj.amount:.1f}g, Cost: ${adj.cost:.2f}")
-                dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                self._bind_font(dpg.last_item(), size=2, bold=False)
 
             # Change adjustments. Nest in a collapse header, allow editing with its own confirm button that updates the tea and refreshes the modal.
             with dpg.collapsing_header(label="Adjustments", default_open=True):
@@ -59,14 +63,14 @@ class Modal:
                 data_adjustments = {}
                 # Mark remaining as Standard deduction or gift deduction buttons
                 dpg.add_text(f"Remaining Amount (g): {self.tea.remaining:.2f}g")
-                dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                self._bind_font(dpg.last_item(), size=2, bold=False)
                 with dpg.group(horizontal=True):
                     dpg.add_button(label="Mark remaining as Standard", callback=self._mark_all_as_adjustment, user_data="Standard Deduction", width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
-                    dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                    self._bind_font(dpg.last_item(), size=2, bold=False)
                     dpg.add_button(label="Mark remaining as Gift", callback=self._mark_all_as_adjustment, user_data="Gift Deduction", width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
-                    dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                    self._bind_font(dpg.last_item(), size=2, bold=False)
                     dpg.add_button(label="Unmark all adjustments", callback=self._unmark_all_adjustments, user_data=None, width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
-                    dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                    self._bind_font(dpg.last_item(), size=2, bold=False)
                 for adj in types_of_adjustments:
                     # tuples of (adjustment_type, amount, cost) in tea.adjustments
                     amt_adj = 0.0
@@ -76,44 +80,44 @@ class Modal:
                             amt_adj = a.amount
                             cost_adj = a.cost
                     dpg.add_text(f"{adj}: {amt_adj:.1f}g, Cost: ${cost_adj:.2f}")
-                    dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                    self._bind_font(dpg.last_item(), size=2, bold=False)
                     data_adjustments[adj] = dp.InputFloat(label=f"{adj} Adjustment (g)", default_value=amt_adj, width=200 * Config.UI_SCALE, format="%.2f", height=40 * Config.UI_SCALE)
                     data_adjustments[f"{adj}_cost"] = dp.InputFloat(label=f"{adj} Adjustment Cost (USD)", default_value=cost_adj, width=200 * Config.UI_SCALE, format="%.2f", height=40 * Config.UI_SCALE)
 
                 # Confirm button for all adjustments that updates the tea and refreshes the modal
                 dpg.add_button(label="Update Adjustments", callback=self._update_adjustments, user_data=data_adjustments, width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
-                dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_separator()
             # Reviews (summary)
             r = 1
             max_width_child = width - 65 * Config.UI_SCALE
             with dpg.child_window(width=-1, height=300 * Config.UI_SCALE, border=True, max_width=max_width_child):
                 dpg.add_text("Reviews:")
-                dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True) if self.fonts else 0)
+                self._bind_font(dpg.last_item(), size=2, bold=True)
                 if not self.tea.reviews:
                     dpg.add_text(" No reviews available.")
                 else:
                     for review in self.tea.reviews:
                         dpg.add_text(f" - Review {r}: {review.date.strftime('%Y-%m-%d')}, Rating: {review.rating}, Amount Drunk: {review.amount_drunk:.1f}g")
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                        self._bind_font(dpg.last_item(), size=2, bold=False)
                         dpg.add_text(f"   Notes: {review.notes}")
                         dpg.add_separator()
                         r += 1
 
             dpg.add_text(f"Total Reviews: {r - 1}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             if self.tea.average_rating is not None:
                 dpg.add_text(f"Average Rating: {self.tea.average_rating:.2f} ({ScoreConverter.score_to_letter(self.tea.average_rating)} | {ScoreConverter.get_grade_meaning_numeric(self.tea.average_rating)})")
             else:
                 dpg.add_text(f"Average Rating: N/A")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_separator()
             # Total remaining
             dpg.add_text(f"Remaining Amount (g): {self.tea.remaining:.2f}g")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
 
             dpg.add_button(label="Close", callback=self.close)
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=3, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=3, bold=False)
 
     def close(self):
         print(("Closing tea view modal for:", self.tea.name))

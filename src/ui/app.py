@@ -17,6 +17,7 @@ from ui.modals.tea_add_edit_modal import _show_tea_modal
 from ui.modals.tea_review_modal import _show_tea_review_modal
 from ui.modals.tea_view_modal import _show_tea_view_modal
 from ui.modals.config_modal import show_config_modal
+from ui.modals.reference_reader_modal import show_reference_reader
 import dearpygui.demo as demo
 from connectors.teadb.connect_teadb import dummy_funct, upload_ratea_review_to_teadb
 
@@ -715,23 +716,23 @@ class TeaApp:
                     # Stash operations (edit)
                     with dpg.group(horizontal=True):
                         dpg.add_button(label="Add Tea", callback=self._on_add_click_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Duplicate Add Selected", callback=self._on_duplicate_add_click_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Edit Selected", callback=self._on_edit_click_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="tea")
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Clear Selected", callback=self._on_clear_selection)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="View Selected", callback=self._view_selected_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Copy UUID", callback=self._copy_selected_tea_uuid)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Review Selected", callback=self._review_selected_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Refresh Data", callback=self._refresh_data)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
 
                     # Stats display for ui, could be fun
                     with dpg.group(horizontal=True):
@@ -744,7 +745,8 @@ class TeaApp:
 
                     # Selected ID and name display
                     self.selected_text_display = dpg.add_text("No tea selected")
-                    dpg.bind_item_font(self.selected_text_display, self.fonts.get_font_name(size=2, bold=True))
+                    
+                    bind_item_font(self.fonts, self.selected_text_display, size=2, bold=True)
 
 
                     # Create Table
@@ -792,21 +794,22 @@ class TeaApp:
                     # Stash operations (edit)
                     with dpg.group(horizontal=True):
                         dpg.add_button(label="Edit Selected", callback=self._on_edit_click_reviews)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="review")
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Clear Selected", callback=self._on_clear_selection_reviews)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="View Selected", callback=self._view_selected_tea)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Chart Selected", callback=self._generate_chart_for_selected_review)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Refresh Data", callback=self._refresh_data)
-                        dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=True))
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
 
                     # Selected ID and name display
                     self.selected_text_display_reviews = dp.Text("No review selected")
-                    dpg.bind_item_font(self.selected_text_display_reviews, self.fonts.get_font_name(size=2, bold=True))
+                    bind_item_font(self.fonts, self.selected_text_display_reviews, size=2, bold=True)
 
                     # Create Table
                     filter_table_id_reviews = dpg.generate_uuid()
@@ -840,13 +843,158 @@ class TeaApp:
                     from ui.analytics_tab import draw_analytics_tab, draw_water_analytics
                     draw_analytics_tab(self.data_manager)
 
+                with dpg.tab(label="References"):
+                    with dpg.tab_bar():
+                    
+                        # ------------------------------------------------------------------
+                        # Getting Started
+                        # ------------------------------------------------------------------
+                        with dpg.tab(label="Getting Started"):
+                            with dpg.tab_bar():
+
+                                with dpg.tab(label="General"):
+                                
+                                    dpg.add_text("Beginner Guides")
+                                    bind_item_font(
+                                        self.fonts,
+                                        dpg.last_item(),
+                                        size=2,
+                                        bold=True
+                                    )
+                
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] First Sheng Purchase Guide",
+                                        r"references\getting_started\puerh\first_sheng_purchase.md",
+                                    )
+                
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Basic Gongfu Setup",
+                                        r"references\getting_started\general\basic_gongfu_setup.md",
+                                    )
+                            
+                                with dpg.tab(label="Puerh"):
+                                
+                                    dpg.add_text("Beginner Guides")
+                                    bind_item_font(
+                                        self.fonts,
+                                        dpg.last_item(),
+                                        size=2,
+                                        bold=True
+                                    )
+
+                                    _make_ref_button(
+                                        self,
+                                        "[Teadb] Puerh for Beginners",
+                                        "references\\teadb\\puerh_for_beginners\\puerh_for_beginners.md",
+                                    )
+
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] First Sheng Purchase Guide",
+                                        r"references\getting_started\puerh\first_sheng_purchase.md",
+                                    )
+
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Basic Gongfu Setup",
+                                        r"references\getting_started\general\basic_gongfu_setup.md",
+                                    )
+
+                        # ------------------------------------------------------------------
+                        # Drinking & Brewing
+                        # ------------------------------------------------------------------
+                        with dpg.tab(label="Drinking & Brewing"):
+                        
+                            with dpg.tab_bar():
+                            
+                                with dpg.tab(label="Puerh"):
+                                
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Sheng Brewing Guide",
+                                        r"references\drinking\puerh\sheng_brewing_guide.md",
+                                    )
+
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Shou Brewing Guide",
+                                        r"references\drinking\puerh\shou_brewing_guide.md",
+                                    )
+
+                                with dpg.tab(label="Hongcha"):
+                                
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Gongfu Hongcha Guide",
+                                        r"references\drinking\hongcha\gongfu_hongcha_guide.md",
+                                    )
+
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Western Hongcha Guide",
+                                        r"references\drinking\hongcha\western_hongcha_guide.md",
+                                    )
+
+                        # ------------------------------------------------------------------
+                        # Tea Knowledge
+                        # ------------------------------------------------------------------
+                        with dpg.tab(label="Tea Knowledge"):
+                        
+                            with dpg.tab_bar():
+                            
+                                with dpg.tab(label="Puerh"):
+                                
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Puerh Types Overview",
+                                        r"references\knowledge\puerh\types_overview.md",
+                                    )
+
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Puerh Region Guide",
+                                        r"references\knowledge\puerh\region_guide.md",
+                                    )
+
+                                with dpg.tab(label="Hongcha"):
+                                
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Hongcha Types Overview",
+                                        r"references\knowledge\hongcha\types_overview.md",
+                                    )
+
+                        # ------------------------------------------------------------------
+                        # Research Library
+                        # ------------------------------------------------------------------
+                        with dpg.tab(label="Research Library"):
+                        
+                            with dpg.tab_bar():
+                            
+                                with dpg.tab(label="Blogs"):
+                                
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Why Some Sheng Ages Better",
+                                        r"references\research\blogs\sheng_aging.md",
+                                    )
+
+                                with dpg.tab(label="Academic"):
+                                
+                                    _make_ref_button(
+                                        self,
+                                        "[FILLER] Polyphenols and Aging",
+                                        r"references\research\academic\polyphenols.md",
+                                    )
         dpg.set_primary_window(self.primary_window_tag, True)
 
     def run(self):
         """Start the render loop."""
         self.setup_dpg()
         self.build_ui()
-        
+        dpg.show_font_manager()
         dpg.show_viewport()
         dpg.start_dearpygui()
         dpg.destroy_context()
@@ -866,3 +1014,27 @@ def format_cell(value, col=None):
     if isinstance(value, str) and len(value) > max_len:
         return value[:max_len-3] + "..."
     return str(value)
+
+
+def _make_ref_button(app: TeaApp, label: str, filepath: str):
+    """Create an 'Open' button for a reference document in the References tab."""
+    dpg.add_button(
+        label=label,
+        width=-1,
+        height=30 * Config.UI_SCALE,
+        callback=lambda: show_reference_reader(
+            filepath=filepath,
+            fonts=app.fonts,
+            data_manager=app.data_manager,
+        ),
+    )
+    if app.fonts:
+        app.fonts.dpg_preload_then_bind(dpg.last_item(), size=2, bold=False)
+    dpg.add_spacer(height=3)
+
+
+
+def bind_item_font(fonts: FontManager, item, size=2, bold=False):
+    """Bind a font to a DearPyGui item, ensuring the font is loaded first."""
+    if fonts:
+        fonts.dpg_preload_then_bind(item, size=size, bold=bold)

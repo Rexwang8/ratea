@@ -25,6 +25,10 @@ class TeaReviewModal:
         self.fonts = fonts
         self.win = None
 
+    def _bind_font(self, item, size=2, bold=False):
+        if self.fonts:
+            dpg.bind_item_font(item, self.fonts.get_font_name(size=size, bold=bold))
+
 
     def show(self):
         width = 550 * Config.UI_SCALE
@@ -34,14 +38,14 @@ class TeaReviewModal:
             dpg.add_text("Tea Details")
             # The action is to either add a new review or edit an existing review.
             action = "Edit Review" if self.review else "Add Review"
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=3, bold=True) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=3, bold=True)
             dpg.add_separator()
             dpg.add_text(f"Tea: {self.tea.name}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=3, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=3, bold=False)
             dpg.add_text(f"Vendor: {self.tea.vendor}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Type: {self.tea.tea_type}")
-            dpg.bind_item_font(dpg.last_item(), self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+            self._bind_font(dpg.last_item(), size=2, bold=False)
 
             # If review exists, show details, otherwise show form to add new review
             new_data_fields = {}
@@ -71,7 +75,7 @@ class TeaReviewModal:
 
                 date_default = datetime_to_dearpygui_dt(review.date) if is_editing else datetime_to_dearpygui_dt(dt.datetime.now())
                 dateField = dp.DatePicker(label="Review Date", default_value=date_default)
-                dpg.bind_item_font(dateField, self.fonts.get_font_name(size=2, bold=False) if self.fonts else 0)
+                self._bind_font(dateField, size=2, bold=False)
                 new_data_fields['date'] = dateField
 
                 default_amount = review.amount_drunk if is_editing else Config.DEFAULT_AMOUNT_DRUNK if hasattr(Config, "DEFAULT_AMOUNT_DRUNK") else 5.0
