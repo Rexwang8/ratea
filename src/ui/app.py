@@ -994,7 +994,6 @@ class TeaApp:
         """Start the render loop."""
         self.setup_dpg()
         self.build_ui()
-        dpg.show_font_manager()
         dpg.show_viewport()
         dpg.start_dearpygui()
         dpg.destroy_context()
