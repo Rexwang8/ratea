@@ -33,7 +33,8 @@ Raw pu'erh is the original type of pu'erh. Young raw pu'erh makes up a huge part
 What qualifies as young? The answer is ambiguous, but choose something made in the last two years.
 
 How the hell do I brew this? Good question. Young raw pu'erh benefits from using gong-fu brewing (higher leaf, low steep time). It's not a tea that should be brewed black tea style. 
-Use a ratio of 1g:15-20ml and brew for just a few seconds. From here you can adjust the parameters to your liking. There's also various opinions on the “correct” temperature to use for young pu'erh. 
+Use a ratio of 1g:15-20ml and brew for just a few seconds. From here you can adjust the parameters to your liking.
+There's also various opinions on the “correct” temperature to use for young pu'erh. 
 If you're drinking for your own enjoyment and want to avoid bitterness and astringency, try brewing at around 190. 
 If you like your tea strong or are trying to evaluate the full contents of it, hit it with a boil and moderate the strength through steep time.
 
@@ -98,9 +99,12 @@ If you're OK with committing and spending more, $100 will get you an even better
 
 ## Common Mistakes
 1. If you're serious about trying pu'erh. DO NOT BUY LOCAL. Don't buy from Chinatown. Don't buy from Teavana. Don't buy from your local teashop.
-Pu'erh is a specialty tea and needs to be treated differently than normal sorts of tea. You might get lucky but in all likelihood will end up with crap that acts as a deterrent rather than a gateway.
+Pu'erh is a specialty tea and needs to be treated differently than normal sorts of tea. 
+You might get lucky but in all likelihood will end up with crap that acts as a deterrent rather than a gateway.
 
-2. Pu'erh can inspire collection. Do not worry or obsess about owning or buying whole pieces. While it might seem like a lot of money to spend on not a lot of tea you will learn far more from from a two $15 25gsample than a $30 cake. In the end it's better to avoid the allure of mini-cakes and mini-tuos from generalists. Buy samples and learn!
+2. Pu'erh can inspire collection. Do not worry or obsess about owning or buying whole pieces. 
+While it might seem like a lot of money to spend on not a lot of tea you will learn far more from from a two $15 25gsample than a $30 cake. 
+In the end it's better to avoid the allure of mini-cakes and mini-tuos from generalists. Buy samples and learn!
 
 https://www.instagram.com/p/BI7tKBmgs-v/?taken-by=teadborg
 
@@ -117,5 +121,5 @@ BYH is the best spot to start with boutique offerings imo, though this commits a
 
 
 
----
+--
 End of file
