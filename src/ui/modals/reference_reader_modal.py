@@ -26,6 +26,7 @@ import dearpypixl as dp
 from config import Config
 from ui.fonts import FontManager
 from services.logger import Logger
+from services.text_helper import wrap_text_no_break_words
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +194,7 @@ class ReferenceReaderModal:
             # --- Regular paragraph text ---
             # Check for inline images within the paragraph
             parts = re.split(r"(!\[.*?\]\((.+?)\))", line)
+            max_line_length = 150  # Adjust as needed for readability/performance
             if len(parts) > 1:
                 # Has inline image(s) — render text segments and images
                 for part in parts:
@@ -200,10 +202,21 @@ class ReferenceReaderModal:
                     if inline_img:
                         self._render_image(inline_img.group(1))
                     elif part.strip():
-                        dpg.add_text(part)
+                        # Split text into multiple lines if it's too long, to avoid DPG rendering issues with very long text
+                        if len(part) > max_line_length:
+                            # Use text splitting that tries to split on spaces for better readability, textwrap.
+                            wrapped, wrapped_len = wrap_text_no_break_words(part, max_line_length)
+                            # Wrapped text has inserted newlines, so we can render it as-is without further splitting
+                            dpg.add_text(wrapped)
+                        else:
+                            dpg.add_text(part)
                         self._bind_font(dpg.last_item(), size=2, bold=False, font_name="Huninn")
             else:
-                dpg.add_text(line)
+                if len(line) > max_line_length:
+                    wrapped, wrapped_len = wrap_text_no_break_words(line, max_line_length)
+                    dpg.add_text(wrapped)
+                else:
+                    dpg.add_text(line)
                 self._bind_font(dpg.last_item(), size=2, bold=False, font_name="Huninn")
 
             i += 1
