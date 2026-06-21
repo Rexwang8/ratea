@@ -847,173 +847,123 @@ class TeaApp:
                     with dpg.tab_bar():
                     
                         # ------------------------------------------------------------------
-                        # Getting Started
+                        # Getting Started, specifically beginner oriented articles.
                         # ------------------------------------------------------------------
                         with dpg.tab(label="Getting Started"):
                             with dpg.tab_bar():
-
                                 with dpg.tab(label="General"):
-                                
                                     dpg.add_text("Beginner Guides")
-                                    bind_item_font(
-                                        self.fonts,
-                                        dpg.last_item(),
-                                        size=2,
-                                        bold=True
-                                    )
+                                    bind_item_font(self.fonts,dpg.last_item(),size=2,bold=True)
                 
-                                    _make_ref_button(
-                                        self,
-                                        "[FILLER] First Sheng Purchase Guide",
-                                        r"references\getting_started\puerh\first_sheng_purchase.md",
-                                    )
-                
-                                    _make_ref_button(
-                                        self,
-                                        "[FILLER] Basic Gongfu Setup",
-                                        r"references\getting_started\general\basic_gongfu_setup.md",
-                                    )
-                            
-                                with dpg.tab(label="Puerh"):
-                                
-                                    dpg.add_text("Beginner Guides")
-                                    bind_item_font(
-                                        self.fonts,
-                                        dpg.last_item(),
-                                        size=2,
-                                        bold=True
-                                    )
-
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[Teadb] Puerh for Beginners",
-                                        "references\\teadb\\puerh_for_beginners\\puerh_for_beginners.md",
-                                    )
+                                        "references\\teadb\\puerh_for_beginners\\puerh_for_beginners.md")
+                
+                            
+                                with dpg.tab(label="Buying"):
+                                    dpg.add_text("Beginner Buying Guides")
+                                    bind_item_font(self.fonts,dpg.last_item(),size=2,bold=True)
 
-                                    _make_ref_button(
-                                        self,
+
+                                    _make_ref_button(self,
                                         "[FILLER] First Sheng Purchase Guide",
-                                        r"references\getting_started\puerh\first_sheng_purchase.md",
-                                    )
+                                        r"references\getting_started\puerh\first_sheng_purchase.md")
 
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Basic Gongfu Setup",
-                                        r"references\getting_started\general\basic_gongfu_setup.md",
-                                    )
+                                        r"references\getting_started\general\basic_gongfu_setup.md")
 
                         # ------------------------------------------------------------------
-                        # Drinking & Brewing
+                        # Drinking & Brewing, specific guides for drinking, brewing, storage, etc.
                         # ------------------------------------------------------------------
                         with dpg.tab(label="Drinking & Brewing"):
-                        
                             with dpg.tab_bar():
-
                                 with dpg.tab(label="General"):
                                 
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[External] Experience Huigan",
-                                        "references\\external\\orientalleaf\\experience_huigan\\experience_huigan.md",
-                                    )
+                                        "references\\external\\orientalleaf\\experience_huigan\\experience_huigan.md")
                             
                                 with dpg.tab(label="Puerh"):
                                 
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Sheng Brewing Guide",
-                                        r"references\drinking\puerh\sheng_brewing_guide.md",
-                                    )
+                                        r"references\drinking\puerh\sheng_brewing_guide.md")
 
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Shou Brewing Guide",
-                                        r"references\drinking\puerh\shou_brewing_guide.md",
-                                    )
+                                        r"references\drinking\puerh\shou_brewing_guide.md")
 
                                 with dpg.tab(label="Hongcha"):
-                                
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Gongfu Hongcha Guide",
-                                        r"references\drinking\hongcha\gongfu_hongcha_guide.md",
-                                    )
+                                        r"references\drinking\hongcha\gongfu_hongcha_guide.md")
 
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Western Hongcha Guide",
-                                        r"references\drinking\hongcha\western_hongcha_guide.md",
-                                    )
+                                        r"references\drinking\hongcha\western_hongcha_guide.md")
 
                         # ------------------------------------------------------------------
-                        # Tea Knowledge
+                        # Tea Knowledge, more generalized and references
                         # ------------------------------------------------------------------
                         with dpg.tab(label="Tea Knowledge"):
-                        
                             with dpg.tab_bar():
-                            
                                 with dpg.tab(label="Puerh"):
                                 
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Puerh Types Overview",
-                                        r"references\knowledge\puerh\types_overview.md",
-                                    )
+                                        r"references\knowledge\puerh\types_overview.md")
 
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Puerh Region Guide",
-                                        r"references\knowledge\puerh\region_guide.md",
-                                    )
+                                        r"references\knowledge\puerh\region_guide.md")
 
                                 with dpg.tab(label="Hongcha"):
                                 
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Hongcha Types Overview",
-                                        r"references\knowledge\hongcha\types_overview.md",
-                                    )
+                                        r"references\knowledge\hongcha\types_overview.md")
 
                         # ------------------------------------------------------------------
-                        # Tea Blogs
+                        # Tea Blogs, curated list of blogs and articles about tea
                         # ------------------------------------------------------------------
                         with dpg.tab(label="Tea Blogs"):
-                        
                             with dpg.tab_bar():
+                                with dpg.tab(label="Teadb"):
+                                    dpg.add_text("teadb.org . Run by James and Denny, experienced and grounded tea drinkers with a focus on puerh.")
+                                    _make_ref_button(self,
+                                        "[Teadb] Puerh for Beginners",
+                                        "references\\teadb\\puerh_for_beginners\\puerh_for_beginners.md")
+
+                                    _make_ref_button(self,
+                                        "[Teadb] 7542!!!! The Most Famous Digits in the Pu'erh World!",
+                                        "references\\teadb\\7542_the_most_famous_digits_in_the_puerh_world\\7542_the_most_famous_digits_in_the_puerh_world.md")
                             
                                 with dpg.tab(label="Marshaln"):
-                                    _make_ref_button(
-                                        self,
+                                    dpg.add_text("marshaln.com . Run by Marshaln, a very experienced tea drinker.")
+                                    _make_ref_button(self,
                                         "[Marshaln] Wuyishan",
-                                        "references\\external\\marshaln\\wuyishan\\wuyishan.md",
-                                    )
-                                    _make_ref_button(
-                                        self,
+                                        "references\\external\\marshaln\\wuyishan\\wuyishan.md")
+                                    _make_ref_button(self,
                                         "[Marshaln] Objectively good tea",
-                                        "references\\external\\marshaln\\objectively_good_tea\\objectively_good_tea.md",
-                                    )
+                                        "references\\external\\marshaln\\objectively_good_tea\\objectively_good_tea.md")
+                                    
                         # ------------------------------------------------------------------
-                        # Research Library
+                        # Research Library, papers and other academic materials
                         # ------------------------------------------------------------------
                         with dpg.tab(label="Research Library"):
-                        
                             with dpg.tab_bar():
-                            
-                                with dpg.tab(label="Blogs"):
-                                
-                                    _make_ref_button(
-                                        self,
+                                with dpg.tab(label="Papers"):
+                                    _make_ref_button(self,
                                         "[FILLER] Why Some Sheng Ages Better",
-                                        r"references\research\blogs\sheng_aging.md",
-                                    )
+                                        r"references\research\blogs\sheng_aging.md")
 
                                 with dpg.tab(label="Academic"):
-                                
-                                    _make_ref_button(
-                                        self,
+                                    _make_ref_button(self,
                                         "[FILLER] Polyphenols and Aging",
-                                        r"references\research\academic\polyphenols.md",
-                                    )
+                                        r"references\research\academic\polyphenols.md")
+                                    
+
         dpg.set_primary_window(self.primary_window_tag, True)
 
     def run(self):
