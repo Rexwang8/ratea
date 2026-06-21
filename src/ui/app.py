@@ -975,6 +975,24 @@ class TeaApp:
                                     )
 
                         # ------------------------------------------------------------------
+                        # Tea Blogs
+                        # ------------------------------------------------------------------
+                        with dpg.tab(label="Tea Blogs"):
+                        
+                            with dpg.tab_bar():
+                            
+                                with dpg.tab(label="Marshaln"):
+                                    _make_ref_button(
+                                        self,
+                                        "[Marshaln] Wuyishan",
+                                        "references\\external\\marshaln\\wuyishan\\wuyishan.md",
+                                    )
+                                    _make_ref_button(
+                                        self,
+                                        "[Marshaln] Objectively good tea",
+                                        "references\\external\\marshaln\\objectively_good_tea\\objectively_good_tea.md",
+                                    )
+                        # ------------------------------------------------------------------
                         # Research Library
                         # ------------------------------------------------------------------
                         with dpg.tab(label="Research Library"):

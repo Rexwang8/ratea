@@ -110,9 +110,9 @@ https://www.instagram.com/p/BI7tKBmgs-v/?taken-by=teadborg
 
 
 
+---
 
-
-### ---RaTea Dev update, 2026---
+### -- Dev note, 2026 --
 
 Bana has been bought out in 2026 and some of their selection has been trimmed. CLT is not preferred anymore. W2T is an ok spot for ripe or young sheng. YS is an ok spot for ripe. 
 QuicheTeas and TeasWeLike are good for all types of puerh. 

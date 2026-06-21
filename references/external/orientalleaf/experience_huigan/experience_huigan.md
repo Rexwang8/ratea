@@ -237,9 +237,9 @@ With practice, the returning sweetness becomes easier to recognize.
 Every year, thousands of tea lovers visit our tea house to enjoy a peaceful cup of authentic tea. 
 Now, you can bring that same experience home and continue exploring the fascinating world of Hui Gan.
 
+---
 
-
-### -- RaTea Developer, 2026 --
+### -- Dev note, 2026 --
 
 Ignore the advertising language. The practical tasting guide and FAQ seems pretty useful.
 I had some issues pinning down huigan for quite a while and it helped to drink a good bulang puerh that was unsweet, like 502 Nanqiao Double Lions.
