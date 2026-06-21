@@ -20,7 +20,8 @@ class FontManager:
         
         if tag in self._loaded_fonts:
             return tag
-            
+        
+        # First check if style is supported, then if not, fallback to regular style of the same family, then to OpenSans as a last resort.
         file_mapping = {
             "Roboto": f"Roboto-{style}.ttf",
             "Merriweather": f"Merriweather_24pt-{style}.ttf",
@@ -28,13 +29,43 @@ class FontManager:
             "OpenSans": f"OpenSans-{style}.ttf",
              # Huninn doesn't have bold/italic variants, so we ignore style for this font. It is a CJK Compatible font that we use for the reference reader, 
              # so it needs to be able to render Chinese characters and accented marks properly.
-            "Huninn": f"Huninn-Regular.ttf",
+            "Huninn": f"Huninn-{style}.ttf",
+            # Noto Sans CJK SC has bold and italics versions. We use this (testing) for chinese articles
+            "NotoSansCJKSC": f"NotoSansCJKsc-{style}.ttf",
         }
-        
+        file_mapping_fallback = {
+            "Roboto": f"Roboto-Regular.ttf",
+            "Merriweather": f"Merriweather_24pt-Regular.ttf",
+            "Montserrat": f"Montserrat-Regular.ttf",
+            "OpenSans": f"OpenSans-Regular.ttf",
+            "Huninn": f"Huninn-Regular.ttf",
+            "NotoSansCJKSC": f"NotoSansCJKsc-Regular.ttf",
+        }
+
         filename = file_mapping.get(font_name, f"OpenSans-{style}.ttf")
         font_path = os.path.join(Config.FONTS_DIR, filename)
-        pixel_size = self.base_font_size + self.size_offsets.get(size_idx, 0)
+
+        does_style_exist = os.path.isfile(os.path.join(Config.FONTS_DIR, file_mapping.get(font_name, "")))
+        if not does_style_exist:
+            Logger.warning(f"Requested font style not found: {font_name} {style}. Attempting fallback to regular style.")
+            # Try fallback to regular style of the same family
+            fallback_tag = f"{font_name}Regular{suffix}"
+            fallback_path = os.path.join(Config.FONTS_DIR, file_mapping_fallback.get(font_name, f"OpenSans-Regular.ttf"))
+            if os.path.isfile(fallback_path):
+                tag = fallback_tag
+                font_path = fallback_path
+                Logger.info(f"Falling back to {tag}")
+            else:
+                Logger.warning(f"Fallback font also not found for {font_name}. Falling back to OpenSans.")
+                tag = f"OpenSans-Regular{suffix}"
+                font_path = os.path.join(Config.FONTS_DIR, "OpenSans-Regular.ttf")
+
+        # Check again if tag already loaded (in case fallback was needed), to avoid duplicates
+        if tag in self._loaded_fonts:
+            return tag
         
+        
+        pixel_size = self.base_font_size + self.size_offsets.get(size_idx, 0)
         try:
             dpg.add_font(font_path, pixel_size, tag=tag, parent=self.registry_tag)
             # Add CJK range hint so Chinese characters and accented marks render.
@@ -55,12 +86,12 @@ class FontManager:
             
         return tag
 
-    def get_font_name(self, size=1, bold=False, font_name=None):
+    def get_font_name(self, size=1, bold=False, font_name=None, italics=False):
         """Returns the font tag, generating it on-the-fly if missing."""
         if font_name is None:
             font_name = self.cfg.DEFAULT_FONT
             
-        style = "Bold" if bold else "Regular"
+        style = "BoldItalic" if bold and italics else "Bold" if bold else "Italic" if italics else "Regular"
         return self._ensure_font_loaded(font_name, style, size)
 
     def bind_load_fonts(self):

@@ -173,7 +173,7 @@ class ReferenceReaderModal:
                     dpg.last_item(),
                     size=size_map.get(level, 2),
                     bold=bold_map.get(level, False),
-                    font_name="Huninn",
+                    font_name="NotoSansCJKSC",
                 )
                 dpg.add_spacer(height=3)
                 i += 1
@@ -202,24 +202,44 @@ class ReferenceReaderModal:
                     if inline_img:
                         self._render_image(inline_img.group(1))
                     elif part.strip():
-                        # Split text into multiple lines if it's too long, to avoid DPG rendering issues with very long text
-                        if len(part) > max_line_length:
-                            # Use text splitting that tries to split on spaces for better readability, textwrap.
-                            wrapped, wrapped_len = wrap_text_no_break_words(part, max_line_length)
-                            # Wrapped text has inserted newlines, so we can render it as-is without further splitting
-                            dpg.add_text(wrapped)
-                        else:
-                            dpg.add_text(part)
-                        self._bind_font(dpg.last_item(), size=2, bold=False, font_name="Huninn")
+                        self._render_text_with_bold(part, max_line_length)
             else:
-                if len(line) > max_line_length:
-                    wrapped, wrapped_len = wrap_text_no_break_words(line, max_line_length)
-                    dpg.add_text(wrapped)
-                else:
-                    dpg.add_text(line)
-                self._bind_font(dpg.last_item(), size=2, bold=False, font_name="Huninn")
+                self._render_text_with_bold(line, max_line_length)
 
             i += 1
+
+    def _render_text_with_bold(self, text: str, max_line_length: int):
+        """Render a line of text, splitting on **bold** markers.
+
+        Segments wrapped in **double asterisks** are rendered with the bold
+        font. All other text uses the regular font. All segments are placed
+        in a horizontal group so bold text appears inline within the
+        paragraph rather than on separate lines.
+        """
+        segments = re.split(r"(\*\*.*?\*\*)", text)
+        filtered = [s for s in segments if s.strip()]
+        if not filtered:
+            return
+
+        # Use a horizontal group so all segments sit on the same line
+        with dpg.group(horizontal=True):
+            for seg in filtered:
+                bold_match = re.match(r"\*\*(.*?)\*\*", seg)
+                if bold_match:
+                    bold_text = bold_match.group(1)
+                    if len(bold_text) > max_line_length:
+                        wrapped, _ = wrap_text_no_break_words(bold_text, max_line_length)
+                        dpg.add_text(wrapped)
+                    else:
+                        dpg.add_text(bold_text)
+                    self._bind_font(dpg.last_item(), size=2, bold=True, font_name="NotoSansCJKSC")
+                else:
+                    if len(seg) > max_line_length:
+                        wrapped, _ = wrap_text_no_break_words(seg, max_line_length)
+                        dpg.add_text(wrapped)
+                    else:
+                        dpg.add_text(seg)
+                    self._bind_font(dpg.last_item(), size=2, bold=False, font_name="NotoSansCJKSC")
 
     def _render_image(self, rel_path: str):
         """Load and display an image from a path relative to the file's directory."""
@@ -229,13 +249,13 @@ class ReferenceReaderModal:
 
         if not os.path.exists(abs_path):
             dpg.add_text(f"[Image not found: {rel_path}]")
-            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="Huninn")
+            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="NotoSansCJKSC")
             return
 
         ext = os.path.splitext(abs_path)[1].lower()
         if ext not in (".png", ".jpg", ".jpeg"):
             dpg.add_text(f"[Unsupported image format: {ext}]")
-            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="Huninn")
+            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="NotoSansCJKSC")
             return
 
         try:
@@ -277,7 +297,7 @@ class ReferenceReaderModal:
         except Exception as e:
             Logger.error(f"Reference reader: failed to load image {abs_path}: {e}")
             dpg.add_text(f"[Failed to load image: {rel_path}]")
-            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="Huninn")
+            self._bind_font(dpg.last_item(), size=1, bold=False, font_name="NotoSansCJKSC")
 
     # ── Close / cleanup ────────────────────────────────────────────────
 
