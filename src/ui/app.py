@@ -30,7 +30,7 @@ class TeaApp:
     selected_review_id = None
     selected_review_idx = None
 
-
+    stats_display_group = None
     table_parent = None
     review_table_parent = None
     search_column = "Name"
@@ -286,6 +286,7 @@ class TeaApp:
         if self.sort_column is not None:
             self.data_manager._sort_data(self.sort_column, self.sort_ascending)
         self.render_table_rows(parent=self.table_parent)
+        self._build_stats_display()  # Refresh the stats display after data changes
         self._render_reviews_table_rows(parent=self.review_table_parent)
 
         self.tea_lookup = {
@@ -646,6 +647,21 @@ class TeaApp:
             return
         upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_run=False, add_custom_tea_if_not_found=True)
 
+    # Build the stats display section of the UI. We put it in a separate function so we can call it to refresh the stats display after any data changes.
+    def _build_stats_display(self):
+        """Builds the stats display section of the UI."""
+        if self.stats_display_group is None:
+            Logger.warning("Stats display group not initialized. Cannot build stats display.")
+            return
+        # Clear old stats widgets before rebuilding
+        for child in dpg.get_item_children(self.stats_display_group, slot=1):
+            dpg.delete_item(child)
+        stats = self.data_manager.get_stash_stats_summary()
+        dpg.add_text(f"Total Teas: {stats['total_teas']} (Reviewed/Fin: {stats['total_reviewed']}, Unreviewed: {stats['total_unreviewed']})", parent=self.stats_display_group)
+        dpg.add_text(f"Finished Teas: {stats['total_finished']}", parent=self.stats_display_group)
+        dpg.add_text(f"Total Weight: {stats['total_remaining']:.1f}g/{stats['total_weight']:.1f}g", parent=self.stats_display_group)
+        dpg.add_text(f"Average Rating: {stats['avg_rating']}", parent=self.stats_display_group)
+
     def build_ui(self):
         """Constructs the actual widgets."""
         df = self.data_manager._get_stash_dataframe()  # Example of getting data for UI display
@@ -735,12 +751,10 @@ class TeaApp:
                         bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
 
                     # Stats display for ui, could be fun
-                    with dpg.group(horizontal=True):
-                        stats = self.data_manager.get_stash_stats_summary()
-                        dpg.add_text(f"Total Teas: {stats['total_teas']} (Reviewed/Fin: {stats['total_reviewed']}, Unreviewed: {stats['total_unreviewed']})")
-                        dpg.add_text(f"Finished Teas: {stats['total_finished']}")
-                        dpg.add_text(f"Total Weight: {stats['total_remaining']:.1f}g/{stats['total_weight']:.1f}g")
-                        dpg.add_text(f"Average Rating: {stats['avg_rating']}")
+                    stats_group = dp.Group(horizontal=True)
+                    self.stats_display_group = stats_group
+                    with stats_group:
+                        self._build_stats_display()
 
 
                     # Selected ID and name display
