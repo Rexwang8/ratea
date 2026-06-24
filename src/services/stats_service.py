@@ -1165,7 +1165,7 @@ class ReportService:
         )
 
         # Custom X axis label for letter grades
-        ax.set_xticks([0, 0.5, 1.5, 2.5, 3.5, 5.0])
+        ax.set_xticks([0, 1, 2, 3, 4, 5.0])
         ax.set_xticklabels(['F', 'D', 'C', 'B', 'A', 'S'])
         ax.set_xlim(0.0, 5.25)
         ax.tick_params(axis='x', labelsize=13) # Change x-axis tick font size
