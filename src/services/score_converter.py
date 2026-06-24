@@ -5,10 +5,8 @@
 
 class ScoreConverter:
     LETTER_GRADE_MAP = {
-        "S+": 5.0,
-        "S":  4.5,
-        "S-": 4.25,
-        "A+": 4.0,
+        "S": 5.0,
+        "A+": 4.5,
         "A":  3.5,
         "A-": 3.25,
         "B+": 3.0,
@@ -24,10 +22,8 @@ class ScoreConverter:
     }
     # list of 2 element lists for DPG to recognize the tick labels correctly (one for labels, one for positions)
     LETTER_GRADE_MAP_DPG_LABELS = [
-        ["S+", 5.0],
-        ["S",  4.5],
-        ["S-", 4.25],
-        ["A+", 4.0],
+        ["S", 5.0],
+        ["A+", 4.5],
         ["A",  3.5],
         ["A-", 3.25],
         ["B+", 3.0],
@@ -43,9 +39,7 @@ class ScoreConverter:
     ]
 
     grade_meanings_alternate = {
-        "S+": "S (+) Outstanding (High). -> Must try. Strongly consider dedicated order, rebuy.",
-        "S":  "S (X) Outstanding (Mid).  -> Must try. Strongly consider dedicated order, rebuy.",
-        "S-": "S (-) Outstanding (Low).  -> Must try. Strongly consider dedicated order, rebuy.",
+        "S":  "S (X) Outstanding.  -> Must try. Strongly consider dedicated order, rebuy.",
         
         "A+": "A (+) Notably Good (High). -> Strong sample, rebuyable.",
         "A":  "A (X) Notably Good (Mid).  -> Strong sample, rebuyable.",

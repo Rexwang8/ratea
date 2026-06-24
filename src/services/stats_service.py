@@ -862,8 +862,8 @@ class ReportService:
         ax.set_ylabel("Price per gram (log scale)", fontsize=14)
     
         # ---- X ticks ----
-        ax.set_xticks([0,0.5,1.5,2.5,3.5,4.5,5])
-        ax.set_xticklabels(['F','D','C','B','A','S','S+'])
+        ax.set_xticks([0,0.5,1.5,2.5,3.5,4,5])
+        ax.set_xticklabels(['F','D','C','B','A','S'])
         ax.set_xlim(0,5.25)
     
         # ---- Y ticks (show real price values) ----
@@ -989,7 +989,7 @@ class ReportService:
             bins = []
             for i in range(len(grade_values) - 1):
                 bins.append((grade_values[i] + grade_values[i+1]) / 2)
-            # Pad below F (0.0) and above S+ (5.0) so edge bins have width
+            # Pad below F (0.0) and above S (5.0) so edge bins have width
             bins = [-0.2] + bins + [5.2]
             hist, edges = np.histogram(ratings, bins=bins)
             centers = [(edges[i] + edges[i+1]) / 2 for i in range(len(hist))]
@@ -1165,8 +1165,8 @@ class ReportService:
         )
 
         # Custom X axis label for letter grades
-        ax.set_xticks([0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.0])
-        ax.set_xticklabels(['F', 'D', 'C', 'B', 'A', 'S', 'S+'])
+        ax.set_xticks([0, 0.5, 1.5, 2.5, 3.5, 5.0])
+        ax.set_xticklabels(['F', 'D', 'C', 'B', 'A', 'S'])
         ax.set_xlim(0.0, 5.25)
         ax.tick_params(axis='x', labelsize=13) # Change x-axis tick font size
         
