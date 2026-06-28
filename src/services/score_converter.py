@@ -64,6 +64,8 @@ class ScoreConverter:
     @classmethod
     def score_to_letter(cls, score: float, flatten: bool = False) -> str:
         """Convert a numeric score (0-5) to a letter grade."""
+        if score is None:
+            return "F"
         for letter, threshold in sorted(cls.LETTER_GRADE_MAP.items(), key=lambda x: x[1], reverse=True):
             if score >= threshold:
                 if flatten:
