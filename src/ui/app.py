@@ -267,11 +267,6 @@ class TeaApp:
         self.data_manager.export_to_yaml(backup_path)
         Logger.info(f"Data backup saved to {backup_path}")
 
-    
-        
-
-
-    
 
     def _refresh_data(self):
         """Public method to refresh data and re-render tables."""
@@ -687,8 +682,16 @@ class TeaApp:
                     with dpg.menu(label="Selected Review:"):
                         dpg.add_menu_item(label="Report: Generate Review Chart", callback=self._generate_chart_for_selected_review)
                     with dpg.menu(label="By Type:"):
-                        dpg.add_menu_item(label="Chart: $/g over time by type", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager))
-                        dpg.add_menu_item(label="Chart: gram over time by type", callback=lambda: ReportService.generate_consumption_by_type_report(self.data_manager))
+                        with dpg.menu(label="Chart: $/g over time by type"):
+                            dpg.add_menu_item(label="Draw Avrg, No max lookback", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager, do_draw_avrg=True, max_lookback=None))
+                            dpg.add_menu_item(label="Draw Avrg, 1yr max lookback", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager, do_draw_avrg=True, max_lookback=365))
+                            dpg.add_menu_item(label="Draw Avrg, 6mo max lookback", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager, do_draw_avrg=True, max_lookback=183))
+                            dpg.add_menu_item(label="Draw Avrg, 3mo max lookback", callback=lambda: ReportService.generate_cost_per_gram_over_time_reviews_report(self.data_manager, do_draw_avrg=True, max_lookback=91))
+                        with dpg.menu(label="Chart: gram over time by type"):
+                            dpg.add_menu_item(label="Draw Avrg, No max lookback", callback=lambda: ReportService.generate_consumption_by_type_report(self.data_manager, do_draw_avrg=True, max_lookback=None))
+                            dpg.add_menu_item(label="Draw Avrg, 1yr max lookback", callback=lambda: ReportService.generate_consumption_by_type_report(self.data_manager, do_draw_avrg=True, max_lookback=365))
+                            dpg.add_menu_item(label="Draw Avrg, 6mo max lookback", callback=lambda: ReportService.generate_consumption_by_type_report(self.data_manager, do_draw_avrg=True, max_lookback=183))
+                            dpg.add_menu_item(label="Draw Avrg, 3mo max lookback", callback=lambda: ReportService.generate_consumption_by_type_report(self.data_manager, do_draw_avrg=True, max_lookback=91))
                         dpg.add_menu_item(label="Chart: Abs. grams cu. by type", callback=lambda: ReportService.generate_cu_stashed_by_type_report(self.data_manager))
                 with dpg.menu(label="Connectors"):
                     # Teadb folder, for tea and review export and import
