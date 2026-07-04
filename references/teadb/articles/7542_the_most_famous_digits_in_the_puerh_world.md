@@ -8,7 +8,7 @@ https://teadb.org/7542-the-most-famous-digits-in-the-puerh-world/
 
 **Author:** James
 
-![7542 502](teadb_7542_1.jpg)
+![7542 502](../images/teadb_7542_1.jpg)
 
 Maaaa. The pu nerds are citing four digits again!
 
@@ -96,7 +96,7 @@ Example:
 
 * **2006 7542 601** = First batch produced in 2006
 
-![2003 Purple Dayi](teadb_7542_2.jpg)
+![2003 Purple Dayi](../images/teadb_7542_2.jpg)
 
 ---
 
@@ -316,7 +316,7 @@ Very satisfying tea.
 
 ## Takeaways & Changing Over Time
 
-![Dayi Go Bag](teadb_7542_3.jpg)
+![Dayi Go Bag](../images/teadb_7542_3.jpg)
 
 The 7542 blend has changed significantly throughout the years.
 

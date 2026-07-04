@@ -14,7 +14,7 @@ January 28, 2017
 The pu'erh compendium and vendor guide were written nearly three years ago and the content on this site has become increasingly pu'erh focused. 
 This is fine for those of us already living in a house made out of bamboo tongs, but there's a large chunk of people that are very fresh and new to the hobby.
 
-![Dayi 0622 Mini-Cake](./dayi-0622-768x363.jpg)
+![Dayi 0622 Mini-Cake](../images/dayi-0622-768x363.jpg)
 2006 Dayi 0622 Mini-Cake. Semi-aged.
 
 ## What Should I Buy? The Big Types of Pu'erh
@@ -43,7 +43,7 @@ What color does this brew? Usually a light yellow.
     Young pu'erh really wasn't consumed young until the pu'erh boom in the 1990s. Production, processing, the environment have all changed a lot over the years. 
     In today's modern Jianghu world many people legitimately enjoy the taste of young pu'erh.
 
-![Gua Feng Zhai 2013](./gua-feng-zhai-1024x687.jpg)
+![Gua Feng Zhai 2013](../images/gua-feng-zhai-1024x687.jpg)
 
 Young Pu'erh.
 
@@ -61,7 +61,7 @@ How the hell do I brew this? Same as above, except don't use cooler water.
 What color does this brew? It should get darker as it matures. Look for an orangeish or red color depending on the age and storage of the specific tea.
 
 Is this more expensive than young pu'erh? Not necessarily.
-![Aged Raw Pu'erh](./aged-raw-768x345.jpg)
+![Aged Raw Pu'erh](../images/aged-raw-768x345.jpg)
 
 Aged Raw Pu'erh.
 
@@ -80,7 +80,7 @@ What color does this brew? Dark. Red or black.
 
 Does ripe pu'erh age? Yes, but the ripening process is intended to create a more drinkable product quickly. Changes will in general be less dynamic than for raw pu'erh.
 
-![Ripe Pu'erh](./ripe-pu-768x406.jpg)
+![Ripe Pu'erh](../images/ripe-pu-768x406.jpg)
 
 Ripe Pu'erh.
 ## Where Should I Buy From?

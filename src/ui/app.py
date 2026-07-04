@@ -874,7 +874,7 @@ class TeaApp:
                 
                                     _make_ref_button(self,
                                         "[Teadb] Puerh for Beginners",
-                                        "references\\teadb\\puerh_for_beginners\\puerh_for_beginners.md")
+                                        "references\\teadb\\articles\\puerh_for_beginners.md")
                 
                             
                                 with dpg.tab(label="Buying"):
@@ -896,10 +896,13 @@ class TeaApp:
                         with dpg.tab(label="Drinking & Brewing"):
                             with dpg.tab_bar():
                                 with dpg.tab(label="General"):
-                                
                                     _make_ref_button(self,
                                         "[External] Experience Huigan",
                                         "references\\external\\orientalleaf\\experience_huigan\\experience_huigan.md")
+                                    
+                                    _make_ref_button(self,
+                                        "[Teadb] Heat Retention Revisited",
+                                        "references\\teadb\\articles\\heat_retention.md")
                             
                                 with dpg.tab(label="Puerh"):
                                 
@@ -950,11 +953,19 @@ class TeaApp:
                                     dpg.add_text("teadb.org . Run by James and Denny, experienced and grounded tea drinkers with a focus on puerh.")
                                     _make_ref_button(self,
                                         "[Teadb] Puerh for Beginners",
-                                        "references\\teadb\\puerh_for_beginners\\puerh_for_beginners.md")
+                                        "references\\teadb\\articles\\puerh_for_beginners.md")
 
                                     _make_ref_button(self,
                                         "[Teadb] 7542!!!! The Most Famous Digits in the Pu'erh World!",
-                                        "references\\teadb\\7542_the_most_famous_digits_in_the_puerh_world\\7542_the_most_famous_digits_in_the_puerh_world.md")
+                                        "references\\teadb\\articles\\7542_the_most_famous_digits_in_the_puerh_world.md")
+                                    
+                                    _make_ref_button(self,
+                                        "[Teadb] Heat Retention Revisited",
+                                        "references\\teadb\\articles\\heat_retention.md")
+                                    
+                                    _make_ref_button(self,
+                                        "[Teadb] Four Reasons Why You Should Get Your Baseline in Mid 00s Factory Puerh",
+                                        "references\\teadb\\articles\\four_reasons_mid_00s_factory_puerh.md")
                             
                                 with dpg.tab(label="Marshaln"):
                                     dpg.add_text("marshaln.com . Run by Marshaln, a very experienced tea drinker.")
