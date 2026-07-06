@@ -27,11 +27,19 @@ review_defaults:
   tailing_statement: "70 tds water, RO+brita filtered tap. Boiling unless stated"
   footer_statement: "Made possible by Seš'qa's latest technology! | Work in progress! (End of Report)"
 
+# --- Graph Settings ---------------------------------------------------------
+# These settings control the default behavior of graphs in the application.
+graph_settings:
+  # Number of days to skip from the start of the first day (0 = no cutoff)
+  # Applies to Time Series graphs only.
+  # Useful for ignoring initial data that may not be representative of your current tea drinking habits. Applied before lookback period
+  from_start_cutoff_days: 0
+
 # --- UI Settings ------------------------------------------------------------
 ui:
   theme: "Dark"                   # Currently only "Dark" is supported
-  language: "en"                  # Locale code
-  scale: 2.0                      # UI scaling factor (1.0 = 100%)
+  language: "en"                  # Locale code, currently only "en" is supported
+  scale: 2.0                      # UI scaling factor (1.0 = 100%, 2.0 = 200%, etc.) Use 2.0 for 4K monitors.
   window_width: 3600              # Default window width in pixels (1800 * 2)
   window_height: 2000             # Default window height in pixels (1000 * 2)
 

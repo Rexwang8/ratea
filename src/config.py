@@ -89,6 +89,10 @@ class Config:
     DEFAULT_FOOTER_STATEMENT: str = _raw["review_defaults"]["footer_statement"]
     GENERATE_REPORT_ON_REVIEW: bool = _raw["review_defaults"]["generate_report_on_review"]
 
+    # -- Graph Settings -------------------------------------------------------
+    # These settings control the default behavior of graphs in the application.
+    GRAPH_FROM_START_CUTOFF_DAYS: int = _raw["graph_settings"]["from_start_cutoff_days"]
+
     # -- UI Settings ---------------------------------------------------------
     THEME: str = _raw["ui"]["theme"]
     LANGUAGE: str = _raw["ui"]["language"]

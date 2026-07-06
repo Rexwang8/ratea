@@ -1285,6 +1285,11 @@ class ReportService:
         df = pd.DataFrame(rows)
         if df.empty: raise ValueError("No review data.")
         df = df.sort_values("date")
+        # Apply from-start cutoff
+        if Config.GRAPH_FROM_START_CUTOFF_DAYS > 0:
+            cutoff = df["date"].min() + pd.Timedelta(days=Config.GRAPH_FROM_START_CUTOFF_DAYS)
+            df = df[df["date"] >= cutoff]
+        if df.empty: raise ValueError("No review data after from-start cutoff.")
 
         # Optional lookback
         if max_lookback is not None and max_lookback > 0:
