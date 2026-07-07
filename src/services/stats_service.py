@@ -1,4 +1,5 @@
 import math
+import re
 from typing import Counter
 import matplotlib
 matplotlib.use("Agg") # Force non-gpu backend to prevent warnings when generating chart
@@ -1076,15 +1077,31 @@ class ReportService:
                 key=lambda r: pd.to_datetime(r.date),
                 default=None
             )
-            Logger.info(f"Most recent review date: {most_recent_review.date}" if most_recent_review else "No reviews found to highlight.")
+            Logger.info(f"[Chart] Most recent review date: {most_recent_review.date}" if most_recent_review else "No reviews found to highlight.")
         
         # we want to create a blank image, then draw tier sections (S, A, B, C, D, F) and place teas in the appropriate section based on their rating and price percentile
         # Each tea should have the name, price per gram and rating displayed. Do not use percentile
-        # Strip acronyms from vendor name for cleaner display
-        stripped_acronyms = []
-        if "Jesse" in this_vendor:
-            stripped_acronyms.append("JTH")
 
+        # Strip acronyms from vendor name for cleaner display
+        # Add yours here for now, will be moved to settings later, if needed. This is to avoid long vendor names taking up too much space in the tier list.
+        acronym_map = {
+            "Jesse": "JTH",
+            "JesseTea": "JTH",
+            "TheSweetestDew": "TSD",
+            "White2Tea": "W2T",
+            "ZhengShanTang": "ZST",
+            "YunnanSourcing": "YS",
+            "WuyiOrigin": "WO",
+            "PastLeaf": "PL",
+            "FloatingLeaves": "FL",
+            "FarmerLeaf": "FL",
+        }
+        stripped_acronyms = []
+        for trigger, acronym in acronym_map.items():
+            if trigger.lower() in this_vendor.lower().replace(" ", ""):
+                stripped_acronyms.append(acronym)
+        Logger.info(f"[CHART] Vendor {this_vendor} stripped acronyms: {stripped_acronyms}")
+        
         # Fast tally all tiered teas to know how many we have in each tier for spacing purposes
         num_per_tier_spacing = Counter(t.tier_rating_flat for t in teas_only_this_vendor)
         max_tier_size = max(num_per_tier_spacing.values(), default=0)
@@ -1159,24 +1176,45 @@ class ReportService:
             # Draw tea information
             teaname = tea.name_no_year
             teayear = tea.year
+
+            pre_cleaned_name = teaname
+
+            # Normalize and clean the name for display purposes, removing vendor name and common acronyms to avoid redundancy
+
             teaname = teaname.replace(this_vendor, "").strip()  # Remove vendor name from tea name for cleaner display
             for acronym in stripped_acronyms:
                 teaname = teaname.replace(acronym, "").strip()  # Remove any other common acronyms
+            # Strip, 'sample', 'sampler', 'taster', 'tasting', 'mini', 'miniature', 'small', 'small batch', 'small-batch' from tea name for cleaner display
+            for word in ["sampler", "taster", "tasting", "mini", "miniature", "small", "small batch", "small-batch", "sample"]:
+                if word in teaname.lower():
+                    teaname = teaname.lower().replace(word, "").strip()
+
             # Strip out name of type of tea if it's in the name since we already have a separate line for tea type and it can be redundant
             if tea.tea_type and tea.tea_type in teaname:
                 teaname = teaname.replace(tea.tea_type, "").strip()
+
+            # Use regex to strip out parenthesis if applicable, keeping the content inside for clarity if needed, but removing the parenthesis themselves
+            teaname = re.sub(r'\((.*?)\)', r'\1', teaname).strip()
 
             # Wrap if too long
             if len(teaname) > 12:
                 teaname, _ = wrap_text_no_break_words(teaname, width=14)
             if len(teaname) > 24:
                 teaname = teaname[:24] + "..."
+
+            # Title case the tea name for cleaner display
+            teaname = teaname.title()
+
+            # if the tea name is empty or only whitespace after cleaning, use the pre-cleaned name instead
+            if not teaname.strip():
+                teaname = pre_cleaned_name.title()
+            
             draw.text((x+10, y+10), f"{teaname}", fill="black", font=font)
             
             draw.text((x+10, y+10 + box_dim - 80), f"{teayear}", fill="black", font=font2)
             draw.text((x+10, y+10 + box_dim - 60), f"{tier_flat}   ${tea.catalog_price_per_gram:.2f}/g", fill="black", font=font2)
             draw.text((x+10, y+10 + box_dim - 40), f"{tea.tea_type}", fill="black", font=font)
-            Logger.info(f"Placing tea '{tea.name}' in tier '{tier_flat}' at position x={x}, y={y} with rating {tea.average_rating} and price ${tea.catalog_price_per_gram:.2f}/g, number of reviews: {len(tea.reviews)}")
+            Logger.info(f"[Chart] Placing tea '{tea.name}' in tier '{tier_flat}' at position x={x}, y={y} with rating {tea.average_rating} and price ${tea.catalog_price_per_gram:.2f}/g, number of reviews: {len(tea.reviews)}")
             
             # draw a small grey bubble in the box on a corner for number of reviews
             draw.ellipse([x + box_dim - 40, y + 40, x + box_dim - 20, y + 60], outline="black", fill="lightblue")
