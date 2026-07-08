@@ -81,11 +81,12 @@ class TeaModal:
                 default_quantity = self.tea.quantity if is_editing else (self.pre_populate.quantity if self.pre_populate else 0)
                 fields['quantity'] = dp.InputFloat(label="Quantity (g)", width=150 * Config.UI_SCALE, default_value=default_quantity, min_value=0.0, step=0.1, format="%.2f")
                 
-                # If free sample, cost is 0.01 to avoid issues with 0 cost teas being filtered out of stats and lists. Show in UI as 0.00 though.
-                # Add checkbox
-                fields['is_free_sample'] = dp.Checkbox(label="Free Sample", default_value=(self.tea.cost == 0.01 if is_editing else False))
+                # Add text blurb describing the cost input, and that it should be in USD. Add a button to set the cost to 0.01 for free samples.
+                dpg.add_text("Cost (USD): Enter the actual cost you paid for this tea. For free samples, click the 'Free Sample' button to set the cost to $0.01.")
                 default_cost = self.tea.cost if is_editing else (self.pre_populate.cost if self.pre_populate else 5.00)
-                fields['cost'] = dp.InputFloat(label="Actual Cost (USD)", width=150 * Config.UI_SCALE, default_value=default_cost, min_value=0.0, step=0.01, format="%.2f")
+                with dpg.group(horizontal=True):
+                    fields['cost'] = dp.InputFloat(label="Actual Cost (USD)", width=150 * Config.UI_SCALE, default_value=default_cost, min_value=0.0, step=0.01, format="%.2f")
+                    dpg.add_button(label="Free Sample", callback=lambda: fields['cost'].set_value(0.01), width=100 * Config.UI_SCALE, height=25 * Config.UI_SCALE)
 
                 default_catalog_price = self.tea.catalog_price if is_editing else (self.pre_populate.catalog_price if self.pre_populate else 5.00)
                 fields['catalog_price'] = dp.InputFloat(label="Catalog Cost (USD)", width=150 * Config.UI_SCALE, default_value=default_catalog_price, min_value=0.0, step=0.01, format="%.2f")
@@ -125,8 +126,7 @@ class TeaModal:
         self.close()
 
     def _add_new_tea(self, f):
-        is_free_sample = dpg.get_value(f['is_free_sample'])
-        cost = 0.01 if is_free_sample else round(dpg.get_value(f['cost']), 2)
+        cost = round(dpg.get_value(f['cost']), 2)
         Logger.info(f"Adding new tea with name: {dpg.get_value(f['name'])}, vendor: {dpg.get_value(f['vendor'])}, type: {dpg.get_value(f['type'])}, year: {dpg.get_value(f['year'])}, quantity: {dpg.get_value(f['quantity'])}, cost: {cost}, catalog_price: {dpg.get_value(f['catalog_price'])}, purchase_date: {dpg.get_value(f['purchase_date'])}, note: {dpg.get_value(f['note'])}")
         tea = Tea(
             name=dpg.get_value(f['name']),
@@ -146,9 +146,7 @@ class TeaModal:
 
     def _edit_tea(self, f):
         Logger.info(f"Editing tea {self.tea.id}")
-        # if is_free_sample is checked, set cost to 0.01 to avoid issues with 0 cost teas being filtered out of stats and lists. Show in UI as 0.00 though.
-        is_free_sample = dpg.get_value(f['is_free_sample'])
-        cost = 0.01 if is_free_sample else round(dpg.get_value(f['cost']), 2)
+        cost = round(dpg.get_value(f['cost']), 2)
         Logger.info(f"Updating tea with name: {dpg.get_value(f['name'])}, vendor: {dpg.get_value(f['vendor'])}, type: {dpg.get_value(f['type'])}, year: {dpg.get_value(f['year'])}, quantity: {dpg.get_value(f['quantity'])}, cost: {cost}, catalog_price: {dpg.get_value(f['catalog_price'])}, purchase_date: {dpg.get_value(f['purchase_date'])}, note: {dpg.get_value(f['note'])}")
 
         self.tea.name = dpg.get_value(f['name'])
