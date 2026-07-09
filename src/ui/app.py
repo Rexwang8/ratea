@@ -335,13 +335,13 @@ class TeaApp:
                         remaining_amt, purchase_amt = map(float, val.replace("g","").split("/"))
                         perc = remaining_amt / purchase_amt if purchase_amt > 0 else 0
                         if perc >= 0.99:
-                            color = Config.Colors.CELL_DARK_GREEN
+                            color = Config.Colors.CELL_AMT_FULL
                         elif perc > 0.6:
-                            color = Config.Colors.CELL_DARK_GREEN_LIGHTER
+                            color = Config.Colors.CELL_AMT_PARTIAL
                         elif perc > 0:
-                            color = Config.Colors.CELL_LIGHT_BLUE
+                            color = Config.Colors.CELL_AMT_LOW
                         elif perc == 0:
-                            color = Config.Colors.CELL_LIGHT_YELLOW
+                            color = Config.Colors.CELL_AMT_EMPTY
                             
 
                     val = row_data[col]

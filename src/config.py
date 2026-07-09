@@ -129,6 +129,12 @@ class Config:
         CELL_DARK_GREEN: tuple[int, ...] = tuple(_raw["colors"]["cell_dark_green"])
         CELL_DARK_GREEN_LIGHTER: tuple[int, ...] = tuple(_raw["colors"]["cell_dark_green_lighter"])
 
+        # Specific usages
+        CELL_AMT_FULL = CELL_DARK_GREEN
+        CELL_AMT_PARTIAL = CELL_DARK_GREEN_LIGHTER
+        CELL_AMT_LOW = CELL_LIGHT_BLUE
+        CELL_AMT_EMPTY = CELL_LIGHT_YELLOW
+
     # -- Logging -------------------------------------------------------------
     DEBUG_LEVEL: str = _raw["logging"]["level"]
 
