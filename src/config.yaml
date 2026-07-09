@@ -68,7 +68,8 @@ colors:
   cell_light_blue: [100, 150, 255, 50]
   cell_light_yellow: [255, 255, 100, 50]
   cell_light_green: [100, 255, 100, 40]
-  cell_dark_green: [0, 150, 0, 100]
+  cell_dark_green: [0, 140, 0, 100]
+  cell_dark_green_lighter: [10, 230, 10, 80]  # A lighter shade of dark green for better visibility in some UI elements
 
 # --- Logging ---------------------------------------------------------------
 logging:

@@ -334,9 +334,10 @@ class TeaApp:
                         # greater than 70% green, not out, light blue, out, light yellow
                         remaining_amt, purchase_amt = map(float, val.replace("g","").split("/"))
                         perc = remaining_amt / purchase_amt if purchase_amt > 0 else 0
-
-                        if perc > 0.6:
+                        if perc >= 0.99:
                             color = Config.Colors.CELL_DARK_GREEN
+                        elif perc > 0.6:
+                            color = Config.Colors.CELL_DARK_GREEN_LIGHTER
                         elif perc > 0:
                             color = Config.Colors.CELL_LIGHT_BLUE
                         elif perc == 0:
