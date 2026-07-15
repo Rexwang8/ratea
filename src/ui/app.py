@@ -709,6 +709,8 @@ class TeaApp:
                         # Zero negative tea amounts and cost
                         dpg.add_button(label="Zero Negative Amounts", callback=self.data_manager._zero_negative_amounts)
                         dpg.add_button(label="Zero Negative Costs", callback=self.data_manager._zero_negative_costs)
+                        dpg.add_button(label="Reorder IDX", callback=self.data_manager._operation_reorder_teas_by_purchase_date)
+                        dpg.add_button(label="Check duplicate IDX", callback=self.data_manager._operation_validate_and_fix_duplicate_ids)
                         
                         # Round to nearest 2 decimal places for amounts and costs
                         dpg.add_button(label="Round Amounts/Costs", callback=self.data_manager._round_amounts_and_costs)

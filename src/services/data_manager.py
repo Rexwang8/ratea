@@ -1,5 +1,6 @@
 from math import erf
 import os
+import uuid
 import yaml
 import pandas as pd
 from config import Config
@@ -73,6 +74,33 @@ class DataManager:
         """Reorders the teas in the stash by their purchase date."""
         self.stash._operation_reorder_teas_by_purchase_date(newest_first=newest_first)
         self.refresh_all(save_after_refresh=True)  # Refresh data and save after reordering
+
+    def _operation_validate_and_fix_duplicate_ids(self):
+        """Checks for duplicate tea IDs and fixes them if found."""
+        seen_ids = set()
+        duplicates_found = False
+
+        for tea in self.teas:
+            if tea.id in seen_ids:
+                Logger.warning(f"Duplicate ID found: {tea.id}. Generating a new unique ID.")
+                tea.id = str(uuid.uuid4())  # Assign a new unique ID
+                duplicates_found = True
+            seen_ids.add(tea.id)
+
+        seen_review_ids = set()
+        for tea in self.teas:
+            for review in tea.reviews:
+                if review.id in seen_review_ids:
+                    Logger.warning(f"Duplicate Review ID found: {review.id} in tea {tea.name}. Generating a new unique ID.")
+                    review.id = str(uuid.uuid4())  # Assign a new unique ID
+                    duplicates_found = True
+                seen_review_ids.add(review.id)
+
+        if duplicates_found:
+            Logger.info("Duplicate IDs were found and fixed. Saving changes to YAML.")
+            self.export_to_yaml(self.data_save_path)  # Save the changes after fixing duplicates
+        else:
+            Logger.info("No duplicate IDs found in the stash.")
 
         
 
