@@ -13,6 +13,7 @@ class Logger:
         """Print messages to console with rich formatting."""
 
         msg_level = {
+            "debug": 0,
             "info": 1,
             "warning": 2,
             "error": 3,
@@ -20,7 +21,9 @@ class Logger:
         }
 
         if msg_level.get(logType, 1) >= Logger.debug_level:
-            if logType == "info":
+            if logType == "debug":
+                Logger.console.print(f"[bold blue][DEBUG][/bold blue] {message}")
+            elif logType == "info":
                 Logger.console.print(f"[bold green][INFO][/bold green] {message}")
             elif logType == "warning":
                 Logger.console.print(f"[bold yellow][WARNING][/bold yellow] {message}")
@@ -37,18 +40,29 @@ class Logger:
         if len(Logger.history) > 1000:
             Logger.history = Logger.history[-1000:]
 
+    # Public logging methods
+
+    # Debug is for detailed information, typically of interest only when diagnosing problems.
+    @staticmethod
+    def debug(message: str):
+        Logger._rich_print(message, "debug")
+
+    # Info is the default logging level, used for general information about the application's operation.
     @staticmethod
     def info(message: str):
         Logger._rich_print(message, "info")
 
+    # Warning is for potentially harmful situations that are not necessarily errors but may require attention.
     @staticmethod
     def warning(message: str):
         Logger._rich_print(message, "warning")
 
+    # Error is for error events that might still allow the application to continue running.
     @staticmethod
     def error(message: str):
         Logger._rich_print(message, "error")
-
+        
+    # Critical is for very severe error events that will presumably lead the application to abort.
     @staticmethod
     def critical(message: str):
         Logger._rich_print(message, "critical")

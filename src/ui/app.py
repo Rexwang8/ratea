@@ -303,12 +303,12 @@ class TeaApp:
         for child in dpg.get_item_children(parent, slot=1):
             dpg.delete_item(child)
 
-        Logger.info(f"Rendering table rows for main table...")
+        Logger.debug(f"Rendering table rows for main table...")
 
         # 2. Get the current DataFrame from manager
         
         df_to_show = self.data_manager.filtered_df
-        Logger.info(f"DataFrame retrieved: {df_to_show.shape[0]} rows")
+        Logger.debug(f"DataFrame retrieved: {df_to_show.shape[0]} rows")
 
         self.tea_lookup = {
             row["UUID"]: (row["IDX"], row["Name"])
