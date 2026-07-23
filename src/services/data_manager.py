@@ -248,14 +248,63 @@ class DataManager:
         return df
 
     def _filter_data(self, query: str = None, query_type: str = "Name"):
-        """Filters the dataframe based on a string query."""
+        """Filters the dataframe based on a query string or numeric comparison."""
         Logger.info(f"Filtering data with query: '{query}' on type: '{query_type}'")
         if not query:
             self.filtered_df = self.df.copy()
+            return
+
+        # Map radio button labels to actual DataFrame column names
+        column_map = {
+            "Avg Score": "Avg Rating",
+            "Cost": "Actual Cost (USD)",
+            "Amount": "Amount",
+            "Reviews": "Reviews",
+            "Name": "Name",
+            "Vendor": "Vendor",
+            "Type": "Type",
+        }
+        actual_column = column_map.get(query_type, query_type)
+
+        # Determine if this is a numeric comparison column
+        numeric_columns = {"Amount", "Avg Score", "Reviews", "Cost"}
+
+        if query_type in numeric_columns:
+            try:
+                threshold = float(query.strip())
+            except (ValueError, TypeError):
+                # Invalid numeric input — reset to show all
+                Logger.info(f"Invalid numeric input for {query_type}: '{query}'. Resetting filter.")
+                self.filtered_df = self.df.copy()
+                return
+
+            if query_type == "Amount":
+                # Amount column format: "45.0g / 100.0g" — extract remaining amount (first number)
+                numeric_values = pd.to_numeric(
+                    self.df["Amount"].str.split('/').str[0].str.replace('g', '', case=False).str.strip(),
+                    errors='coerce'
+                )
+                mask = numeric_values <= threshold
+            elif query_type == "Avg Score":
+                # Avg Rating column is numeric (float) or NaN
+                numeric_values = pd.to_numeric(self.df["Avg Rating"], errors='coerce').fillna(0)
+                mask = numeric_values <= threshold
+            elif query_type == "Reviews":
+                # Reviews column is integer count — "filter fewer than" (strict less than)
+                mask = self.df["Reviews"] < threshold
+            elif query_type == "Cost":
+                # Actual Cost (USD) column format: "$25.00" — strip $ and convert
+                numeric_values = pd.to_numeric(
+                    self.df["Actual Cost (USD)"].str.replace('$', '', regex=False).str.strip(),
+                    errors='coerce'
+                )
+                mask = numeric_values <= threshold
+
+            self.filtered_df = self.df[mask].copy()
         else:
-            # Searches across Name, Vendor, and Type columns (case-insensitive)
+            # String contains search for text columns (Name, Vendor, Type)
             mask = (
-                self.df[query_type].str.contains(query, case=False, na=False)
+                self.df[actual_column].str.contains(query, case=False, na=False)
             )
             self.filtered_df = self.df[mask].copy()
 

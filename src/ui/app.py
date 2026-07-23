@@ -35,6 +35,7 @@ class TeaApp:
     review_table_parent = None
     search_column = "Name"
     search_column_reviews = "Tea Name"
+    search_input_tag = None
     selected_text_display = None
     selected_text_display_reviews = None
     current_query = ""
@@ -589,6 +590,17 @@ class TeaApp:
         """Triggered when the Radio Button selection changes."""
         # app_data is the string label of the selected radio button (e.g., "Vendor")
         self.search_column = app_data
+
+        # Update the search hint based on the selected column
+        numeric_columns = {"Amount", "Avg Score", "Reviews", "Cost"}
+        if app_data in numeric_columns:
+            hint = "Type a number..."
+        else:
+            hint = "Type name..."
+
+        if self.search_input_tag is not None and dpg.does_item_exist(self.search_input_tag):
+            dpg.configure_item(self.search_input_tag, hint=hint)
+
         # Re-apply the filter with the same text but the new column target
         self._on_search_change(None, self.current_query)
 
@@ -725,7 +737,7 @@ class TeaApp:
                         dpg.add_checkbox(label="Descending Order")
 
                     # Search bar
-                    dpg.add_input_text(
+                    self.search_input_tag = dpg.add_input_text(
                         label="Search Stash", 
                         callback=self._on_search_change,
                         hint="Type name",
