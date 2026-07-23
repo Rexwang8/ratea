@@ -9,6 +9,7 @@ from services.logger import Logger
 from models.stash import TeaStash
 from services.score_converter import ScoreConverter
 from services.stats_service import StatsService
+from services.data_query_service import DataQueryService
 
 
 class DataManager:
@@ -249,122 +250,15 @@ class DataManager:
 
     def _filter_data(self, query: str = None, query_type: str = "Name"):
         """Filters the dataframe based on a query string or numeric comparison."""
-        Logger.info(f"Filtering data with query: '{query}' on type: '{query_type}'")
-        if not query:
-            self.filtered_df = self.df.copy()
-            return
-
-        # Map radio button labels to actual DataFrame column names
-        column_map = {
-            "Avg Score": "Avg Rating",
-            "Cost": "Actual Cost (USD)",
-            "Amount": "Amount",
-            "Reviews": "Reviews",
-            "Name": "Name",
-            "Vendor": "Vendor",
-            "Type": "Type",
-        }
-        actual_column = column_map.get(query_type, query_type)
-
-        # Determine if this is a numeric comparison column
-        numeric_columns = {"Amount", "Avg Score", "Reviews", "Cost"}
-
-        if query_type in numeric_columns:
-            try:
-                threshold = float(query.strip())
-            except (ValueError, TypeError):
-                # Invalid numeric input — reset to show all
-                Logger.info(f"Invalid numeric input for {query_type}: '{query}'. Resetting filter.")
-                self.filtered_df = self.df.copy()
-                return
-
-            if query_type == "Amount":
-                # Amount column format: "45.0g / 100.0g" — extract remaining amount (first number)
-                numeric_values = pd.to_numeric(
-                    self.df["Amount"].str.split('/').str[0].str.replace('g', '', case=False).str.strip(),
-                    errors='coerce'
-                )
-                mask = numeric_values <= threshold
-            elif query_type == "Avg Score":
-                # Avg Rating column is numeric (float) or NaN
-                numeric_values = pd.to_numeric(self.df["Avg Rating"], errors='coerce').fillna(0)
-                mask = numeric_values <= threshold
-            elif query_type == "Reviews":
-                # Reviews column is integer count — "filter fewer than" (strict less than)
-                mask = self.df["Reviews"] < threshold
-            elif query_type == "Cost":
-                # Actual Cost (USD) column format: "$25.00" — strip $ and convert
-                numeric_values = pd.to_numeric(
-                    self.df["Actual Cost (USD)"].str.replace('$', '', regex=False).str.strip(),
-                    errors='coerce'
-                )
-                mask = numeric_values <= threshold
-
-            self.filtered_df = self.df[mask].copy()
-        else:
-            # String contains search for text columns (Name, Vendor, Type)
-            mask = (
-                self.df[actual_column].str.contains(query, case=False, na=False)
-            )
-            self.filtered_df = self.df[mask].copy()
+        self.filtered_df = DataQueryService.filter_data(self.df, query, query_type)
 
     def _filter_reviews_data(self, query: str = None, query_type: str = "Tea Name"):
         """Filters the reviews dataframe based on a string query."""
-        Logger.info(f"Filtering reviews data with query: '{query}' on type: '{query_type}'")
-        if not query:
-            self.filtered_reviews_df = self.reviews_df.copy()
-        else:
-            # Searches across specified column (case-insensitive)
-            mask = (
-                self.reviews_df[query_type].astype(str).str.contains(query, case=False, na=False)
-            )
-            self.filtered_reviews_df = self.reviews_df[mask].copy()
+        self.filtered_reviews_df = DataQueryService.filter_reviews_data(self.reviews_df, query, query_type)
 
     def _sort_data(self, column_name, ascending):
         """Sorts the currently filtered view with data cleaning."""
-        if self.filtered_df.empty:
-            return
-
-        def _clean_key(col_series):
-            """Cleans the column data for sorting."""
-            if column_name == "Amount":
-            # 1. Split by '/' and take the first part
-            # 2. Remove 'g' and any whitespace
-            # 3. Convert to numeric for proper math sorting
-                return pd.to_numeric(
-                    col_series.str.split('/').str[0].str.replace('g', '', case=False).str.strip(),
-                    errors='coerce'
-                )
-            elif "Rating" in column_name:
-                # presence of nan string means 0
-                if col_series.isna().any():
-                    col_series = col_series.fillna("0")
-            
-            # 1. Convert to string and lowercase
-            s_clean = col_series.astype(str).str.lower()
-            # 2. Remove non-alphanumeric characters (equivalent to your regex)
-            s_clean = s_clean.str.replace(r'[^a-z0-9.]', '', regex=True)
-            # 3. Strip specific characters ($ prefix or g suffix)
-            s_clean = s_clean.str.strip().str.replace('$', '', regex=False).str.replace('g', '', regex=False)
-            try:
-                # 4. Try converting to numeric where possible
-                # errors='coerce' turns non-numeric into NaN, keeping the sort logical
-                numeric_series = pd.to_numeric(s_clean, errors='raise')
-                # If the whole column is effectively numeric, return the numeric version
-                # Otherwise, return the cleaned strings
-                if numeric_series.notna().any():
-                    return numeric_series
-            except Exception as e:
-                return s_clean  # If conversion fails, return the cleaned string series for sorting
-            return s_clean
-
-        # Perform the sort
-        self.filtered_df.sort_values(
-            by=column_name,
-            ascending=ascending,
-            inplace=True,
-            key=_clean_key
-        )
+        self.filtered_df = DataQueryService.sort_data(self.filtered_df, column_name, ascending)
 
     def _zero_negative_amounts(self):
         """Sets any negative amounts in the stash to zero."""
@@ -407,26 +301,7 @@ class DataManager:
 
     def _sort_reviews_data(self, column_name, ascending):
         """Sorts the reviews dataframe."""
-        if self.filtered_reviews_df is None or self.filtered_reviews_df.empty:
-            return
-        
-        def _clean_key(col_series):
-            """Cleans the column data for sorting."""
-            s_clean = col_series.astype(str).str.lower()
-            s_clean = s_clean.str.replace(r'[^a-z0-9.]', '', regex=True)
-            s_clean = s_clean.str.strip().str.replace('$', '', regex=False).str.replace('g', '', regex=False)
-            numeric_series = pd.to_numeric(s_clean, errors='coerce')
-            if numeric_series.notna().any():
-                return numeric_series
-            return s_clean
-        
-        # Perform the sort
-        self.filtered_reviews_df.sort_values(
-            by=column_name,
-            ascending=ascending,
-            inplace=True,
-            key=_clean_key
-        )
+        self.filtered_reviews_df = DataQueryService.sort_reviews_data(self.filtered_reviews_df, column_name, ascending)
 
 
 
