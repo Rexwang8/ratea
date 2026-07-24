@@ -2,6 +2,9 @@
 
 https://teadb.org/heat-retention-revisited/
 
+Please open the text file seperately to open the links
+
+
 *June 11, 2026*
 
 **Author:** James

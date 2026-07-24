@@ -1,5 +1,8 @@
 https://teadb.org/puerh-for-beginners/
 
+Please open the text file seperately to open the links
+
+
 # Pu'erh for Beginners
 
 ---
