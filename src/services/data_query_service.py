@@ -42,7 +42,7 @@ class DataQueryService:
 
         Returns a new DataFrame (the caller owns the copy).
         """
-        Logger.info(f"Filtering data with query: '{query}' on type: '{query_type}'")
+        Logger.debug(f"Filtering data with query: '{query}' on type: '{query_type}'")
         if not query:
             return df.copy()
 
@@ -52,7 +52,7 @@ class DataQueryService:
             try:
                 threshold = float(query.strip())
             except (ValueError, TypeError):
-                Logger.info(f"Invalid numeric input for {query_type}: '{query}'. Resetting filter.")
+                Logger.warning(f"Invalid numeric input for {query_type}: '{query}'. Resetting filter.")
                 return df.copy()
 
             mask = DataQueryService._build_numeric_mask(df, query_type, threshold)

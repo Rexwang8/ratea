@@ -79,7 +79,7 @@ class FontManager:
                 parent=tag,
             )
             self._loaded_fonts.add(tag)
-            Logger.info(f"Dynamically generated font asset: {tag}")
+            Logger.debug(f"Dynamically generated font asset: {tag}")
         except Exception as e:
             Logger.error(f"Failed to load dynamic font {tag}: {e}")
             return f"{self.cfg.DEFAULT_FONT}Regular"

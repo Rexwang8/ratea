@@ -186,19 +186,19 @@ class DataManager:
 
     # Stash df is a simplified view for UI display
     def _get_stash_dataframe(self):
-        Logger.info("Building stash dataframe...")
+        Logger.debug("Building stash dataframe...")
         if self.df.empty:
-            Logger.info("Creating new stash dataframe...")
+            Logger.debug("Creating new stash dataframe...")
             self.df = self._build_stash_dataframe()
-            Logger.info("Stash dataframe created with length: " + str(len(self.df)))
+            Logger.debug("Stash dataframe created with length: " + str(len(self.df)))
         return self.df
     
     def _get_stash_reviews_dataframe(self):
-        Logger.info("Building stash reviews dataframe...")
+        Logger.debug("Building stash reviews dataframe...")
         if self.reviews_df.empty:
-            Logger.info("Creating new stash reviews dataframe...")
+            Logger.debug("Creating new stash reviews dataframe...")
             self.reviews_df = self._build_stash_reviews_dataframe()
-            Logger.info("Stash reviews dataframe created with length: " + str(len(self.reviews_df)))
+            Logger.debug("Stash reviews dataframe created with length: " + str(len(self.reviews_df)))
         return self.reviews_df
 
     def _build_stash_dataframe(self):

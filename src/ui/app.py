@@ -382,12 +382,12 @@ class TeaApp:
         for child in dpg.get_item_children(parent, slot=1):
             dpg.delete_item(child)
 
-        Logger.info(f"Rendering table rows for reviews table...")
+        Logger.debug(f"Rendering table rows for reviews table...")
 
         # 2. Get the current DataFrame from manager
         
         df_to_show = self.data_manager.filtered_reviews_df
-        Logger.info(f"DataFrame retrieved: {df_to_show.shape[0]} rows")
+        Logger.debug(f"DataFrame retrieved: {df_to_show.shape[0]} rows")
 
         self.review_lookup = {
             row["Review UUID"]: (row["IDX"], row["Tea Name"], row["Session Number"])
