@@ -6,7 +6,18 @@ from rich.console import Console as rc
 class Logger:
     console = rc()
     history = []
-    debug_level = 0  # 0=ALL, 1=INFO, 2=WARNING, 3=ERROR, 4=CRITICAL
+    debug_level = 0  # -1=ALL, 0=DEBUG, 1=INFO, 2=WARNING, 3=ERROR, 4=CRITICAL
+
+    def __init__(self, debug_level: int = 0):
+        msg_level = {
+            "DEBUG": 0,
+            "INFO": 1,
+            "WARNING": 2,
+            "ERROR": 3,
+            "CRITICAL": 4
+        }
+        Logger.debug_level = int(msg_level.get(debug_level, 0)) if isinstance(debug_level, str) else debug_level
+        Logger.console.print(f"[bold cyan]Logger initialized with debug level {debug_level}[/bold cyan]")
 
     @staticmethod
     def _rich_print(message: str, logType: str = "info"):
@@ -20,7 +31,9 @@ class Logger:
             "critical": 4
         }
 
-        if msg_level.get(logType, 1) >= Logger.debug_level:
+        msg_level_num = msg_level.get(logType, 1)
+
+        if msg_level_num >= Logger.debug_level:
             if logType == "debug":
                 Logger.console.print(f"[bold blue][DEBUG][/bold blue] {message}")
             elif logType == "info":
@@ -61,7 +74,7 @@ class Logger:
     @staticmethod
     def error(message: str):
         Logger._rich_print(message, "error")
-        
+
     # Critical is for very severe error events that will presumably lead the application to abort.
     @staticmethod
     def critical(message: str):

@@ -5,10 +5,11 @@ import os
 # Ensure we can import modules from 'src' if running from outside
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from config import Config
 from ui.app import TeaApp
 from services.logger import Logger # We will build this next
 
-logger = Logger()
+logger = Logger(Config.DEBUG_LEVEL)
 
 def main():
     logger.info("Starting Ratea 2.0...")
