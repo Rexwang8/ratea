@@ -17,6 +17,7 @@ from ui.modals.tea_add_edit_modal import _show_tea_modal
 from ui.modals.tea_review_modal import _show_tea_review_modal
 from ui.modals.tea_view_modal import _show_tea_view_modal
 from ui.modals.config_modal import show_config_modal
+from ui.notifications import NotificationManager, notify
 from connectors.teadb.connect_teadb import upload_ratea_review_to_teadb
 
 class TeaApp:
@@ -61,6 +62,8 @@ class TeaApp:
         self.data_manager.export_to_yaml(dataSavePath)
 
         self.fonts = FontManager()
+        # Give notifications access to the app's font registry.
+        NotificationManager.get().init(fonts=self.fonts)
 
         self.data_manager.refresh_all()
 
@@ -254,6 +257,7 @@ class TeaApp:
         save_path = f"{Config.DATA_DIR}/{Config.DATA_SAVE_FILE}"
         self.data_manager.export_to_yaml(save_path)
         Logger.info(f"Data saved to {save_path}")
+        notify("Data saved successfully.", title="Save Complete", level="success")
 
     def _on_save_backup_click(self):
         """Called when the 'Save Backup' menu item is clicked."""
