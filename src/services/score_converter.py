@@ -3,6 +3,8 @@
 
 # src/services/score_converter.py
 
+from services.logger import Logger
+
 class ScoreConverter:
     LETTER_GRADE_MAP = {
         "S": 5.0,
@@ -78,7 +80,7 @@ class ScoreConverter:
     def letter_to_score(cls, letter: str) -> float:
         """Convert a letter grade to a numeric score (0-5)."""
         converted = cls.LETTER_GRADE_MAP.get(letter.upper())
-        print(f"Converting letter '{letter}' to score: {converted}")
+        Logger.debug(f"Converting letter '{letter}' to score: {converted}")
         return converted if converted is not None else 0.0
 
     @classmethod

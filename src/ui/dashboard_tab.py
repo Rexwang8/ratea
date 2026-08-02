@@ -165,7 +165,7 @@ class DashboardStashTypeVendor:
 
             dpg.add_separator()
             # Logger
-            Logger.info("DashboardStashTypeVendor rendered.")
+            Logger.debug("DashboardStashTypeVendor rendered.")
 
     def _draw_chart(self, dimension, width, height):
         """Helper to draw the two charts."""

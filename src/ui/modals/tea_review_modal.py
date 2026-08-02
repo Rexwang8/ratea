@@ -116,7 +116,7 @@ class TeaReviewModal:
         new_data_fields = user_data[0]  # The data fields for the review
         # Here you would implement the logic to either add a new review or edit the existing review based on the action.
         # You would gather the data from new_data_fields, validate it, and then update your data model accordingly.
-        Logger.info(f"Executing action: {action}")
+        Logger.debug(f"Executing action: {action}")
         if action == "Add Review":
             self._add_new_review(new_data_fields)
         elif action == "Edit Review":
@@ -127,7 +127,7 @@ class TeaReviewModal:
         self.close()
 
     def _add_new_review(self, new_data_fields):
-        Logger.info("Adding new review with data:")
+        Logger.debug("Adding new review with data:")
         # Convert dearpygui to datetime
         rating = ScoreConverter.letter_to_score(dpg.get_value(new_data_fields['rating']))
         new_review = Review(
@@ -171,8 +171,8 @@ class TeaReviewModal:
         #self.data_manager.refresh_all(save_after_refresh=True) Don't refresh, allow manual refresh to avoid unnecessary reloads and potential modal conflicts
 
     def close(self):
-        Logger.info(f"Closing tea review modal for: {self.tea.name}")
-        Logger.info(f"info for self.win: {self.win}")
+        Logger.debug(f"Closing tea review modal for: {self.tea.name}")
+        Logger.debug(f"info for self.win: {self.win}")
         if self.win:
             self.win.delete()
             self.win = None

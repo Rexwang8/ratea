@@ -114,7 +114,7 @@ class TeaModal:
     
     def _execute_action(self, sender=None, app_data=None, user_data=None):
         fields, action = user_data
-        Logger.info(f"Executing action: {action}")
+        Logger.debug(f"Executing action: {action}")
 
         if action == "Add Tea":
             self._add_new_tea(fields)
