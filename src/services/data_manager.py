@@ -110,12 +110,13 @@ class DataManager:
         self.dropdown_tea_types = self.stash.get_most_common_tea_types(top_n=-1)
         self.dropdown_tea_vendors = self.stash.get_most_common_tea_vendors(top_n=-1)
 
-        Logger.info(f"Dropdown tea types refreshed: {len(self.dropdown_tea_types)} types available.")
+        Logger.debug(f"Dropdown tea types refreshed: {len(self.dropdown_tea_types)} types available.")
         if len(self.dropdown_tea_types) > 5:
-            Logger.info(f"Top tea types: {[t[0] for t in self.dropdown_tea_types[:5]]}...")
-        Logger.info(f"Dropdown tea vendors refreshed: {len(self.dropdown_tea_vendors)} vendors available.")
+            Logger.debug(f"Top tea types: {[t[0] for t in self.dropdown_tea_types[:5]]}...")
+        Logger.debug(f"Dropdown tea vendors refreshed: {len(self.dropdown_tea_vendors)} vendors available.")
         if len(self.dropdown_tea_vendors) > 5:
-            Logger.info(f"Top tea vendors: {[v[0] for v in self.dropdown_tea_vendors[:5]]}...")
+            Logger.debug(f"Top tea vendors: {[v[0] for v in self.dropdown_tea_vendors[:5]]}...")
+        Logger.info("Dropdown data refreshed based on current stash.")
 
     def _refresh_stats(self):
         """Manually trigger a recalculation only when needed."""

@@ -164,11 +164,11 @@ class TeaModal:
 
     def close(self):
         if self.tea:
-            Logger.info(("Closing tea view modal for:", self.tea.name))
+            Logger.debug(("Closing tea view modal for:", self.tea.name))
         else:
-            Logger.info("Closing tea view modal for: Unknown Tea")
+            Logger.debug("Closing tea view modal for: Unknown Tea")
 
-        Logger.info(f"info for self.win: {self.win}")
+        Logger.debug(f"info for self.win: {self.win}")
         if self.win:
             self.win.delete()
             self.win = None
