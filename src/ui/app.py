@@ -216,6 +216,7 @@ class TeaApp:
         """Called when the 'Edit' button is pressed."""
         if self.selected_review_idx is None:
             Logger.warning("No review selected! Click a row in the table first.")
+            notify("No review selected! Click a row in the table first.", title="Warning", level="warning")
             return
 
         Logger.info(f"Opening editor for review: {self.selected_review_idx}")
@@ -227,6 +228,7 @@ class TeaApp:
         """Called when the 'Edit' button is pressed."""
         if self.selected_tea_idx is None:
             Logger.warning("No tea selected! Click a row in the table first.")
+            notify("No tea selected! Click a row in the table first.", title="Warning", level="warning")
             return
         
         Logger.info(f"Opening editor for tea: {self.selected_tea_idx}")
@@ -235,7 +237,7 @@ class TeaApp:
 
     def _on_add_click_tea(self):
         """Called when the 'Add Tea' button is pressed."""
-        Logger.info("Opening Add Tea modal")
+        Logger.debug("Opening Add Tea modal")
         # Here you would call your modal window function:
         # We want to get the last entry for tea in order to pre-populate the add form with the last used values (except name)
         last_tea = self.data_manager.stash.get_last_tea_entry()
@@ -243,10 +245,11 @@ class TeaApp:
 
     def _on_duplicate_add_click_tea(self):
         """Called when the 'Duplicate Add Tea' button is pressed."""
-        Logger.info("Opening Duplicate Add Tea modal")
+        Logger.debug("Opening Duplicate Add Tea modal")
         # We want to get the currently selected tea and pre-populate the add form with its values (except name)
         if self.selected_tea_idx is None:
             Logger.warning("No tea selected! Click a row in the table first.")
+            notify("No tea selected! Click a row in the table first.", title="Warning", level="warning")
             return
         
         current_tea = self.data_manager.stash.get_tea_by_id(self.selected_tea_id)
@@ -269,6 +272,7 @@ class TeaApp:
         backup_path = f"{backup_folder_path}/data_backup_{timestamp}.yaml"
         self.data_manager.export_to_yaml(backup_path)
         Logger.info(f"Data backup saved to {backup_path}")
+        notify("Data backup saved successfully.", title="Backup Complete", level="success")
 
 
     def _refresh_data(self):
@@ -296,6 +300,8 @@ class TeaApp:
             row["Review UUID"]: (row["IDX"], row["Tea Name"], row["Session Number"])
             for _, row in self.data_manager._get_stash_reviews_dataframe().iterrows()
         }
+
+        notify("Data refreshed successfully.", title="Refresh Complete", level="success")
 
     def render_table_rows(self, parent=None):
         """Renders the table rows based on the current DataFrame."""
@@ -438,6 +444,7 @@ class TeaApp:
         if user_data == "tea":
             if self.selected_tea_idx is None:
                 Logger.warning("No tea selected! Click a row in the table first.")
+                notify("No tea selected! Click a row in the table first.", title="Warning", level="warning")
                 return
 
             Logger.info(f"Deleting tea: {self.selected_tea_idx} (UUID: {self.selected_tea_id})")
@@ -447,10 +454,12 @@ class TeaApp:
         elif user_data == "review":
             if self.selected_review_idx is None:
                 Logger.warning("No review selected! Click a row in the table first.")
+                notify("No review selected! Click a row in the table first.", title="Warning", level="warning")
                 return
 
             Logger.info(f"Deleting review: {self.selected_review_idx} (UUID: {self.selected_review_id})")
             self.data_manager.delete_review_by_id(self.selected_review_id)
+            notify(f"Deleted review: {self.selected_review_idx} (UUID: {self.selected_review_id})", title="Review Deleted", level="info")
             # Then refresh the table
             self._render_reviews_table_rows()
 
@@ -468,6 +477,7 @@ class TeaApp:
         # Create a modal window to show tea review details
         if tea is None:
             Logger.error("Selected tea not found in stash!")
+            notify("Selected tea not found in stash!", title="Error", level="error")
             return
 
         # Show the review modal
@@ -477,6 +487,7 @@ class TeaApp:
         """View details of the selected tea."""
         if self.selected_tea_idx is None:
             Logger.warning("No tea selected to view!")
+            notify("No tea selected to view!", title="Warning", level="warning")
             return
         # Match uuid to tea
         uuid = self.selected_tea_id
@@ -486,6 +497,7 @@ class TeaApp:
         # Create a modal window to show tea details
         if tea is None:
             Logger.error("Selected tea not found in stash!")
+            notify("Selected tea not found in stash!", title="Error", level="error")
             return
         
         _show_tea_view_modal(tea, self.fonts, self.data_manager)
@@ -573,7 +585,9 @@ class TeaApp:
         self.data_manager._sort_data(column_name, self.sort_ascending)
 
         # Refresh the UI
-        self.render_table_rows()
+        self.render_table_rows()\
+
+        notify(f"Sorted by {column_name} ({'Ascending' if self.sort_ascending else 'Descending'})", title="Sort Applied", level="info")
 
     def _on_sort_click_reviews(self, sender, sort_spec):
         if not sort_spec: return
@@ -586,6 +600,8 @@ class TeaApp:
 
         # Refresh the UI
         self._render_reviews_table_rows()
+
+        notify(f"Sorted by {column_name} ({'Ascending' if direction < 0 else 'Descending'})", title="Sort Applied", level="info")
 
 
     def _on_filter_col_change(self, sender, app_data):
@@ -606,6 +622,8 @@ class TeaApp:
         # Re-apply the filter with the same text but the new column target
         self._on_search_change(None, self.current_query)
 
+        notify(f"Filter column changed to {app_data}.", title="Filter Column Changed", level="info")
+
     def _on_filter_col_change_reviews(self, sender, app_data):
         """Triggered when the Radio Button selection changes."""
         # app_data is the string label of the selected radio button (e.g., "Vendor")
@@ -613,16 +631,20 @@ class TeaApp:
         # Re-apply the filter with the same text but the new column target
         self._on_search_change_reviews(None, self.current_query_reviews)
 
+        notify(f"Filter column changed to {app_data}.", title="Filter Column Changed", level="info")
+
     
 
     def _copy_selected_tea_uuid(self, sender, app_data, user_data):
         """Copy the selected tea's UUID to clipboard."""
         if self.selected_tea_id is None:
             Logger.warning("No tea selected to copy UUID!")
+            notify("No tea selected to copy UUID!", title="Warning", level="warning")
             return
         
         dpg.set_clipboard_text(self.selected_tea_id)
         Logger.info(f"Copied UUID to clipboard: {self.selected_tea_id}")
+        notify(f"Copied UUID to clipboard: {self.selected_tea_id}", title="UUID Copied", level="info")
 
     def _generate_chart_for_selected_review(self, sender, app_data, user_data):
         # Main body of function is in ReportService
@@ -630,8 +652,11 @@ class TeaApp:
         # Get uuid of tea and of review
         if self.selected_review_id is None:
             Logger.warning("No review selected to generate chart!")
+            notify("No review selected to generate chart!", title="Warning", level="warning")
             return
         report = ReportService.generate_review_report(self.data_manager, self.selected_review_id)
+
+        notify(f"Chart generated for review {self.selected_review_id}.", title="Report Generated", level="success")
 
     def _generate_tierlist_for_selected_vendor(self, sender, app_data, user_data):
         # Main body of function is in ReportService
@@ -639,11 +664,13 @@ class TeaApp:
         # Get vendor name from selected tea
         if self.selected_tea_id is None:
             Logger.warning("No tea selected to generate tierlist!")
+            notify("No tea selected to generate tierlist!", title="Warning", level="warning")
             return
         
         tea = self.data_manager.stash.get_tea_by_uuid(self.selected_tea_id)
         if tea is None:
             Logger.error("Selected tea not found in stash for tierlist generation!")
+            notify("Selected tea not found in stash for tierlist generation!", title="Error", level="error")
             return
         
         vendor_name = tea.vendor
@@ -654,6 +681,7 @@ class TeaApp:
         tea, review = self.data_manager.stash.get_review_by_id(self.selected_review_id)
         if tea is None or review is None:
             Logger.error("Selected review or its tea not found in stash for Teadb connector!")
+            notify("Selected review or its tea not found in stash for Teadb connector!", title="Error", level="error")
             return
         upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_run=False, add_custom_tea_if_not_found=True)
 
@@ -662,6 +690,7 @@ class TeaApp:
         """Builds the stats display section of the UI."""
         if self.stats_display_group is None:
             Logger.warning("Stats display group not initialized. Cannot build stats display.")
+            notify("Stats display group not initialized. Cannot build stats display.", title="Warning", level="warning")
             return
         # Clear old stats widgets before rebuilding
         for child in dpg.get_item_children(self.stats_display_group, slot=1):

@@ -6,6 +6,7 @@ from models.tea import Tea
 from services.data_manager import DataManager
 from services.logger import Logger
 from services.score_converter import ScoreConverter
+from ui.notifications import NotificationManager, notify
 
 # Modal for viewing tea details
 def _show_tea_view_modal(tea, fonts=None, data_manager=None):
@@ -120,8 +121,8 @@ class Modal:
             self._bind_font(dpg.last_item(), size=3, bold=False)
 
     def close(self):
-        print(("Closing tea view modal for:", self.tea.name))
-        print(f"info for self.win: {self.win}")
+        Logger.debug(("Closing tea view modal for:", self.tea.name))
+        Logger.debug(f"info for self.win: {self.win}")
         if self.win:
             self.win.delete()
             self.win = None
@@ -138,6 +139,7 @@ class Modal:
             new_user_data["Gift_cost"] = 0.0
         else:
             Logger.error(f"Unknown adjustment type: {user_data}")
+            notify("Error", f"Unknown adjustment type: {user_data}", level="error", duration=3.0)
             return
         self._update_adjustments(None, None, new_user_data)
 

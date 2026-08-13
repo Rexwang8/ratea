@@ -9,6 +9,7 @@ from services.score_converter import ScoreConverter
 from services.stats_service import ReportService
 import datetime as dt
 from ui.widgets.dropdown_autocomplete import add_autocomplete_input
+from ui.notifications import NotificationManager, notify
 
 # Modal for viewing tea details
 def _show_tea_review_modal(tea, review, data_manager, fonts=None):
@@ -93,8 +94,6 @@ class TeaReviewModal:
                     width=250 * Config.UI_SCALE
                 )
                 
-                #new_data_fields['method'] = dp.Combo(label="Brew Method", items=method_options, default_value=review.method if is_editing else method_options[0])
-
                 default_steeps = review.steep_count if is_editing else Config.DEFAULT_STEEPS if hasattr(Config, "DEFAULT_STEEPS") else 5
                 new_data_fields['steeps'] = dp.InputInt(label="Steep Count", width=150 * Config.UI_SCALE, default_value=default_steeps)
                 new_data_fields['notes'] = dp.InputText(label="Notes", multiline=True, width=-1, height=150 * Config.UI_SCALE, default_value=review.notes if is_editing else "")
@@ -123,6 +122,7 @@ class TeaReviewModal:
             self._edit_review(new_data_fields)
         else:
             Logger.error(f"Unknown action: {action}")
+            notify("Error", f"Unknown action: {action}", level="error", duration=3.0)
         # After processing, close the modal
         self.close()
 
@@ -145,18 +145,22 @@ class TeaReviewModal:
 
         self.tea.add_review(new_review)
         self.data_manager.export_to_yaml(self.data_manager.data_save_path)  # Save changes immediately
-        self.data_manager.export_to_yaml(self.data_manager.data_save_path)  # Save changes immediately
-        #self.data_manager.refresh_all(save_after_refresh=True) Don't refresh, allow manual refresh to avoid unnecessary reloads and potential modal conflicts
 
         if Config.GENERATE_REPORT_ON_REVIEW:
             review_id = new_review.id
             ReportService.generate_review_report(self.data_manager, review_id)
+
+            notify("Review Added With Report", f"Review for tea '{self.tea.name}' has been added and report generated.", level="success", duration=3.0)
+            Logger.debug(f"Notification sent for new review with report: '{self.tea.name}', review ID: {review_id}.")
+
             Logger.info(f"Report generated for review ID: {review_id} based on config GENERATE_REPORT_ON_REVIEW={Config.GENERATE_REPORT_ON_REVIEW}")
+        else:
+            notify("Review Added", f"Review for tea '{self.tea.name}' has been added successfully.", level="success", duration=3.0)
+            Logger.debug(f"Notification sent for new review: '{self.tea.name}'.")
 
     def _edit_review(self, new_data_fields):
         Logger.info(f"Editing review {self.review.id}")
         datetimeobj = dearpygui_dt_to_datetime(dpg.get_value(new_data_fields['date']))
-        print(f"Converted date: {datetimeobj} from dearpygui value: {dpg.get_value(new_data_fields['date'])}")
 
         self.review.rating = ScoreConverter.letter_to_score(dpg.get_value(new_data_fields['rating']))
         self.review.notes = dpg.get_value(new_data_fields['notes'])
@@ -166,9 +170,11 @@ class TeaReviewModal:
         self.review.method = dpg.get_value(new_data_fields['method'])
         self.review.steep_count = dpg.get_value(new_data_fields['steeps'])
 
+        notify("Review Updated", f"Review for tea '{self.tea.name}' has been updated successfully.", level="success", duration=3.0)
+        Logger.debug(f"Notification sent for review update: '{self.tea.name}'.")
+
         Logger.info(f"Review updated: {self.review}")
         self.data_manager.export_to_yaml(self.data_manager.data_save_path)  # Save changes immediately
-        #self.data_manager.refresh_all(save_after_refresh=True) Don't refresh, allow manual refresh to avoid unnecessary reloads and potential modal conflicts
 
     def close(self):
         Logger.debug(f"Closing tea review modal for: {self.tea.name}")

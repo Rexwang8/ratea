@@ -16,6 +16,7 @@ import dearpypixl as dp
 
 from config import Config
 from services.logger import Logger
+from ui.notifications import NotificationManager, notify
 
 
 # ---------------------------------------------------------------------------

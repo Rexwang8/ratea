@@ -8,6 +8,7 @@ from services.logger import Logger
 from services.score_converter import ScoreConverter
 import datetime as dt
 from ui.widgets.dropdown_autocomplete import add_autocomplete_input
+from ui.notifications import NotificationManager, notify
 
 
 # Modal for viewing tea details
@@ -23,6 +24,7 @@ class TeaModal:
         self.fonts = fonts
         self.win = None
         self.pre_populate = pre_populate
+        
 
     def _bind_font(self, item, size=2, bold=False):
         if self.fonts:
@@ -122,6 +124,7 @@ class TeaModal:
             self._edit_tea(fields)
         else:
             Logger.error(f"Unknown action: {action}")
+            notify("Error", f"Unknown action: {action}", level="error", duration=3.0)
 
         self.close()
 
@@ -139,6 +142,9 @@ class TeaModal:
             purchase_date=dearpygui_dt_to_datetime(dpg.get_value(f['purchase_date'])),
             purchase_note=dpg.get_value(f['note'])
         )
+
+        notify("Tea Added", f"Tea '{tea.name}' has been added successfully.", level="success", duration=3.0)
+        Logger.debug(f"Notification sent for new tea: '{tea.name}'.")
 
         Logger.info(f"New tea created: {tea.name}")
         self.data_manager.stash.add_tea(tea)
@@ -158,6 +164,9 @@ class TeaModal:
         self.tea.catalog_price = round(dpg.get_value(f['catalog_price']), 2)
         self.tea.purchase_date = dearpygui_dt_to_datetime(dpg.get_value(f['purchase_date']))
         self.tea.purchase_note = dpg.get_value(f['note'])
+
+        notify("Tea Updated", f"Tea '{self.tea.name}' has been updated successfully.", level="success", duration=3.0)
+        Logger.debug(f"Notification sent for tea update: '{self.tea.name}'.")
 
         Logger.info(f"Tea updated: {self.tea.name}")
         self.data_manager.export_to_yaml(self.data_manager.data_save_path)
