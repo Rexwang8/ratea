@@ -93,6 +93,12 @@ def build_references_tab(fonts: FontManager, data_manager):
                         "[Teadb] In Debt for Dayi Megareport",
                         "references\\teadb\\articles\\in_debt_for_dayi_megareport.md",
                     )
+
+                    _make_ref_button(
+                        fonts, data_manager,
+                        "[Teadb] Yiwu-ish Enjoyers Mega Report. 103 Teas Reviewed!",
+                        "references\\teadb\\articles\\yiwu_ish_enjoyers_mega_report_103_teas_reviewed.md",
+                    )
                 with dpg.tab(label="Hongcha"):
                     _make_ref_button(
                         fonts, data_manager,
@@ -133,6 +139,12 @@ def build_references_tab(fonts: FontManager, data_manager):
                         fonts, data_manager,
                         "[Teadb] In Debt for Dayi Megareport",
                         "references\\teadb\\articles\\in_debt_for_dayi_megareport.md",
+                    )
+
+                    _make_ref_button(
+                        fonts, data_manager,
+                        "[Teadb] Yiwu-ish Enjoyers Mega Report. 103 Teas Reviewed!",
+                        "references\\teadb\\articles\\yiwu_ish_enjoyers_mega_report_103_teas_reviewed.md",
                     )
                 with dpg.tab(label="Marshaln"):
                     dpg.add_text(
