@@ -37,6 +37,12 @@ def build_references_tab(fonts: FontManager, data_manager):
                         "[Teadb] Advice I'd Give to Someone Just Starting With Pu'erh",
                         "references\\teadb\\articles\\advice_for_beginners.md",
                     )
+
+                    _make_ref_button(
+                        fonts, data_manager,
+                        "[Teadb] What is Pu'erh?",
+                        "references\\teadb\\articles\\what_is_puerh.md",
+                    )
                 with dpg.tab(label="Buying"):
                     dpg.add_text("Beginner Buying Guides")
                     _bind_font(fonts, dpg.last_item(), size=2, bold=True)
@@ -170,6 +176,12 @@ def build_references_tab(fonts: FontManager, data_manager):
                         fonts, data_manager,
                         "[Teadb] Advice I'd Give to Someone Just Starting With Pu'erh",
                         "references\\teadb\\articles\\advice_for_beginners.md",
+                    )
+
+                    _make_ref_button(
+                        fonts, data_manager,
+                        "[Teadb] What is Pu'erh?",
+                        "references\\teadb\\articles\\what_is_puerh.md",
                     )
                 with dpg.tab(label="Marshaln"):
                     dpg.add_text(
