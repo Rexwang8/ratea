@@ -34,23 +34,45 @@ class Modal:
             dpg.add_text("Tea Details")
             self._bind_font(dpg.last_item(), size=3, bold=True)
             dpg.add_separator()
-            dpg.add_text(f"Name: {self.tea.name}")
+            dpg.add_text(f"Name: {self.tea.year} {self.tea.name}")
             self._bind_font(dpg.last_item(), size=3, bold=False)
-
-            dpg.add_text(f"Vendor: {self.tea.vendor}")
-            self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Type: {self.tea.tea_type}")
             self._bind_font(dpg.last_item(), size=2, bold=False)
-            dpg.add_text(f"Cost (USD): ${self.tea.cost:.2f}")
+            dpg.add_text(f"Vendor: {self.tea.vendor}")
             self._bind_font(dpg.last_item(), size=2, bold=False)
-            dpg.add_text(f"Quantity (g): {self.tea.quantity:.1f}g")
+            dpg.add_text(f"Cost (USD): ${self.tea.cost:.2f} for {self.tea.quantity:.1f}g (Catalog: {self.tea.catalog_price_per_gram:.2f}/g)")
             self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_text(f"Purchase Date: {self.tea.purchase_date.strftime('%Y-%m-%d') if self.tea.purchase_date else 'N/A'}")
             self._bind_font(dpg.last_item(), size=2, bold=False)
-            dpg.add_text(f"Year: {self.tea.year}")
-            self._bind_font(dpg.last_item(), size=2, bold=False)
+            dpg.add_separator()
             dpg.add_text(f"Purchase Note: {self.tea.purchase_note}")
             dpg.add_separator()
+
+            # Reviews (summary)
+            r = 1
+            max_width_child = width - 65 * Config.UI_SCALE
+            with dpg.child_window(width=-1, height=300 * Config.UI_SCALE, border=True, max_width=max_width_child):
+                dpg.add_text("Reviews:")
+                self._bind_font(dpg.last_item(), size=2, bold=True)
+                if not self.tea.reviews:
+                    dpg.add_text(" No reviews available.")
+                else:
+                    for review in self.tea.reviews:
+                        # Abridged review with session number, date, rating and amount
+                        dpg.add_text(f" - Review {r}: {review.date.strftime('%Y-%m-%d')}, Rating: {review.rating}, Amount Drunk: {review.amount_drunk:.1f}g")
+                        self._bind_font(dpg.last_item(), size=2, bold=False)
+                        dpg.add_separator()
+                        r += 1
+            dpg.add_text(f"Total Reviews: {r - 1}")
+            self._bind_font(dpg.last_item(), size=2, bold=False)
+            if self.tea.average_rating is not None:
+                dpg.add_text(f"Average Rating: {self.tea.average_rating:.2f} ({ScoreConverter.score_to_letter(self.tea.average_rating)} | {ScoreConverter.get_grade_meaning_numeric(self.tea.average_rating)})")
+            else:
+                dpg.add_text(f"Average Rating: N/A")
+            self._bind_font(dpg.last_item(), size=2, bold=False)
+            dpg.add_separator()
+
+            
             # Adjustments
             dpg.add_text(f"Total Adjustments (g): {self.tea.sum_adjustments_grams:.1f}g")
             self._bind_font(dpg.last_item(), size=2, bold=False)
@@ -89,30 +111,7 @@ class Modal:
                 dpg.add_button(label="Update Adjustments", callback=self._update_adjustments, user_data=data_adjustments, width=200 * Config.UI_SCALE, height=40 * Config.UI_SCALE)
                 self._bind_font(dpg.last_item(), size=2, bold=False)
             dpg.add_separator()
-            # Reviews (summary)
-            r = 1
-            max_width_child = width - 65 * Config.UI_SCALE
-            with dpg.child_window(width=-1, height=300 * Config.UI_SCALE, border=True, max_width=max_width_child):
-                dpg.add_text("Reviews:")
-                self._bind_font(dpg.last_item(), size=2, bold=True)
-                if not self.tea.reviews:
-                    dpg.add_text(" No reviews available.")
-                else:
-                    for review in self.tea.reviews:
-                        dpg.add_text(f" - Review {r}: {review.date.strftime('%Y-%m-%d')}, Rating: {review.rating}, Amount Drunk: {review.amount_drunk:.1f}g")
-                        self._bind_font(dpg.last_item(), size=2, bold=False)
-                        dpg.add_text(f"   Notes: {review.notes}")
-                        dpg.add_separator()
-                        r += 1
-
-            dpg.add_text(f"Total Reviews: {r - 1}")
-            self._bind_font(dpg.last_item(), size=2, bold=False)
-            if self.tea.average_rating is not None:
-                dpg.add_text(f"Average Rating: {self.tea.average_rating:.2f} ({ScoreConverter.score_to_letter(self.tea.average_rating)} | {ScoreConverter.get_grade_meaning_numeric(self.tea.average_rating)})")
-            else:
-                dpg.add_text(f"Average Rating: N/A")
-            self._bind_font(dpg.last_item(), size=2, bold=False)
-            dpg.add_separator()
+            
             # Total remaining
             dpg.add_text(f"Remaining Amount (g): {self.tea.remaining:.2f}g")
             self._bind_font(dpg.last_item(), size=2, bold=False)
