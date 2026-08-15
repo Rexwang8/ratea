@@ -750,10 +750,11 @@ class TeaApp:
                     with dpg.collapsing_header(label="Actions", default_open=False):
                         # Actions that perform an operation across the entire stash.
                         # Zero negative tea amounts and cost
+                        dpg.add_text("Fix or debug stash data issues:")
                         dpg.add_button(label="Zero Negative Amounts", callback=self.data_manager._zero_negative_amounts)
                         dpg.add_button(label="Zero Negative Costs", callback=self.data_manager._zero_negative_costs)
-                        dpg.add_button(label="Reorder IDX", callback=self.data_manager._operation_reorder_teas_by_purchase_date)
-                        dpg.add_button(label="Check duplicate IDX", callback=self.data_manager._operation_validate_and_fix_duplicate_ids)
+                        dpg.add_button(label="Reorder IDX by purchase date", callback=self.data_manager._operation_reorder_teas_by_purchase_date)
+                        dpg.add_button(label="Check validate/fix IDX", callback=self.data_manager._operation_validate_and_fix_duplicate_ids)
                         
                         # Round to nearest 2 decimal places for amounts and costs
                         dpg.add_button(label="Round Amounts/Costs", callback=self.data_manager._round_amounts_and_costs)
@@ -776,7 +777,6 @@ class TeaApp:
                         height=50 * Config.UI_SCALE
                     )
                         
-                    
 
                     # Stash operations (edit)
                     with dpg.group(horizontal=True):
@@ -788,13 +788,13 @@ class TeaApp:
                         bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Delete Selected", callback=self._on_delete_click, user_data="tea")
                         bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
-                        dpg.add_button(label="Clear Selected", callback=self._on_clear_selection)
-                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="View Selected", callback=self._view_selected_tea)
                         bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
-                        dpg.add_button(label="Copy UUID", callback=self._copy_selected_tea_uuid)
-                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Review Selected", callback=self._review_selected_tea)
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
+                        dpg.add_button(label="Clear Selected", callback=self._on_clear_selection)
+                        bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
+                        dpg.add_button(label="Copy UUID", callback=self._copy_selected_tea_uuid)
                         bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
                         dpg.add_button(label="Refresh Data", callback=self._refresh_data)
                         bind_item_font(self.fonts, dpg.last_item(), size=2, bold=True)
@@ -836,8 +836,6 @@ class TeaApp:
                             self.render_table_rows(parent=tea_table)
 
                 with dpg.tab(label="Reviews"):
-                    dpg.add_text("Review list goes here")
-
                     # Foldable section for filter flags
                     with dpg.collapsing_header(label="Filters", default_open=False):
                         dpg.add_checkbox(label="Hide finished teas", callback=self._on_hide_finished_reviews_change)

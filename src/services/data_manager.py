@@ -65,7 +65,7 @@ class DataManager:
         """Deletes a review from the stash by its UUID."""
         tea, review_to_delete = self.stash.get_review_by_id(review_id)
         if review_to_delete and tea:
-            #tea.reviews.remove(review_to_delete)
+            tea.reviews.remove(review_to_delete)
             self.refresh_all(save_after_refresh=True)  # Refresh data and save after deletion
             Logger.info(f"Deleted review with ID: {review_id} from tea: {tea.name}")
         else:
@@ -80,6 +80,13 @@ class DataManager:
         """Checks for duplicate tea IDs and fixes them if found."""
         seen_ids = set()
         duplicates_found = False
+
+        # Check that review teaids link to valid teas, and that review ids are unique
+        for tea in self.teas:
+            for review in tea.reviews:
+                if review.tea_id != tea.id:
+                    Logger.warning(f"Review ID {review.id} has mismatched tea_id {review.tea_id}. Correcting to {tea.id}.")
+                    review.tea_id = tea.id  # Correct the tea_id to match the parent tea
 
         for tea in self.teas:
             if tea.id in seen_ids:
