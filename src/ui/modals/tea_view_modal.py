@@ -190,5 +190,8 @@ class Modal:
         self.close()
         self.show()
 
+        # Notify
+        notify("Adjustments updated successfully.")
+
         # Save
         self.data_manager.export_to_yaml(self.data_manager.data_save_path)
