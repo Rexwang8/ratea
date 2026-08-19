@@ -1,6 +1,7 @@
 import uuid
 import dearpygui.dearpygui as dpg
 import dearpypixl as dp
+from ui.fonts import FontManager
 from config import Config
 from models.review import Review
 from services.date_helper import datetime_to_dearpygui_dt, dearpygui_dt_to_datetime
@@ -9,6 +10,7 @@ from services.score_converter import ScoreConverter
 from services.stats_service import ReportService
 import datetime as dt
 from ui.widgets.dropdown_autocomplete import add_autocomplete_input
+from ui.widgets.gradeTiledDropdown import GradeTiledDropdown
 from ui.notifications import NotificationManager, notify
 
 # Modal for viewing tea details
@@ -23,12 +25,13 @@ class TeaReviewModal:
         self.tea = tea
         self.review = review
         self.data_manager = data_manager
-        self.fonts = fonts
+        self.fonts: FontManager = fonts
         self.win = None
 
     def _bind_font(self, item, size=2, bold=False):
         if self.fonts:
-            dpg.bind_item_font(item, self.fonts.get_font_name(size=size, bold=bold))
+            #dpg.bind_item_font(item, self.fonts.get_font_name(size=size, bold=bold))
+            self.fonts.dpg_preload_then_bind(item, size=size, bold=bold)
 
 
     def show(self):
@@ -69,10 +72,23 @@ class TeaReviewModal:
                     for letter, score in valid_ratings.items():
                         if score == review.rating:
                             rating_default = letter
-                            break
 
-
-                new_data_fields['rating'] = dp.Combo(label="Rating", items=items_sequence, default_value=rating_default)
+                # Tiled grade dropdown: respects font sizing and padding,
+                # unlike the standard combo widget.
+                tiled_rating = GradeTiledDropdown(
+                    label="Rating",
+                    default_value=rating_default,
+                    width=int(150 * Config.UI_SCALE),
+                    tile_width=int(48 * Config.UI_SCALE),
+                    tile_height=int(32 * Config.UI_SCALE),
+                    tile_spacing=4,
+                    row_spacing=4,
+                    fonts=self.fonts,
+                    font_size=2,
+                    font_bold=True,
+                )
+                new_data_fields['rating'] = tiled_rating.value_tag
+                
 
                 date_default = datetime_to_dearpygui_dt(review.date) if is_editing else datetime_to_dearpygui_dt(dt.datetime.now())
                 dateField = dp.DatePicker(label="Review Date", default_value=date_default)
