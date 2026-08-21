@@ -5,6 +5,7 @@ from config import Config
 from models.review import Review
 from models.tea import Tea
 from .lookup import find_tea
+import re
 
 BASE_URL = Config.TEADB_API_BASE_URL
 HEADERS = {
@@ -23,6 +24,7 @@ def post(endpoint, payload):
     response = requests.post(url, headers=HEADERS, json=payload)
 
     if response.status_code not in (200, 201):
+        print(f"POST {endpoint} failed with status code {response.status_code}")
         print("URL:", url)
         print("Payload:", json.dumps(payload, indent=2))
         print(f"POST {endpoint} failed:", response.status_code)
@@ -31,7 +33,7 @@ def post(endpoint, payload):
     else:
         print(f"POST {endpoint} succeeded:", response.status_code)
 
-    return response.json()
+    return response.json(), response.status_code
 
 
 def add_custom_tea(
@@ -191,11 +193,11 @@ def create_session(review, dry_run=False):
         print(json.dumps(payload, indent=2))
         return {"status": "dry_run"}
 
-    result = post("/sessions", payload)
+    result, status_code = post("/sessions", payload)
     if result:
         print("Session created successfully:", result)
 
-    return result
+    return result, status_code
 
 
 # =========================
@@ -209,9 +211,11 @@ def import_review(review, create_purchase_first=False, dry_run=False):
         if purchase:
             print("Purchase created")
 
-    session = create_session(review, dry_run=dry_run)
+    session, status_code = create_session(review, dry_run=dry_run)
     if session:
         print("Session created")
+    else:
+        print(f"Failed to create session, status code: {status_code}")
 
 
 # =========================
@@ -232,13 +236,18 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
     if "api" not in [t.lower() for t in tags]:
         tags.append("api")
 
+    # Tea name must follow teadb rule "Tags can only contain letters, numbers, spaces, and hyphens"
+    tea_name = re.sub(r"[^a-zA-Z0-9\s\-]", "", tea.name) if tea.name else ""
+    tea_producer = re.sub(r"[^a-zA-Z0-9\s\-]", "", tea.vendor) if tea.vendor else "Unknown"
+    tea_vendor = re.sub(r"[^a-zA-Z0-9\s\-]", "", tea.vendor) if tea.vendor else "Unknown"
+
     # Append type in titlecase to tags if not already present
     type_tag = tea.tea_type.title() if tea.tea_type else "Unknown"
     if type_tag not in [t.title() for t in tags]:
         tags.append(type_tag)
 
     # Append producer in titlecase to tags if not already present
-    producer_tag = tea.vendor.title() if tea.vendor else "Unknown"
+    producer_tag = tea_vendor.title()
     if producer_tag not in [t.title() for t in tags]:
         tags.append(producer_tag)
 
@@ -255,14 +264,27 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
         tea_id = 1770  # For w2t 2021 hot brandy
         vintage_id = 31612
 
+        # Tea types are limited to ripe puerh, raw puerh, green tea, black tea
+        # Yellow Tea, White Tea, Oolong Tea, Heicha. If not one of these, must be standardized to be so
+        # Dancong, Yancha Taiwanese Oolong is a Oolong
+        tea_type = tea.tea_type.lower() if tea.tea_type else ""
+        if tea_type and tea_type.lower() not in ["ripe puerh", "raw puerh", "green", "black", "hong", "yellow", "white", "oolong", "heicha"]:
+            if tea_type.lower() in ["dancong", "yancha", "taiwanese oolong"]:
+                tea_type = "oolong"
+            # ryokucha is a green
+            elif tea_type.lower() == "ryokucha":
+                tea_type = "green"
+
+        
+
         if add_custom_tea_if_not_found:
             print("Adding custom tea...")
             data, tea_id, vintage_id = add_custom_tea(
-                name=tea.name,
-                tea_type=tea.tea_type,
+                name=tea_name,
+                tea_type=tea_type,
                 tea_year=tea.year,
-                tea_producer=tea.vendor,
-                vendor_name=tea.vendor,
+                tea_producer=tea_producer,
+                vendor_name=tea_vendor,
                 origin="",
                 dry_run=dry_run
             )
@@ -271,18 +293,28 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
 
     # notes add to end
     notes = review.get("notes", "")
+    # Notes must pass validatiuon too
+    notes = re.sub(r"[^a-zA-Z0-9\s\-]", "", notes) if notes else ""
     notes += f"\n (Imported via API) teaid: {tea_id}, vintage_id: {vintage_id} Cost per gram (catalog cost w/o sales): {tea.catalog_price_per_gram:.2f}"
 
     # Teadb has timezone support, ratea does not. We assume user is in US and thus add 8 hours to convert to UTC for session_date. This is a simplification and may need to be improved by allowing user to specify timezone in Tea model and converting accordingly.
     session_date = review.date + timedelta(hours=8) if isinstance(review.date, datetime) else review.date
+
+    # Teadb expects methods as "gongfu", "grandpa", "Chado", "Western", "Cold Brew", or "Other"
+    # It should be title-cased to match TeaDB's expected methods
+    method = review.method if review.method else "Other"
+    if review.method:
+        method = review.method.title()
+    if method not in ["Gongfu", "Grandpa", "Chado", "Western", "Cold Brew", "Other"]:
+        method = "Other"
 
     # rating needs to be numeric 0-10, instead of 0-5
     payload = [
         {
             "tea_id": tea_id,
             "vintage_id": vintage_id,
-            "tea_name": tea.name,
-            "tea_producer": tea.vendor,
+            "tea_name": tea_name,
+            "tea_producer": tea_producer,
             "tea_year": tea.year,
             "rating": review.rating * 2,  # Convert 0-5 scale to 0-10
             "notes": notes,
@@ -290,7 +322,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
             "vessel_ml": review.vessel_size,
             "temp_f": 212,  # Default to boiling if not specified
             "steep_seconds": 15,  # Default to 15 seconds if not specified
-            "method": review.method,
+            "method": method,
             "tags": tags,
             "flavors": [],
             "session_date": session_date.strftime("%Y-%m-%d %H:%M:%S") if isinstance(session_date, datetime) else session_date,
@@ -301,7 +333,6 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
 
 def upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_run=True, add_custom_tea_if_not_found=False):
     print(f"\nUploading review for tea_name={tea.name} to TeaDB...")
-
     payload = ratea_review_to_teadb_payload(tea, review, add_custom_tea_if_not_found=add_custom_tea_if_not_found, dry_run=dry_run)
 
     if create_purchase_first:
@@ -309,7 +340,13 @@ def upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_r
         if purchase:
             print("Purchase created")
 
-    response = create_session(payload[0], dry_run=dry_run)
+    response, status_code = create_session(payload[0], dry_run=dry_run)
+    # Check if 401
+    if response and status_code == 401:
+        print("Unauthorized: Check your API key.")
+    # Check if 403 invalid or expired
+    if response and status_code == 403:
+        print("Forbidden: Check if your API key is valid or expired.")
     if response:
         userid = response.get("session", {}).get("user_id", "unknown")
         tea_id = response.get("session", {}).get("tea_id", "unknown")
@@ -318,6 +355,8 @@ def upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_r
         print(f"Session created for user: {userid}, tea_id: {tea_id}, vintage_id: {vintage_id}, tea_name: {tea_name}")
     else:
         print("Failed to create session.")
+
+    return status_code
 
 def dummy_funct(tea, review):
     payload = ratea_review_to_teadb_payload(tea, review, add_custom_tea_if_not_found=False)

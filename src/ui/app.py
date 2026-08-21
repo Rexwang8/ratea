@@ -683,7 +683,20 @@ class TeaApp:
             Logger.error("Selected review or its tea not found in stash for Teadb connector!")
             notify("Selected review or its tea not found in stash for Teadb connector!", title="Error", level="error")
             return
-        upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_run=False, add_custom_tea_if_not_found=True)
+        notify("Uploading review to Teadb...", title="Info", level="info")
+        Logger.info("Uploading review to Teadb...")
+        status = upload_ratea_review_to_teadb(tea, review, create_purchase_first=False, dry_run=False, add_custom_tea_if_not_found=True)
+        Logger.info(f"Teadb upload status: {status}")
+        if status == 200 or status == 201:
+            notify("Review successfully uploaded to Teadb!", title="Success", level="success")
+        elif status == 401:
+            notify("Unauthorized: Check your API key.", title="Error", level="error")
+        elif status == 403:
+            notify("Forbidden: Check if your API key is valid or expired.", title="Error", level="error")
+        elif status is None:
+            notify("Failed to upload review to Teadb.", title="Error", level="error")
+        else:
+            notify("Review successfully uploaded to Teadb!", title="Success", level="success")
 
     # Build the stats display section of the UI. We put it in a separate function so we can call it to refresh the stats display after any data changes.
     def _build_stats_display(self):
