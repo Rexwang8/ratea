@@ -85,7 +85,7 @@ class DataQueryService:
     @staticmethod
     def filter_reviews_data(reviews_df: pd.DataFrame, query: str = None, query_type: str = "Tea Name") -> pd.DataFrame:
         """Filter the reviews DataFrame by a string query (case-insensitive)."""
-        Logger.info(f"Filtering reviews data with query: '{query}' on type: '{query_type}'")
+        Logger.debug(f"Filtering reviews data with query: '{query}' on type: '{query_type}'")
         if not query:
             return reviews_df.copy()
 

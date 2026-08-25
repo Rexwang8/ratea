@@ -46,9 +46,8 @@ class DataManager:
             Logger.info(f"YAML file found at {self.data_save_path}.")
 
     def set_filter_flag(self, key, value):
-        Logger.info(f"Filter flag changed: {key} set to {value}")
+        Logger.debug(f"Filter flag changed: {key} set to {value} {self.filter_flags}")
         self.filter_flags[key] = value
-        print(f"Updated filter flags: {self.filter_flags}")
         #self.apply_filters()
 
     def delete_tea_by_id(self, tea_id):
@@ -123,13 +122,13 @@ class DataManager:
         Logger.debug(f"Dropdown tea vendors refreshed: {len(self.dropdown_tea_vendors)} vendors available.")
         if len(self.dropdown_tea_vendors) > 5:
             Logger.debug(f"Top tea vendors: {[v[0] for v in self.dropdown_tea_vendors[:5]]}...")
-        Logger.info("Dropdown data refreshed based on current stash.")
+        Logger.debug("Dropdown data refreshed based on current stash.")
 
     def _refresh_stats(self):
         """Manually trigger a recalculation only when needed."""
         self.water_stats_cache = StatsService.get_water_stats(self.teas)
         self.type_vendor_stats_cache, self.type_vendor_stats_cache_summary = StatsService.get_df_summary_by_type_vendor(self.teas)
-        Logger.info("Refreshed statistics caches.")
+        Logger.debug("Refreshed statistics caches.")
 
     def _refresh_stash_dfs(self, refresh_teas=True, refresh_reviews=True):
         """Manually trigger a refresh of the stash DataFrames."""
@@ -140,7 +139,7 @@ class DataManager:
         # Reset filtered views to match the new data
         self.filtered_df = self.df.copy()
         self.filtered_reviews_df = self.reviews_df.copy()
-        Logger.info("Refreshed stash DataFrames.")
+        Logger.debug("Refreshed stash DataFrames.")
 
     def refresh_all(self, save_after_refresh=False):
         """Convenience method to refresh both stats and stash DataFrames."""
