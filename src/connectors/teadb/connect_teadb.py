@@ -307,6 +307,10 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
         method = review.method.title()
     if method not in ["Gongfu", "Grandpa", "Chado", "Western", "Cold Brew", "Other"]:
         method = "Other"
+    if method == "Western":
+        method = "Western Style"
+    if method == "Grandpa":
+        method = "Grandpa Style"
 
     # rating needs to be numeric 0-10, instead of 0-5
     payload = [
