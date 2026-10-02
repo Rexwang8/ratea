@@ -269,7 +269,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
         # Dancong, Yancha Taiwanese Oolong is a Oolong
         tea_type = tea.tea_type.lower() if tea.tea_type else ""
         if tea_type and tea_type.lower() not in ["ripe puerh", "raw puerh", "green", "black", "hong", "yellow", "white", "oolong", "heicha"]:
-            if tea_type.lower() in ["dancong", "yancha", "taiwanese oolong"]:
+            if tea_type.lower() in ["dancong", "yancha", "taiwanese oolong", "deathroast"]:
                 tea_type = "oolong"
             # ryokucha is a green
             elif tea_type.lower() == "ryokucha":
@@ -295,6 +295,7 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
     notes = review.get("notes", "")
     # Notes must pass validatiuon too
     notes = re.sub(r"[^a-zA-Z0-9\s\-]", "", notes) if notes else ""
+    notes += "personal notes, no guarantee of price accuracy.\nPlease verify with original source if needed.\n"
     notes += f"\n (Imported via API) teaid: {tea_id}, vintage_id: {vintage_id} Cost per gram (catalog cost w/o sales): {tea.catalog_price_per_gram:.2f}"
 
     # Teadb has timezone support, ratea does not. We assume user is in US and thus add 8 hours to convert to UTC for session_date. This is a simplification and may need to be improved by allowing user to specify timezone in Tea model and converting accordingly.
