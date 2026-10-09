@@ -238,6 +238,10 @@ def ratea_review_to_teadb_payload(tea: Tea, review: Review, add_custom_tea_if_no
 
     # Tea name must follow teadb rule "Tags can only contain letters, numbers, spaces, and hyphens"
     tea_name = re.sub(r"[^a-zA-Z0-9\s\-]", "", tea.name) if tea.name else ""
+    # Tea name should strip out year information if present
+    if tea.year:
+        tea_name = re.sub(r"\b{}\b".format(tea.year), "", tea_name).strip()
+
     tea_producer = re.sub(r"[^a-zA-Z0-9\s\-]", "", tea.vendor) if tea.vendor else "Unknown"
     tea_vendor = re.sub(r"[^a-zA-Z0-9\s\-]", "", tea.vendor) if tea.vendor else "Unknown"
 
