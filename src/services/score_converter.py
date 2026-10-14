@@ -39,6 +39,14 @@ class ScoreConverter:
         ["D-", 0.66],
         ["F",  0.0]
     ]
+    LETTER_GRADE_MAP_SHORT = {
+        "S": 5.0,
+        "A": 4.0,
+        "B": 3.0,
+        "C": 2.0,
+        "D": 1.0,
+        "F": 0.0
+    }
 
     grade_meanings_alternate = {
         "S":  "S (X) Outstanding.  -> Must try. Strongly consider dedicated order, rebuy.",
